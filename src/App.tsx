@@ -411,13 +411,27 @@ export default function App() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="w-full inline-flex items-center justify-center gap-1.5 border border-slate-800 hover:border-rose-500/30 hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 text-xs font-bold py-2 px-3 rounded-lg transition-all cursor-pointer"
-          >
-            <LogOut className="h-3.5 w-3.5" /> Log Out
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 border border-slate-800 hover:border-rose-500/30 hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 text-xs font-bold py-2 px-3 rounded-lg transition-all cursor-pointer"
+            >
+              <LogOut className="h-3.5 w-3.5" /> Log Out
+            </button>
+            {dbStatus && (
+              <div 
+                className={`flex items-center justify-center h-8 w-8 rounded-lg border shrink-0 ${
+                  dbStatus.connected ? 'border-emerald-900 bg-emerald-950/25' : 'border-amber-900 bg-amber-950/25'
+                }`}
+                title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed}` : "Sandbox Local Mode"}
+              >
+                <span className={`h-2.5 w-2.5 rounded-full ${
+                  dbStatus.connected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-amber-500'
+                }`} />
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 
@@ -471,40 +485,32 @@ export default function App() {
               )}
 
               {/* Log out for small screens */}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="text-xs text-slate-450 hover:text-rose-600 border border-slate-200 rounded-xl p-2.5 transition-all lg:hidden bg-white cursor-pointer hover:bg-rose-50/20"
-                title="Log Out Session"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex items-center gap-1.5 lg:hidden">
+                {dbStatus && (
+                  <div 
+                    className={`flex items-center justify-center h-9 w-9 rounded-xl border ${
+                      dbStatus.connected ? 'border-emerald-100 bg-emerald-50/40 text-emerald-600' : 'border-amber-100 bg-amber-50/40 text-amber-600'
+                    }`}
+                    title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed}` : "Sandbox Local Mode"}
+                  >
+                    <span className={`h-2 w-2 rounded-full ${
+                      dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                    }`} />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-xs text-slate-450 hover:text-rose-600 border border-slate-200 rounded-xl p-2.5 transition-all bg-white cursor-pointer hover:bg-rose-50/20"
+                  title="Log Out Session"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </header>
 
-        {/* METADB CONNECTION BANNER */}
-        {dbStatus && (
-          <div className={`border-b text-[11px] select-none ${dbStatus.connected ? 'bg-slate-950 text-emerald-400 border-slate-900' : 'bg-amber-50 text-amber-800 border-amber-100'}`} id="db-status-banner">
-            <div className="px-4 sm:px-6 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-left font-medium">
-              <div className="flex items-center gap-2">
-                <Database className={`h-3.5 w-3.5 shrink-0 ${dbStatus.connected ? 'text-emerald-400 animate-pulse' : 'text-amber-500'}`} />
-                <span>
-                  {dbStatus.connected ? (
-                    <>Live connection verified (<span className="font-mono text-[9px] bg-emerald-950 border border-emerald-900 px-1 py-0.5 rounded text-emerald-300 font-bold">{dbStatus.uriUsed}</span>)</>
-                  ) : (
-                    <>Using sandbox environment</>
-                  )}
-                </span>
-              </div>
-              {!dbStatus.connected && (
-                <p className="text-[10px] text-amber-700 font-semibold">
-                  ⚙️ Configure MONGO_URI in cluster secrets to synchronize accounts.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* MAIN BODY AREA & WORKSPACE */}
         <main className="w-full px-4 sm:px-6 py-6 flex-1 space-y-6">
