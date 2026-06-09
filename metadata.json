@@ -1,0 +1,6 @@
+{
+  "name": "Computer Service Management",
+  "description": "App for computer service shops with job tracking, location pinning, technician dispatch, and invoice generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

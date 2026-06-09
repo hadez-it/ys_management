@@ -1,0 +1,556 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Users, 
+  UserPlus, 
+  Edit, 
+  Trash2, 
+  Lock, 
+  ShieldAlert, 
+  Phone, 
+  UserCheck, 
+  RefreshCw, 
+  Search, 
+  X, 
+  ShieldCheck, 
+  Smartphone,
+  Eye,
+  EyeOff
+} from 'lucide-react';
+import { User, UserRole } from '../types.ts';
+
+interface UserManagementProps {
+  currentUser: User | null;
+}
+
+export default function UserManagement({ currentUser }: UserManagementProps) {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [successMsg, setSuccessMsg] = useState<string>('');
+
+  // Modals / Editor State
+  const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+
+  // Form Fields
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [name, setName] = useState<string>('');
+  const [role, setRole] = useState<UserRole>('technician');
+  const [phone, setPhone] = useState<string>('');
+
+  // Delete confirmation state
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null);
+
+  const fetchUsers = () => {
+    setLoading(true);
+    fetch('/api/users')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to retrieve system accounts');
+        return res.json();
+      })
+      .then((data) => {
+        setUsers(data || []);
+        setErrorMsg('');
+      })
+      .catch((err) => {
+        setErrorMsg(err.message || 'Error occurred while loading users');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const resetForm = () => {
+    setUsername('');
+    setPassword('');
+    setName('');
+    setRole('technician');
+    setPhone('');
+    setEditingUser(null);
+    setShowPassword(false);
+    setErrorMsg('');
+  };
+
+  const handleOpenCreate = () => {
+    resetForm();
+    setIsFormOpen(true);
+  };
+
+  const handleOpenEdit = (user: User) => {
+    resetForm();
+    setEditingUser(user);
+    setUsername(user.username);
+    setName(user.name);
+    setRole(user.role);
+    setPhone(user.phone || '');
+    setPassword(''); // blank to not update password unless filled
+    setIsFormOpen(true);
+  };
+
+  const handleSaveUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!username.trim() || !name.trim() || !role) {
+      setErrorMsg('Username, Full Name, and System Role are required.');
+      return;
+    }
+
+    if (!editingUser && !password.trim()) {
+      setErrorMsg('A password is required for new accounts.');
+      return;
+    }
+
+    const payload: any = {
+      username: username.trim(),
+      name: name.trim(),
+      role,
+      phone: phone.trim(),
+    };
+
+    if (password.trim()) {
+      payload.password = password.trim();
+    }
+
+    const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users';
+    const method = editingUser ? 'PUT' : 'POST';
+
+    fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Server rejected user update operation.');
+        }
+        return data;
+      })
+      .then(() => {
+        setSuccessMsg(editingUser ? 'User profile updated successfully!' : 'New user account created successfully!');
+        fetchUsers();
+        setIsFormOpen(false);
+        resetForm();
+        setTimeout(() => setSuccessMsg(''), 4000);
+      })
+      .catch((err) => {
+        setErrorMsg(err.message || 'Operation failed.');
+      });
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    fetch(`/api/users/${userId}`, {
+      method: 'DELETE',
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to delete user.');
+        }
+        return data;
+      })
+      .then(() => {
+        setSuccessMsg('User account successfully removed.');
+        fetchUsers();
+        setConfirmDeleteUser(null);
+        setTimeout(() => setSuccessMsg(''), 4000);
+      })
+      .catch((err) => {
+        setErrorMsg(err.message || 'Error deleting account');
+        setConfirmDeleteUser(null);
+      });
+  };
+
+  const filteredUsers = users.filter((u) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      u.name.toLowerCase().includes(q) ||
+      u.username.toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q) ||
+      (u.phone && u.phone.includes(q))
+    );
+  });
+
+  const getRoleBadge = (userRole: UserRole) => {
+    switch (userRole) {
+      case 'admin':
+        return (
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-slate-900 text-white px-2 py-0.5 rounded-md border border-slate-950">
+            <ShieldCheck className="h-3 w-3" /> Admin
+          </span>
+        );
+      case 'coordinator':
+        return (
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded-md border border-slate-300">
+            Coordinator
+          </span>
+        );
+      case 'senior_technician':
+        return (
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-250">
+            Senior Tech
+          </span>
+        );
+      case 'technician':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200">
+            Technician
+          </span>
+        );
+    }
+  };
+
+  const isSelf = (userId: string) => currentUser?.id === userId;
+
+  return (
+    <div className="bg-white border border-slate-200/50 rounded-2xl p-6 shadow-xs text-left animate-fade-in space-y-6" id="user-management-tab-module">
+      
+      {/* HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-0.5">
+          <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-2">
+            <Users className="h-5 w-5 text-slate-800" /> Administrative Accounts
+          </h3>
+          <p className="text-xs text-slate-400">Control system operators, assignments, and dispatch role-based privileges.</p>
+        </div>
+
+        <div className="flex gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={fetchUsers}
+            className="p-2 text-slate-500 hover:text-slate-950 border border-slate-200 rounded-xl hover:bg-slate-50 text-xs flex items-center gap-1.5 font-semibold cursor-pointer transition-all"
+            title="Refresh Account Registry"
+          >
+            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          
+          <button
+            type="button"
+            disabled={currentUser?.role !== 'admin'}
+            onClick={handleOpenCreate}
+            className={`px-3 py-2 bg-slate-950 hover:bg-slate-850 active:scale-98 text-white rounded-xl text-xs flex items-center gap-1.5 font-bold shadow-xs cursor-pointer transition-all ${
+              currentUser?.role !== 'admin' ? 'opacity-40 cursor-not-allowed' : ''
+            }`}
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Add Account
+          </button>
+        </div>
+      </div>
+
+      {/* FEEDBACK BANNERS */}
+      {errorMsg && (
+        <div className="bg-rose-50 border border-rose-150 text-rose-850 p-4 rounded-xl flex items-start gap-2.5 text-xs">
+          <ShieldAlert className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold block mb-0.5">Operation Error</span>
+            <p className="text-rose-700">{errorMsg}</p>
+          </div>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="bg-emerald-50 border border-emerald-150 text-emerald-850 p-4 rounded-xl flex items-start gap-2.5 text-xs animate-fade-in">
+          <UserCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold block mb-0.5">Success</span>
+            <p className="text-emerald-700">{successMsg}</p>
+          </div>
+        </div>
+      )}
+
+      {/* SEARCH AND FILTERS */}
+      <div className="relative">
+        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Filter operators by full name, username, or contact phone..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:border-slate-400 border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs focus:outline-none transition-all font-sans"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* BENCHMARK STATS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Operators', count: users.length, style: 'bg-slate-50/50 border-slate-250/20 text-slate-900' },
+          { label: 'System Admins', count: users.filter(u => u.role === 'admin').length, style: 'bg-rose-50/30 border-rose-100 text-rose-900' },
+          { label: 'Senior Engineers', count: users.filter(u => u.role === 'senior_technician').length, style: 'bg-blue-50/30 border-blue-105 text-blue-900' },
+          { label: 'Field Technicians', count: users.filter(u => u.role === 'technician').length, style: 'bg-slate-100/40 border-slate-200 text-slate-600' }
+        ].map((stat, i) => (
+          <div key={i} className={`p-4 border rounded-2xl ${stat.style}`}>
+            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60 block">{stat.label}</span>
+            <p className="text-2xl font-extrabold tracking-tight mt-1 font-display">{stat.count}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* USER LIST CARDS */}
+      {loading ? (
+        <div className="py-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+          <RefreshCw className="h-5 w-5 animate-spin text-slate-400" />
+          <span className="font-semibold">Loading operators database...</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3" id="user-accounts-grid">
+          {filteredUsers.map((user) => (
+            <div 
+              key={user.id} 
+              className={`p-4 bg-white hover:bg-slate-50/20 border rounded-2xl flex items-start justify-between transition-all duration-150 ${
+                isSelf(user.id) ? 'border-slate-800 bg-slate-50/40' : 'border-slate-200/65'
+              }`}
+            >
+              <div className="flex gap-3">
+                <div className={`p-2.5 rounded-xl shrink-0 ${
+                  user.role === 'admin' ? 'bg-slate-950 text-white' :
+                  user.role === 'coordinator' ? 'bg-slate-100 text-slate-700' :
+                  user.role === 'senior_technician' ? 'bg-blue-50 text-blue-700' : 'bg-slate-50 text-slate-600'
+                }`}>
+                  <Users className="h-4.5 w-4.5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-slate-900 text-sm tracking-tight">{user.name}</span>
+                    {isSelf(user.id) && (
+                      <span className="text-[9px] bg-slate-950 text-white font-extrabold px-1.5 py-0.5 rounded font-mono select-none">
+                        YOU
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 font-mono">@{user.username}</p>
+                  
+                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                    {getRoleBadge(user.role)}
+                    
+                    {user.phone ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/50">
+                        <Smartphone className="h-3 w-3 text-slate-450" /> {user.phone}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-350 italic">No phone registered</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ACTION MENU */}
+              {currentUser?.role === 'admin' ? (
+                <div className="flex gap-1 shrink-0 ml-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(user)}
+                    className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+                    title="Edit User Profile"
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSelf(user.id)}
+                    onClick={() => setConfirmDeleteUser(user)}
+                    className={`p-1.5 rounded-lg transition-all ${
+                      isSelf(user.id) 
+                        ? 'text-slate-200 cursor-not-allowed'
+                        : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer'
+                    }`}
+                    title={isSelf(user.id) ? "Cannot delete yourself" : "Delete User"}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <span className="text-[9px] text-slate-350 font-bold uppercase tracking-wide">Read Only</span>
+              )}
+            </div>
+          ))}
+
+          {filteredUsers.length === 0 && (
+            <div className="col-span-full py-12 text-center text-slate-400 italic text-xs border border-dashed border-slate-250/60 rounded-2xl bg-slate-50/50">
+              No matching records found in team registry.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* LIGHTBOX FOR CREATE / EDIT ACCOUNT FORM */}
+      {isFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in" id="account-form-overlay">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl border border-slate-250/20 max-h-[90vh] flex flex-col overflow-hidden animate-scale-up" id="account-form-container">
+            
+            {/* Modal Header */}
+            <div className="bg-slate-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 font-sans uppercase tracking-wider">
+                  {editingUser ? 'Modify Account' : 'New System Operator'}
+                </h3>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {editingUser ? `Editing ${editingUser.name}` : 'Create role-specific access permissions'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFormOpen(false)}
+                className="p-1 px-2 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer text-lg font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveUser} className="flex-1 overflow-y-auto p-5 space-y-4 text-left">
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Ko Phyo"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">Username</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-slate-400 text-xs font-semibold">@</span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. phyo"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+                    disabled={!!editingUser}
+                    className="w-full bg-slate-50 disabled:opacity-50 border border-slate-200 rounded-xl py-2.5 pl-7 pr-3 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">
+                  {editingUser ? 'New Password (Optional)' : 'Password (Required)'}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={editingUser ? '•••••• (leave blank to keep)' : '••••••'}
+                    required={!editingUser}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-3 pr-10 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-slate-450 hover:text-slate-700"
+                  >
+                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">Access Permissions</label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as UserRole)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-2.5 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                >
+                  <option value="admin">Administrator (System-wide Control)</option>
+                  <option value="coordinator">Coordinator (Registration & Dispatch Only)</option>
+                  <option value="senior_technician">Senior Technician (Repairs & Settle/Billing)</option>
+                  <option value="technician">Technician (Update Jobs Only)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">Contact Phone</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 09971234567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                />
+              </div>
+
+              {/* FOOTER ACTIONS */}
+              <div className="flex gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsFormOpen(false)}
+                  className="flex-1 border border-slate-200 text-slate-600 rounded-xl py-2 text-xs font-bold hover:bg-slate-50 transition-all text-center cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-slate-950 hover:bg-slate-850 text-white rounded-xl py-2 text-xs font-bold shadow-md transition-all text-center cursor-pointer"
+                >
+                  Save Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE MODAL */}
+      {confirmDeleteUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in" id="delete-user-overlay">
+          <div className="bg-white max-w-sm w-full rounded-3xl p-6 border border-slate-100 text-left animate-scale-up space-y-4">
+            <div className="flex items-center gap-2 text-rose-600">
+              <ShieldAlert className="h-5 w-5 shrink-0" />
+              <h4 className="font-extrabold text-sm tracking-tight font-sans">Revoke Access Permissions?</h4>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-relaxed">
+              This will permanently revoke system access for <strong className="text-slate-900">{confirmDeleteUser.name}</strong> (@{confirmDeleteUser.username}). Unassigned dispatches remains unaffected.
+            </p>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteUser(null)}
+                className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl py-2 text-xs font-bold cursor-pointer transition-all text-center"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteUser(confirmDeleteUser.id)}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white rounded-xl py-2 text-xs font-bold cursor-pointer transition-all shadow-md text-center"
+              >
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
