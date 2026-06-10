@@ -64,6 +64,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
 
   // Edit ticket interactive states
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [showWorkflow, setShowWorkflow] = useState(false);
 
   // Lock body touch track/scroll when modal is active
   React.useEffect(() => {
@@ -217,6 +218,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
     if (selectedJob) {
       setDiagnosedProblem(selectedJob.diagnosedProblem || '');
       setResolutionNotes(selectedJob.resolutionNotes || '');
+      setShowWorkflow(false);
     }
   }, [selectedJobId, selectedJob]);
 
@@ -677,254 +679,277 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
               )}
             </div>
 
-            {/* INTERACTIVE STATE OPERATOR BAR */}
-            <div className="p-5 bg-gray-50 border-t border-gray-100 text-left shrink-0 space-y-3.5">
-              <div>
-                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1 leading-none select-none">
-                  <Wrench className="h-3 w-3 text-blue-600 animate-pulse" /> Dispatcher & Repair Workflows
-                </h4>
+            {/* WORKFLOW CONTROLS DYNAMIC ACCORDION */}
+            {!showWorkflow ? (
+              <div className="p-4 bg-gray-50 border-t border-gray-100 text-center shrink-0">
+                <button
+                  type="button"
+                  id="btn-show-workflow"
+                  onClick={() => setShowWorkflow(true)}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
+                >
+                  <Wrench className="h-4 w-4 shrink-0 animate-bounce" />
+                  လုပ်ငန်းစဉ်နှင့် စေလွှတ်မှု ထိန်းချုပ်မှုများ ကြည့်ရန် (Show Dispatch & Workflow Controls)
+                </button>
+              </div>
+            ) : (
+              <div className="p-5 bg-gray-50 border-t border-gray-100 text-left shrink-0 space-y-3.5">
+                <div className="flex items-center justify-between border-b border-gray-200 pb-2.5">
+                  <h4 className="text-[10px] font-extrabold text-blue-900 uppercase tracking-widest flex items-center gap-1.5 leading-none select-none">
+                    <Wrench className="h-3 w-3 text-blue-600 animate-pulse" /> Dispatcher & Repair Workflows
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowWorkflow(false)}
+                    className="text-[10px] font-bold text-gray-500 hover:text-gray-800 bg-gray-200/60 hover:bg-gray-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer select-none"
+                  >
+                    ▲ Hide Controls (ဝှက်ရန်)
+                  </button>
+                </div>
 
-                {/* Case 1: Status = Created or Assigned. We can start the journey immediately */}
-                {(selectedJob.status === 'Created' || selectedJob.status === 'Assigned') && (
-                  <div className="space-y-2" id="state-widget-createdOrAssigned">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200">
-                      <p className="text-xs text-gray-650 leading-relaxed">
-                        Ready to begin servicing this request. Start technician journey:
-                      </p>
-                      <button
-                        type="button"
-                        id="btn-journey-start"
-                        onClick={() => onUpdateJobStatus(selectedJob.id, 'Dispatched')}
-                        className="inline-flex items-center justify-center gap-1.5 py-1.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all shadow-xs active:scale-95 shrink-0"
-                      >
-                        <Navigation className="h-3.5 w-3.5" /> Start Journey
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Case 3: Status = Dispatched */}
-                {selectedJob.status === 'Dispatched' && (
-                  <div className="space-y-2" id="state-widget-dispatched">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200">
-                      <p className="text-xs text-gray-655 leading-relaxed">
-                        Technician is en route to site coordinates. Log once repair starts:
-                      </p>
-                      <button
-                        type="button"
-                        id="btn-arrive-confirm"
-                        onClick={() => onUpdateJobStatus(selectedJob.id, 'ServiceInProgress')}
-                        className="inline-flex items-center justify-center gap-1.5 py-1.5 px-4 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all shadow-xs active:scale-95 shrink-0"
-                      >
-                        🛠️ Arrived & Begin Repair
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Case 4: Status = ServiceInProgress */}
-                {selectedJob.status === 'ServiceInProgress' && (
-                  <div className="space-y-3 p-3 bg-white border border-gray-200 rounded-xl" id="state-widget-servicing">
-                    <p className="text-xs text-gray-500 mb-1 font-semibold">
-                      Complete diagnostics and repairs:
-                    </p>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase">Diagnosed Fault Findings</label>
-                        <input
-                          type="text"
-                          id="problem-findings-input"
-                          placeholder="e.g. Broken motherboard chip..."
-                          value={diagnosedProblem}
-                          onChange={(e) => setDiagnosedProblem(e.target.value)}
-                          className="w-full bg-gray-50 border border-gray-200 py-1.5 px-3 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-550"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase">Resolution / Action Done</label>
-                        <input
-                          type="text"
-                          id="resolution-findings-input"
-                          placeholder="e.g. Resoldered logic module..."
-                          value={resolutionNotes}
-                          onChange={(e) => setResolutionNotes(e.target.value)}
-                          className="w-full bg-gray-50 border border-gray-200 py-1.5 px-3 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-550"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end pt-1">
-                      <button
-                        type="button"
-                        id="btn-complete-service-task"
-                        onClick={() => {
-                          if (!diagnosedProblem.trim() || !resolutionNotes.trim()) {
-                            alert('Please log both diagnosed problem and resolution steps to complete this case!');
-                            return;
-                          }
-                          onUpdateJobStatus(selectedJob.id, 'Completed', selectedJob.technicianName, diagnosedProblem, resolutionNotes);
-                        }}
-                        className="inline-flex items-center gap-1.5 py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg cursor-pointer transition-all text-xs shadow-xs"
-                      >
-                        <CheckCircle className="h-3.5 w-3.5" /> Log Repair Completed
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Case 5: Completed with invoice wizard pending */}
-                {selectedJob.status === 'Completed' && !selectedJob.invoiceId && (
-                  <div className="space-y-2 bg-blue-50/40 p-3 rounded-xl border border-blue-100" id="state-widget-invoice-ready">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
-                        <p className="text-xs text-gray-800 font-semibold">
-                          Repair Complete! Billing Outstanding
+                <div>
+                  {/* Case 1: Status = Created or Assigned. We can start the journey immediately */}
+                  {(selectedJob.status === 'Created' || selectedJob.status === 'Assigned') && (
+                    <div className="space-y-2" id="state-widget-createdOrAssigned">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200">
+                        <p className="text-xs text-gray-650 leading-relaxed">
+                          Ready to begin servicing this request. Start technician journey:
                         </p>
-                        <p className="text-[11px] text-gray-500 mt-0.5">
-                          {currentUser?.role === 'admin' || currentUser?.role === 'senior_technician'
-                            ? "Launch the invoice generator layout to file Myanmar Kyats billing:"
-                            : "Invoicing is restricted to Administrators or Senior Technicians."}
-                        </p>
-                      </div>
-                      {currentUser?.role === 'admin' || currentUser?.role === 'senior_technician' ? (
                         <button
                           type="button"
-                          id="btn-launch-invoice-wizard"
+                          id="btn-journey-start"
+                          onClick={() => onUpdateJobStatus(selectedJob.id, 'Dispatched')}
+                          className="inline-flex items-center justify-center gap-1.5 py-1.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all shadow-xs active:scale-95 shrink-0"
+                        >
+                          <Navigation className="h-3.5 w-3.5" /> Start Journey
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Case 3: Status = Dispatched */}
+                  {selectedJob.status === 'Dispatched' && (
+                    <div className="space-y-2" id="state-widget-dispatched">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200">
+                        <p className="text-xs text-gray-655 leading-relaxed">
+                          Technician is en route to site coordinates. Log once repair starts:
+                        </p>
+                        <button
+                          type="button"
+                          id="btn-arrive-confirm"
+                          onClick={() => onUpdateJobStatus(selectedJob.id, 'ServiceInProgress')}
+                          className="inline-flex items-center justify-center gap-1.5 py-1.5 px-4 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all shadow-xs active:scale-95 shrink-0"
+                        >
+                          🛠️ Arrived & Begin Repair
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Case 4: Status = ServiceInProgress */}
+                  {selectedJob.status === 'ServiceInProgress' && (
+                    <div className="space-y-3 p-3 bg-white border border-gray-200 rounded-xl" id="state-widget-servicing">
+                      <p className="text-xs text-gray-500 mb-1 font-semibold">
+                        Complete diagnostics and repairs:
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Diagnosed Fault Findings</label>
+                          <input
+                            type="text"
+                            id="problem-findings-input"
+                            placeholder="e.g. Broken motherboard chip..."
+                            value={diagnosedProblem}
+                            onChange={(e) => setDiagnosedProblem(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-200 py-1.5 px-3 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-550"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Resolution / Action Done</label>
+                          <input
+                            type="text"
+                            id="resolution-findings-input"
+                            placeholder="e.g. Resoldered logic module..."
+                            value={resolutionNotes}
+                            onChange={(e) => setResolutionNotes(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-200 py-1.5 px-3 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-550"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end pt-1">
+                        <button
+                          type="button"
+                          id="btn-complete-service-task"
+                          onClick={() => {
+                            if (!diagnosedProblem.trim() || !resolutionNotes.trim()) {
+                              alert('Please log both diagnosed problem and resolution steps to complete this case!');
+                              return;
+                            }
+                            onUpdateJobStatus(selectedJob.id, 'Completed', selectedJob.technicianName, diagnosedProblem, resolutionNotes);
+                          }}
+                          className="inline-flex items-center gap-1.5 py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg cursor-pointer transition-all text-xs shadow-xs"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" /> Log Repair Completed
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Case 5: Completed with invoice wizard pending */}
+                  {selectedJob.status === 'Completed' && !selectedJob.invoiceId && (
+                    <div className="space-y-2 bg-blue-50/40 p-3 rounded-xl border border-blue-100" id="state-widget-invoice-ready">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                          <p className="text-xs text-gray-800 font-semibold">
+                            Repair Complete! Billing Outstanding
+                          </p>
+                          <p className="text-[11px] text-gray-500 mt-0.5">
+                            {currentUser?.role === 'admin' || currentUser?.role === 'senior_technician'
+                              ? "Launch the invoice generator layout to file Myanmar Kyats billing:"
+                              : "Invoicing is restricted to Administrators or Senior Technicians."}
+                          </p>
+                        </div>
+                        {currentUser?.role === 'admin' || currentUser?.role === 'senior_technician' ? (
+                          <button
+                            type="button"
+                            id="btn-launch-invoice-wizard"
+                            onClick={() => {
+                              setIsModalOpen(false);
+                              onOpenInvoiceWizard(selectedJob);
+                            }}
+                            className="inline-flex items-center justify-center gap-1 py-1.5 px-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all shrink-0 active:scale-95"
+                          >
+                            <FileText className="h-3.5 w-3.5" /> File Invoice
+                          </button>
+                        ) : (
+                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2.5 py-1.5 rounded-lg border border-slate-200/60 font-semibold select-none shrink-0">
+                            Billing Pending
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Case 6: Completed and invoiced */}
+                  {selectedJob.status === 'Completed' && selectedJob.invoiceId && (
+                    <div className="space-y-2 bg-emerald-50/40 p-3 rounded-xl border border-emerald-100" id="state-widget-invoiced">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs text-emerald-800 font-semibold flex items-center gap-1 leading-none">
+                            <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Invoice Settled
+                          </p>
+                          <p className="text-[11px] text-gray-500 font-mono mt-1">
+                            Settlement ID: {selectedJob.invoiceId}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          id="btn-view-settled-invoice"
                           onClick={() => {
                             setIsModalOpen(false);
-                            onOpenInvoiceWizard(selectedJob);
+                            onViewInvoice(selectedJob.invoiceId!);
                           }}
-                          className="inline-flex items-center justify-center gap-1 py-1.5 px-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all shrink-0 active:scale-95"
+                          className="inline-flex items-center gap-1.5 py-1.5 px-3 border border-gray-200 text-blue-600 text-xs font-semibold rounded-lg hover:bg-white cursor-pointer bg-white active:scale-95"
                         >
-                          <FileText className="h-3.5 w-3.5" /> File Invoice
+                          <FileText className="h-3.5 w-3.5" /> View Receipt
                         </button>
-                      ) : (
-                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2.5 py-1.5 rounded-lg border border-slate-200/60 font-semibold select-none shrink-0">
-                          Billing Pending
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Case 6: Completed and invoiced */}
-                {selectedJob.status === 'Completed' && selectedJob.invoiceId && (
-                  <div className="space-y-2 bg-emerald-50/40 p-3 rounded-xl border border-emerald-100" id="state-widget-invoiced">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs text-emerald-800 font-semibold flex items-center gap-1 leading-none">
-                          <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> Invoice Settled
-                        </p>
-                        <p className="text-[11px] text-gray-500 font-mono mt-1">
-                          Settlement ID: {selectedJob.invoiceId}
-                        </p>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Case 7: Cancelled */}
+                  {selectedJob.status === 'Cancelled' && (
+                    <div className="p-3 bg-red-50 text-red-700 border border-red-100 rounded-xl text-xs flex items-center gap-2" id="state-widget-cancelled">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>This service case has been cancelled and deactivated.</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* COMMUNICATORS & UNREACHABLE DISPATCH PRESET ACTIONS */}
+                {selectedJob.status !== 'Completed' && selectedJob.status !== 'Cancelled' && (
+                  <div className="border-t border-gray-200/60 pt-3 space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wilder block select-none">
+                      Log Remarks / Customer Unreachable (ဆက်သွယ်မှုမှတ်တမ်း)
+                    </label>
+                    
+                    {/* Preset Burmese responses */}
+                    <div className="flex flex-wrap gap-1.5">
                       <button
                         type="button"
-                        id="btn-view-settled-invoice"
                         onClick={() => {
-                          setIsModalOpen(false);
-                          onViewInvoice(selectedJob.invoiceId!);
+                          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+                          const text = `[${datePrefix} ${timestamp}] Unreachable: Busy / No Answer (ဖုန်းခေါ်ဆို၍မရပါ - မကိုင်ပါ)`;
+                          const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
+                          onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
                         }}
-                        className="inline-flex items-center gap-1.5 py-1.5 px-3 border border-gray-200 text-blue-600 text-xs font-semibold rounded-lg hover:bg-white cursor-pointer bg-white active:scale-95"
+                        className="text-[10px] bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold py-1 px-2.5 rounded-lg border border-amber-200/20 cursor-pointer transition-all"
                       >
-                        <FileText className="h-3.5 w-3.5" /> View Receipt
+                        📞 Busy / No Answer
+                      </button>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+                          const text = `[${datePrefix} ${timestamp}] Unreachable: Switched Off (ဖုန်းပိတ်ထားပါ)`;
+                          const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
+                          onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
+                        }}
+                        className="text-[10px] bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold py-1 px-2.5 rounded-lg border border-amber-200/20 cursor-pointer transition-all"
+                      >
+                        📴 Switched Off
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+                          const text = `[${datePrefix} ${timestamp}] Site Unreachable: Customer Closed / Away (ဆိုက်တွင် လူမရှိပါ)`;
+                          const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
+                          onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
+                        }}
+                        className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-1 px-2.5 rounded-lg border border-slate-200/40 cursor-pointer transition-all"
+                      >
+                        🏠 Closed / Not Present
                       </button>
                     </div>
-                  </div>
-                )}
 
-                {/* Case 7: Cancelled */}
-                {selectedJob.status === 'Cancelled' && (
-                  <div className="p-3 bg-red-50 text-red-700 border border-red-100 rounded-xl text-xs flex items-center gap-2" id="state-widget-cancelled">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>This service case has been cancelled and deactivated.</span>
+                    {/* Manual entry field */}
+                    <div className="flex gap-2 pt-0.5">
+                      <input
+                        type="text"
+                        id="input-manual-remark"
+                        placeholder="Type custom action description..."
+                        value={tempRemark}
+                        onChange={(e) => setTempRemark(e.target.value)}
+                        className="flex-1 bg-white border border-gray-250 text-xs py-1.5 px-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500 font-sans"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!tempRemark.trim()) return;
+                          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+                          const text = `[${datePrefix} ${timestamp}] ${tempRemark.trim()}`;
+                          const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
+                          onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
+                          setTempRemark('');
+                        }}
+                        className="bg-gray-800 text-white rounded-lg px-3.5 py-1 text-xs font-bold hover:bg-gray-900 cursor-pointer transition-all active:scale-95"
+                      >
+                        Save Remark
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
-
-              {/* COMMUNICATORS & UNREACHABLE DISPATCH PRESET ACTIONS */}
-              {selectedJob.status !== 'Completed' && selectedJob.status !== 'Cancelled' && (
-                <div className="border-t border-gray-200/60 pt-3 space-y-2">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wilder block select-none">
-                    Log Remarks / Customer Unreachable (ဆက်သွယ်မှုမှတ်တမ်း)
-                  </label>
-                  
-                  {/* Preset Burmese responses */}
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
-                        const text = `[${datePrefix} ${timestamp}] Unreachable: Busy / No Answer (ဖုန်းခေါ်ဆို၍မရပါ - မကိုင်ပါ)`;
-                        const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
-                        onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
-                      }}
-                      className="text-[10px] bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold py-1 px-2.5 rounded-lg border border-amber-200/20 cursor-pointer transition-all"
-                    >
-                      📞 Busy / No Answer
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
-                        const text = `[${datePrefix} ${timestamp}] Unreachable: Switched Off (ဖုန်းပိတ်ထားပါ)`;
-                        const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
-                        onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
-                      }}
-                      className="text-[10px] bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold py-1 px-2.5 rounded-lg border border-amber-200/20 cursor-pointer transition-all"
-                    >
-                      📴 Switched Off
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
-                        const text = `[${datePrefix} ${timestamp}] Site Unreachable: Customer Closed / Away (ဆိုက်တွင် လူမရှိပါ)`;
-                        const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
-                        onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
-                      }}
-                      className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-1 px-2.5 rounded-lg border border-slate-200/40 cursor-pointer transition-all"
-                    >
-                      🏠 Closed / Not Present
-                    </button>
-                  </div>
-
-                  {/* Manual entry field */}
-                  <div className="flex gap-2 pt-0.5">
-                    <input
-                      type="text"
-                      id="input-manual-remark"
-                      placeholder="Type custom action description..."
-                      value={tempRemark}
-                      onChange={(e) => setTempRemark(e.target.value)}
-                      className="flex-1 bg-white border border-gray-250 text-xs py-1.5 px-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500 font-sans"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!tempRemark.trim()) return;
-                        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
-                        const text = `[${datePrefix} ${timestamp}] ${tempRemark.trim()}`;
-                        const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
-                        onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
-                        setTempRemark('');
-                      }}
-                      className="bg-gray-800 text-white rounded-lg px-3.5 py-1 text-xs font-bold hover:bg-gray-900 cursor-pointer transition-all active:scale-95"
-                    >
-                      Save Remark
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
       )}
