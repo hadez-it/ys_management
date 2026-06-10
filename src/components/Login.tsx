@@ -80,7 +80,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
                 <span>MongoDB Database Connected (Successfully Connected)</span>
               </div>
             ) : (
-              <div className="bg-amber-50/90 border border-amber-200/80 rounded-2xl p-4 space-y-3.5 shadow-sm">
+              <div className="bg-amber-50/90 border border-amber-200/80 rounded-2xl p-4 space-y-3 shadow-sm">
                 <div className="flex gap-2.5 items-start">
                   <div className="bg-amber-100 text-amber-800 p-1.5 rounded-xl mt-0.5 shrink-0">
                     <Database className="h-4 w-4" />
@@ -88,55 +88,19 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
                   <div className="flex-1 min-w-0">
                     <h4 className="text-xs font-extrabold text-amber-950 font-display flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3 text-amber-600 inline shrink-0" />
-                      Database connection requires review
+                      Database is currently offline
                     </h4>
-                    <span className="inline-block mt-1 text-[9.5px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md">
-                      ⚠️ AI Studio Playground Preview State
-                    </span>
+                    <p className="text-[11px] text-slate-650 mt-1 leading-relaxed">
+                      Please verify that your database credentials are correctly set up and MongoDB cluster is accessible.
+                    </p>
                   </div>
                 </div>
 
-                {/* Condition 1: Missing Variable altogether in Sandbox */}
-                {(!dbStatus.uriState || dbStatus.uriState === "missing") && (
-                  <div className="text-[11px] text-slate-700 bg-white/70 p-3 rounded-xl border border-amber-150 space-y-2">
-                    <p className="font-bold text-slate-900 leading-normal">
-                      💡 While environment variables might be configured in Vercel, this preview is running inside the <span className="text-amber-800 font-extrabold">Google AI Studio Playground Sandbox</span> environment.
-                    </p>
-                    <p className="leading-relaxed">
-                      To see a successful Mongo connection within this builder preview as well, you can set the environment variable in the sandbox:
-                    </p>
-                    <div className="bg-amber-100/40 p-2.5 rounded-lg text-[10.5px] space-y-1 font-medium text-amber-900">
-                      <p className="font-bold">1. Navigate to Playground Environment Settings:</p>
-                      <p>Click on the <strong>Settings / Secrets panel</strong> (Key icon) at the bottom left or top right of the screen, then add a secret:</p>
-                      <ul className="list-disc pl-4 mt-1 space-y-0.5 font-semibold">
-                        <li>Key Name: <code className="bg-amber-200/50 px-1 font-mono rounded">MONGO_URI</code></li>
-                        <li>Value: <code className="bg-amber-200/50 px-1 font-mono rounded">mongodb+srv://... (Your actual cluster connection URI)</code></li>
-                      </ul>
-                    </div>
-                  </div>
-                )}
-
-                {/* Condition 2: Placeholder credentials configured inside Sandbox */}
-                {dbStatus.uriState === "placeholder" && (
-                  <div className="text-[11px] text-slate-700 bg-white/70 p-3 rounded-xl border border-amber-150 space-y-1.5">
-                    <p className="font-bold text-amber-900">
-                      ⚠️ Placeholder Credentials Detected
-                    </p>
-                    <p className="leading-relaxed">
-                      The current <code className="bg-slate-100 px-1 font-mono text-xs text-rose-700 font-bold">MONGO_URI</code> contains generic placeholders like <code className="font-mono text-amber-900">&lt;db_username&gt;</code> or <code className="font-mono text-amber-900">&lt;db_password&gt;</code>.
-                    </p>
-                    <p>Please replace them with your actual MongoDB Atlas username and password credentials.</p>
-                  </div>
-                )}
-
-                {/* Condition 3: Real URI is present but connecting failed */}
-                {dbStatus.uriState === "present" && dbStatus.error && (
+                {/* Condition-specific direct errors */}
+                {dbStatus.error && (
                   <div className="text-[11px] text-rose-800 bg-rose-50/70 p-3 rounded-xl border border-rose-100 space-y-1.5">
                     <p className="font-bold text-rose-950">
-                      ❌ MongoDB Live Connection Error (Offline)
-                    </p>
-                    <p className="leading-relaxed">
-                      An error occurred while attempting to connect to the configured URI:
+                      ❌ MongoDB Live Connection Error
                     </p>
                     <div className="bg-white/90 border border-rose-100 font-mono text-[10px] p-2 rounded-lg break-words leading-normal max-h-24 overflow-y-auto">
                       {dbStatus.error}
@@ -146,17 +110,6 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
                     </p>
                   </div>
                 )}
-
-                {/* Global Vercel Deployment Guidance */}
-                <div className="text-[11px] text-amber-950 leading-relaxed border-t border-amber-200/65 pt-2.5 space-y-1 bg-amber-50/20">
-                  <p className="font-extrabold text-amber-950">🌍 Vercel Production Environment Status Guide</p>
-                  <p className="text-[10.5px] text-slate-700 font-medium">
-                    Once you set the <code className="bg-amber-100 px-1 rounded font-mono font-bold">MONGO_URI</code> environment variable inside your Vercel Dashboard, Vercel serverless requests will resolve correctly.
-                  </p>
-                  <p className="text-[10.5px] text-slate-700 font-semibold bg-amber-100/50 p-2 rounded-md">
-                    *Important Notice:* After adding or updating variables in Vercel, you must go to the **Deployments** tab and trigger a **Redeploy** for the values to take effect.
-                  </p>
-                </div>
               </div>
             )}
           </div>

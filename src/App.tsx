@@ -975,25 +975,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Vercel Troubleshooting Section */}
-              <div className="border-t border-slate-100 pt-3 space-y-2">
-                <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-slate-600">Vercel Setup</span>
-                  Vercel Troubleshooting & Setup Guide
-                </h4>
-                <div className="text-[11.5px] leading-relaxed text-slate-650 space-y-1.5 list-decimal pl-1">
-                  <p>If you have hosted this application on <strong>Vercel</strong> and are experiencing connection errors, please configure the setup as follows:</p>
-                  <ol className="list-decimal pl-4 space-y-1 text-slate-600">
-                    <li>Access your <strong>Vercel Dashboard</strong> project settings.</li>
-                    <li>Navigate to the <strong>Environment Variables</strong> tab.</li>
-                    <li>Set the key name to <code className="bg-slate-100 px-1 rounded font-mono text-[10px] font-bold text-slate-800">MONGO_URI</code>.</li>
-                    <li>Enter your <strong>MongoDB Atlas Cluster URI</strong> in the value input (e.g., <code className="bg-slate-100 px-1 rounded font-mono text-[10px] text-slate-800">mongodb+srv://...</code>).</li>
-                    <li>After saving, go to the <strong>Deployments</strong> tab and select <strong>Redeploy</strong> to apply the changes to your production environment.</li>
-                  </ol>
-                  <p className="text-[10px] text-slate-400 italic mt-1.5">Note: New environment variable settings only take effect after a successful rebuild/redeploy.</p>
-                </div>
-              </div>
-
               {/* Dismiss controls */}
               <div className="pt-2 flex justify-end">
                 <button
