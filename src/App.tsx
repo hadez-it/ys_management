@@ -558,7 +558,7 @@ export default function App() {
   };
 
   if (!currentUser) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return <Login onLoginSuccess={handleLoginSuccess} dbStatus={dbStatus} />;
   }
 
   // Filter visible tabs based on role

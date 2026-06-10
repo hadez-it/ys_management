@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Lock, User as UserIcon, ShieldAlert, ArrowRight, Terminal } from 'lucide-react';
+import { Lock, User as UserIcon, ShieldAlert, ArrowRight, Terminal, Database, CheckCircle, AlertTriangle } from 'lucide-react';
 import { User } from '../types.ts';
 import { INITIAL_FALLBACK_USERS } from '../fallbackData.ts';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
+  dbStatus?: { connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string } | null;
 }
 
-export default function Login({ onLoginSuccess }: LoginProps) {
+export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -80,6 +81,55 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </h2>
           </div>
         </div>
+
+        {/* Database Connectivity Status / Error Alert on Login Screen */}
+        {dbStatus && (
+          <div className="animate-fade-in text-left">
+            {dbStatus.connected ? (
+              <div className="flex items-center justify-center gap-1.5 text-[10.5px] text-emerald-600 bg-emerald-50/70 border border-emerald-100 rounded-2xl py-1.5 px-3.5 w-fit mx-auto font-bold shadow-xs">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>MongoDB Database Connected (မြန်မာပြည်လုံးဆိုင်ရာ ဒေတာဘေ့စ်နှင့် ချိတ်ဆက်ထားပြီး)</span>
+              </div>
+            ) : (
+              <div className="bg-amber-50/90 border border-amber-200/80 rounded-2xl p-4 space-y-2.5 shadow-sm">
+                <div className="flex gap-2.5 items-start">
+                  <div className="bg-amber-100 text-amber-800 p-1.5 rounded-xl mt-0.5 shrink-0">
+                    <Database className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-extrabold text-amber-950 font-display flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3 text-amber-600 inline shrink-0" />
+                      ဒေတာဘေ့စ် ချိတ်ဆက်မှုစစ်ဆေးရန် လိုအပ်နေပါသည်
+                    </h4>
+                    <p className="text-[11px] text-amber-800 font-semibold leading-relaxed mt-1">
+                      {dbStatus.error ? `Mongoose ချိတ်ဆက်မှု အမှားအယွင်း: ${dbStatus.error}` : dbStatus.modeMessage}
+                    </p>
+                  </div>
+                </div>
+
+                {dbStatus.error && (
+                  <div className="bg-white/80 border border-amber-200/50 p-2.5 rounded-xl text-[10.5px] font-mono text-amber-900 break-words leading-relaxed max-h-24 overflow-y-auto">
+                    <strong>Error Log:</strong> {dbStatus.error}
+                  </div>
+                )}
+
+                {/* Vercel Troubleshooting Guidelines in Burmese */}
+                <div className="text-[11px] text-amber-900/90 leading-relaxed border-t border-amber-200/65 pt-2.5 space-y-1 bg-amber-50/30">
+                  <p className="font-extrabold text-amber-950">💡 Vercel Hosted ဖြေရှင်းနည်းလမ်းညွှန် -</p>
+                  <ol className="list-decimal pl-4.5 space-y-1 text-slate-700">
+                    <li>သင်၏ <strong>Vercel Dashboard</strong> သို့ သွားပြီး Project Settings ဝင်ပါ။</li>
+                    <li><strong>Environment Variables</strong> တွင် Key ကို <code className="bg-amber-150/80 px-1 rounded font-bold text-amber-950 font-mono text-[10px]">MONGO_URI</code> ဟု ရေးပါ။</li>
+                    <li>Value တွင် သင်၏ <strong>MongoDB Connection String</strong> လင့်ခ်ကို ထည့်သွင်းပါ။</li>
+                    <li>သိမ်းဆည်းပြီးနောက် Vercel Dashboard မှတစ်ဆင့် ပရောဂျက်ကို <strong>Redeploy</strong> (ပြန်လည်ထုတ်လွှင့်ခြင်း) လုပ်ဆောင်ပေးပါ။</li>
+                  </ol>
+                  <p className="text-[9.5px] text-amber-700 font-bold italic mt-1 bg-amber-100/30 p-1 rounded-md text-center">
+                    (မှတ်ချက် - Variable အသစ်များသည် Redeploy ပြုလုပ်ပြီးမှသာ စတင်အကျိုးသက်ရောက်ပါမည်။)
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Login Card Core */}
         <div className="bg-white rounded-3xl border border-slate-200/50 p-6 sm:p-8 shadow-sm">
