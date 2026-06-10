@@ -76,11 +76,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           </div>
           <div className="space-y-0.5">
             <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 font-display">
-              SmartFix Solutions
+              Yangon Store
             </h2>
-            <p className="text-[11px] text-slate-400 font-semibold tracking-wide uppercase">
-              Enterprise Dispatch & Service System
-            </p>
           </div>
         </div>
 

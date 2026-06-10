@@ -14,6 +14,15 @@ html, body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
+/* Scroll lock when any modal is active */
+body.modal-open,
+body.modal-open html,
+body.modal-open #app-viewport,
+body.modal-open main {
+  overflow: hidden !important;
+  height: 100vh !important;
+}
+
 /* Interactive Modern Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }

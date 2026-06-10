@@ -477,7 +477,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
             onClick={(e) => e.stopPropagation()} // Prevent closing on clicking card surface
           >
             {/* Modal Header */}
-            <div className="p-3.5 sm:p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+            <div className="p-3.5 sm:p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 sticky top-0 bg-white z-25 shadow-[0_1px_10px_rgba(0,0,0,0.01)]">
               <div className="text-left flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <span className="text-[10px] sm:text-xs font-mono font-bold tracking-tight text-blue-600 bg-blue-50 px-2 py-0.5 sm:px-2.5 sm:rounded-md rounded">
@@ -683,7 +683,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
             {selectedJob.status !== 'Completed' && selectedJob.status !== 'Cancelled' ? (
               // Active ticket: toggleable workflow
               !showWorkflow ? (
-                <div className="p-4 bg-gray-50 border-t border-gray-100 text-center shrink-0">
+                <div className="p-4 bg-slate-50 border-t border-gray-100 text-center shrink-0 sticky bottom-0 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
                   <button
                     type="button"
                     id="btn-show-workflow"
@@ -695,7 +695,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                   </button>
                 </div>
               ) : (
-                <div className="p-5 bg-gray-50 border-t border-gray-100 text-left shrink-0 space-y-3.5 animate-scale-up">
+                <div className="p-4 sm:p-5 bg-slate-50 border-t border-gray-100 text-left shrink-0 space-y-3.5 animate-scale-up sticky bottom-0 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] max-h-[48vh] overflow-y-auto">
                   <div className="flex items-center justify-end border-b border-gray-200 pb-2">
                     <button
                       type="button"
@@ -839,7 +839,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
               )
             ) : (
               // Completed or Cancelled ticket: show billing/receipt or cancelled banner directly without toggles
-              <div className="p-5 bg-gray-50 border-t border-gray-100 text-left shrink-0 space-y-3">
+              <div className="p-4 sm:p-5 bg-slate-50 border-t border-gray-100 text-left shrink-0 space-y-3 sticky bottom-0 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
                 {/* Case 5: Completed with invoice wizard pending */}
                 {selectedJob.status === 'Completed' && !selectedJob.invoiceId && (
                   <div className="space-y-2 bg-blue-50/40 p-3 rounded-xl border border-blue-100" id="state-widget-invoice-ready">

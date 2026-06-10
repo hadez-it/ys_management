@@ -215,6 +215,35 @@ export default function App() {
     };
   }, []);
 
+  // Global modal watcher hook to prevent background body and container scrolling
+  useEffect(() => {
+    const checkModals = () => {
+      const activeOverlay = document.getElementById('new-ticket-modal-overlay') || 
+                            document.getElementById('job-detail-modal-backdrop') || 
+                            document.getElementById('priority-selector-overlay') || 
+                            document.getElementById('edit-details-modal-overlay') || 
+                            document.getElementById('invoice-view-modal');
+      if (activeOverlay) {
+        document.body.style.overflow = 'hidden';
+        document.body.classList.add('modal-open');
+      } else {
+        document.body.style.overflow = '';
+        document.body.classList.remove('modal-open');
+      }
+    };
+
+    checkModals();
+
+    const observer = new MutationObserver(checkModals);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      document.body.style.overflow = '';
+      document.body.classList.remove('modal-open');
+    };
+  }, [isNewTicketModalOpen, viewingInvoice, invoiceWizardJob]);
+
   // 1. Create a service job trigger
   const handleCreateJob = (jobDetails: Omit<ServiceJob, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
     const nextIdNum = jobs.length + 101 + Math.floor(Math.random() * 900);
