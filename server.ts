@@ -14,12 +14,6 @@ app.use(express.json());
 
 // Determine URI configuration status
 const rawUri = process.env.MONGO_URI || "";
-const isDemoMode = 
-  !rawUri || 
-  rawUri.includes("<db_username>") || 
-  rawUri.includes("<db_password>") ||
-  rawUri.includes("YOUR_") ||
-  rawUri === "";
 
 let uriDiagnostics = "present";
 if (!rawUri || rawUri === "") {
@@ -238,14 +232,8 @@ const INITIAL_INVOICES_FALLBACK = [
   }
 ];
 
-// Memory-based fallback database for Demo/Hybrid Mode
-let localJobs: any[] = [...INITIAL_JOBS_FALLBACK];
-let localInvoices = [...INITIAL_INVOICES_FALLBACK];
-let localDeletedJobs: any[] = [];
-let localUsers: any[] = [...INITIAL_USERS];
-
-// Connect lazily or directly
-if (!isDemoMode) {
+// Connect strictly to MongoDB Atlas (No Sandbox/Local Offline Fallbacks)
+if (uriDiagnostics === "present") {
   console.log("Connecting to MongoDB Atlas...");
   mongoose.connect(rawUri)
     .then(async () => {
@@ -273,23 +261,29 @@ if (!isDemoMode) {
       }
     })
     .catch((err: any) => {
+      mongoConnected = false;
       lastConnectionError = err.message || String(err);
       console.error("ERROR: MongoDB Atlas connection failed:", err.message);
-      console.log("Failing back dynamically to in-memory store mode.");
     });
 } else {
-  console.log("Running in LOCAL HYBRID DEMO state. MongoDB Atlas connection URI contains placeholders (or missing).");
+  mongoConnected = false;
+  if (uriDiagnostics === "missing") {
+    lastConnectionError = "MONGO_URI environment variable is missing in setup.";
+  } else {
+    lastConnectionError = "MONGO_URI connection link contains unresolved placeholders (like <db_username>, <db_password> or YOUR_). Please edit them to your actual credential weights.";
+  }
+  console.error(`ERROR: MongoDB cannot connect because MONGO_URI status is [${uriDiagnostics}]: ${lastConnectionError}`);
 }
 
 // REST API Endpoints
 app.get("/api/db-status", (req, res) => {
   res.json({
     connected: mongoConnected,
-    isDemo: isDemoMode,
-    uriUsed: isDemoMode ? "Placeholder Link" : rawUri.split("@").pop(), // Hide user password details
-    modeMessage: isDemoMode 
-      ? "Using Local Sandbox memory state. Update your MONGO_URI variable in Settings/Secrets to connect your MongoDB Atlas Cluster."
-      : (mongoConnected ? "Connected to Your MongoDB Atlas Live Cluster." : `Mongoose Error: ${lastConnectionError}`),
+    isDemo: false,
+    uriUsed: (rawUri && uriDiagnostics === "present") ? rawUri.split("@").pop() : "No Valid Link",
+    modeMessage: mongoConnected 
+      ? "Connected to Your MongoDB Atlas Live Cluster." 
+      : `Database Connection Offline: ${lastConnectionError || "Please check your MONGO_URI connection settings."}`,
     error: lastConnectionError,
     uriState: uriDiagnostics
   });
@@ -304,25 +298,19 @@ app.post("/api/auth/login", async (req, res) => {
       return;
     }
 
-    const cleanUsername = username.trim().toLowerCase();
-
-    if (mongoConnected) {
-      const user = await UserModel.findOne({ username: cleanUsername } as any).lean();
-      if (!user || user.password !== password) {
-        res.status(401).json({ error: "Invalid username or password" });
-        return;
-      }
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } else {
-      const user = localUsers.find(u => u.username === cleanUsername);
-      if (!user || user.password !== password) {
-        res.status(401).json({ error: "Invalid username or password" });
-        return;
-      }
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+    if (!mongoConnected) {
+      res.status(503).json({ error: `ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline): ${lastConnectionError || "MongoDB offline"}` });
+      return;
     }
+
+    const cleanUsername = username.trim().toLowerCase();
+    const user = await UserModel.findOne({ username: cleanUsername } as any).lean();
+    if (!user || user.password !== password) {
+      res.status(401).json({ error: "Invalid username or password" });
+      return;
+    }
+    const { password: _, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -331,12 +319,12 @@ app.post("/api/auth/login", async (req, res) => {
 // JOB API Endpoints
 app.get("/api/jobs", async (req, res) => {
   try {
-    if (mongoConnected) {
-      const dbJobs = await JobModel.find().lean();
-      res.json(dbJobs);
-    } else {
-      res.json(localJobs);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+    const dbJobs = await JobModel.find().lean();
+    res.json(dbJobs);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -345,14 +333,13 @@ app.get("/api/jobs", async (req, res) => {
 app.post("/api/jobs", async (req, res) => {
   try {
     const jobData = req.body;
-    if (mongoConnected) {
-      const newJob = new JobModel(jobData);
-      await newJob.save();
-      res.status(201).json(newJob);
-    } else {
-      localJobs.unshift(jobData);
-      res.status(201).json(jobData);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+    const newJob = new JobModel(jobData);
+    await newJob.save();
+    res.status(201).json(newJob);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -362,89 +349,53 @@ app.put("/api/jobs/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
-    if (mongoConnected) {
-      const jobToEdit = await JobModel.findOne({ id } as any);
-      if (!jobToEdit) {
-        res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
-        return;
-      }
-      
-      const { editReason, ...fieldsToUpdate } = req.body;
-      if (fieldsToUpdate.status === "Completed") {
-        fieldsToUpdate.priorityNumber = null;
-      }
-      const updateQuery: any = { $set: { ...fieldsToUpdate, updatedAt: new Date().toISOString() } };
-      if (fieldsToUpdate.status === "Completed") {
-        updateQuery.$unset = { priorityNumber: "" };
-      }
-      
-      if (editReason) {
-        const changes: string[] = [];
-        if (jobToEdit.customerName !== fieldsToUpdate.customerName && fieldsToUpdate.customerName !== undefined) changes.push("Customer Name");
-        if (jobToEdit.customerPhone !== fieldsToUpdate.customerPhone && fieldsToUpdate.customerPhone !== undefined) changes.push("Phone Number");
-        if (jobToEdit.dateTime !== fieldsToUpdate.dateTime && fieldsToUpdate.dateTime !== undefined) changes.push("Appointment Time");
-        if (jobToEdit.locationText !== fieldsToUpdate.locationText && fieldsToUpdate.locationText !== undefined) changes.push("Address");
-        if (jobToEdit.deviceType !== fieldsToUpdate.deviceType && fieldsToUpdate.deviceType !== undefined) changes.push("Device Type");
-        if (jobToEdit.deviceModel !== fieldsToUpdate.deviceModel && fieldsToUpdate.deviceModel !== undefined) changes.push("Device Model");
-        if (jobToEdit.deviceIssue !== fieldsToUpdate.deviceIssue && fieldsToUpdate.deviceIssue !== undefined) changes.push("Problem Description");
-        if (jobToEdit.urgency !== fieldsToUpdate.urgency && fieldsToUpdate.urgency !== undefined) changes.push("Urgency Level");
-        if (jobToEdit.status !== fieldsToUpdate.status && fieldsToUpdate.status !== undefined) changes.push("Ticket Status");
-        if (jobToEdit.technicianName !== fieldsToUpdate.technicianName && fieldsToUpdate.technicianName !== undefined) changes.push("Technician");
-
-        const log = {
-          editedAt: new Date().toISOString(),
-          reason: editReason,
-          changedFields: changes.join(", ") || "General Info Update"
-        };
-        updateQuery.$push = { editHistory: log };
-      }
-      
-      const updatedJob = await JobModel.findOneAndUpdate(
-        { id: id } as any,
-        updateQuery,
-        { new: true } as any
-      );
-      res.json(updatedJob);
-    } else {
-      const index = localJobs.findIndex((j) => j.id === id);
-      if (index === -1) {
-        res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
-        return;
-      }
-      const jobToEdit = localJobs[index];
-      const { editReason, ...fieldsToUpdate } = req.body;
-      if (fieldsToUpdate.status === "Completed") {
-        fieldsToUpdate.priorityNumber = undefined;
-      }
-      
-      if (editReason) {
-        const changes: string[] = [];
-        if (jobToEdit.customerName !== fieldsToUpdate.customerName && fieldsToUpdate.customerName !== undefined) changes.push("Customer Name");
-        if (jobToEdit.customerPhone !== fieldsToUpdate.customerPhone && fieldsToUpdate.customerPhone !== undefined) changes.push("Phone Number");
-        if (jobToEdit.dateTime !== fieldsToUpdate.dateTime && fieldsToUpdate.dateTime !== undefined) changes.push("Appointment Time");
-        if (jobToEdit.locationText !== fieldsToUpdate.locationText && fieldsToUpdate.locationText !== undefined) changes.push("Address");
-        if (jobToEdit.deviceType !== fieldsToUpdate.deviceType && fieldsToUpdate.deviceType !== undefined) changes.push("Device Type");
-        if (jobToEdit.deviceModel !== fieldsToUpdate.deviceModel && fieldsToUpdate.deviceModel !== undefined) changes.push("Device Model");
-        if (jobToEdit.deviceIssue !== fieldsToUpdate.deviceIssue && fieldsToUpdate.deviceIssue !== undefined) changes.push("Problem Description");
-        if (jobToEdit.urgency !== fieldsToUpdate.urgency && fieldsToUpdate.urgency !== undefined) changes.push("Urgency Level");
-        if (jobToEdit.status !== fieldsToUpdate.status && fieldsToUpdate.status !== undefined) changes.push("Ticket Status");
-        if (jobToEdit.technicianName !== fieldsToUpdate.technicianName && fieldsToUpdate.technicianName !== undefined) changes.push("Technician");
-
-        const log = {
-          editedAt: new Date().toISOString(),
-          reason: editReason,
-          changedFields: changes.join(", ") || "General Info Update"
-        };
-        
-        if (!jobToEdit.editHistory) {
-          jobToEdit.editHistory = [];
-        }
-        jobToEdit.editHistory.push(log);
-      }
-      
-      localJobs[index] = { ...jobToEdit, ...fieldsToUpdate, updatedAt: new Date().toISOString() };
-      res.json(localJobs[index]);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+
+    const jobToEdit = await JobModel.findOne({ id } as any);
+    if (!jobToEdit) {
+      res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
+      return;
+    }
+    
+    const { editReason, ...fieldsToUpdate } = req.body;
+    if (fieldsToUpdate.status === "Completed") {
+      fieldsToUpdate.priorityNumber = null;
+    }
+    const updateQuery: any = { $set: { ...fieldsToUpdate, updatedAt: new Date().toISOString() } };
+    if (fieldsToUpdate.status === "Completed") {
+      updateQuery.$unset = { priorityNumber: "" };
+    }
+    
+    if (editReason) {
+      const changes: string[] = [];
+      if (jobToEdit.customerName !== fieldsToUpdate.customerName && fieldsToUpdate.customerName !== undefined) changes.push("Customer Name");
+      if (jobToEdit.customerPhone !== fieldsToUpdate.customerPhone && fieldsToUpdate.customerPhone !== undefined) changes.push("Phone Number");
+      if (jobToEdit.dateTime !== fieldsToUpdate.dateTime && fieldsToUpdate.dateTime !== undefined) changes.push("Appointment Time");
+      if (jobToEdit.locationText !== fieldsToUpdate.locationText && fieldsToUpdate.locationText !== undefined) changes.push("Address");
+      if (jobToEdit.deviceType !== fieldsToUpdate.deviceType && fieldsToUpdate.deviceType !== undefined) changes.push("Device Type");
+      if (jobToEdit.deviceModel !== fieldsToUpdate.deviceModel && fieldsToUpdate.deviceModel !== undefined) changes.push("Device Model");
+      if (jobToEdit.deviceIssue !== fieldsToUpdate.deviceIssue && fieldsToUpdate.deviceIssue !== undefined) changes.push("Problem Description");
+      if (jobToEdit.urgency !== fieldsToUpdate.urgency && fieldsToUpdate.urgency !== undefined) changes.push("Urgency Level");
+      if (jobToEdit.status !== fieldsToUpdate.status && fieldsToUpdate.status !== undefined) changes.push("Ticket Status");
+      if (jobToEdit.technicianName !== fieldsToUpdate.technicianName && fieldsToUpdate.technicianName !== undefined) changes.push("Technician");
+
+      const log = {
+        editedAt: new Date().toISOString(),
+        reason: editReason,
+        changedFields: changes.join(", ") || "General Info Update"
+      };
+      updateQuery.$push = { editHistory: log };
+    }
+    
+    const updatedJob = await JobModel.findOneAndUpdate(
+      { id: id } as any,
+      updateQuery,
+      { new: true } as any
+    );
+    res.json(updatedJob);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -457,45 +408,29 @@ app.delete("/api/jobs/:id", async (req, res) => {
     const { reason } = req.body;
     const cleanReason = reason && reason.trim() ? reason.trim() : "No reason provided";
 
-    if (mongoConnected) {
-      const jobToDelete = await JobModel.findOne({ id } as any);
-      if (!jobToDelete) {
-        res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
-        return;
-      }
-      
-      const archived = new DeletedJobModel({
-        id: jobToDelete.id,
-        customerName: jobToDelete.customerName,
-        customerPhone: jobToDelete.customerPhone,
-        dateTime: jobToDelete.dateTime,
-        deletedAt: new Date().toISOString(),
-        deleteReason: cleanReason,
-        originalJobData: jobToDelete.toObject()
-      });
-      await archived.save();
-      await JobModel.deleteOne({ id } as any);
-      res.json({ success: true, message: "Job deleted and reasons archived successfully." });
-    } else {
-      const index = localJobs.findIndex((j) => j.id === id);
-      if (index === -1) {
-        res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
-        return;
-      }
-      const jobToDelete = localJobs[index];
-      const archived = {
-        id: jobToDelete.id,
-        customerName: jobToDelete.customerName,
-        customerPhone: jobToDelete.customerPhone,
-        dateTime: jobToDelete.dateTime,
-        deletedAt: new Date().toISOString(),
-        deleteReason: cleanReason,
-        originalJobData: jobToDelete
-      };
-      localDeletedJobs.unshift(archived);
-      localJobs.splice(index, 1);
-      res.json({ success: true, message: "Job deleted and reasons archived successfully." });
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+
+    const jobToDelete = await JobModel.findOne({ id } as any);
+    if (!jobToDelete) {
+      res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
+      return;
+    }
+    
+    const archived = new DeletedJobModel({
+      id: jobToDelete.id,
+      customerName: jobToDelete.customerName,
+      customerPhone: jobToDelete.customerPhone,
+      dateTime: jobToDelete.dateTime,
+      deletedAt: new Date().toISOString(),
+      deleteReason: cleanReason,
+      originalJobData: jobToDelete.toObject()
+    });
+    await archived.save();
+    await JobModel.deleteOne({ id } as any);
+    res.json({ success: true, message: "Job deleted and reasons archived successfully." });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -504,12 +439,12 @@ app.delete("/api/jobs/:id", async (req, res) => {
 // GET Deleted Jobs Log
 app.get("/api/deleted-jobs", async (req, res) => {
   try {
-    if (mongoConnected) {
-      const dbDeleted = await DeletedJobModel.find().sort({ deletedAt: -1 }).lean();
-      res.json(dbDeleted);
-    } else {
-      res.json(localDeletedJobs);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+    const dbDeleted = await DeletedJobModel.find().sort({ deletedAt: -1 }).lean();
+    res.json(dbDeleted);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -518,12 +453,12 @@ app.get("/api/deleted-jobs", async (req, res) => {
 // INVOICE API Endpoints
 app.get("/api/invoices", async (req, res) => {
   try {
-    if (mongoConnected) {
-      const dbInvoices = await InvoiceModel.find().lean();
-      res.json(dbInvoices);
-    } else {
-      res.json(localInvoices);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+    const dbInvoices = await InvoiceModel.find().lean();
+    res.json(dbInvoices);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -532,14 +467,13 @@ app.get("/api/invoices", async (req, res) => {
 app.post("/api/invoices", async (req, res) => {
   try {
     const invoiceData = req.body;
-    if (mongoConnected) {
-      const newInvoice = new InvoiceModel(invoiceData);
-      await newInvoice.save();
-      res.status(201).json(newInvoice);
-    } else {
-      localInvoices.unshift(invoiceData);
-      res.status(201).json(invoiceData);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+    const newInvoice = new InvoiceModel(invoiceData);
+    await newInvoice.save();
+    res.status(201).json(newInvoice);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -548,20 +482,16 @@ app.post("/api/invoices", async (req, res) => {
 // User Management API endpoints
 app.get("/api/users", async (req, res) => {
   try {
-    if (mongoConnected) {
-      const users = await UserModel.find({} as any).lean();
-      const sanitized = users.map((u: any) => {
-        const { password, ...rest } = u;
-        return rest;
-      });
-      res.json(sanitized);
-    } else {
-      const sanitized = localUsers.map((u: any) => {
-        const { password, ...rest } = u;
-        return rest;
-      });
-      res.json(sanitized);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+    const users = await UserModel.find({} as any).lean();
+    const sanitized = users.map((u: any) => {
+      const { password, ...rest } = u;
+      return rest;
+    });
+    res.json(sanitized);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch users: " + err.message });
   }
@@ -574,7 +504,19 @@ app.post("/api/users", async (req, res) => {
       res.status(400).json({ error: "Username, Name, Role, and Password are required" });
       return;
     }
+
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
+    }
+
     const cleanUsername = username.trim().toLowerCase();
+    const existing = await UserModel.findOne({ username: cleanUsername } as any);
+    if (existing) {
+      res.status(400).json({ error: "Username already taken" });
+      return;
+    }
+
     const newUser = {
       id: "usr-" + Date.now(),
       username: cleanUsername,
@@ -584,26 +526,10 @@ app.post("/api/users", async (req, res) => {
       phone: phone || ""
     };
 
-    if (mongoConnected) {
-      const existing = await UserModel.findOne({ username: cleanUsername } as any);
-      if (existing) {
-        res.status(400).json({ error: "Username already taken" });
-        return;
-      }
-      const mongoUser = new UserModel(newUser);
-      await mongoUser.save();
-      const { password: _, ...sanitized } = newUser;
-      res.status(201).json(sanitized);
-    } else {
-      const existing = localUsers.find(u => u.username === cleanUsername);
-      if (existing) {
-        res.status(400).json({ error: "Username already taken" });
-        return;
-      }
-      localUsers.push(newUser);
-      const { password: _, ...sanitized } = newUser;
-      res.status(201).json(sanitized);
-    }
+    const mongoUser = new UserModel(newUser);
+    await mongoUser.save();
+    const { password: _, ...sanitized } = newUser;
+    res.status(201).json(sanitized);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to create user: " + err.message });
   }
@@ -614,62 +540,37 @@ app.put("/api/users/:id", async (req, res) => {
     const { id } = req.params;
     const { username, name, role, phone, password } = req.body;
     
-    if (mongoConnected) {
-      const user = await UserModel.findOne({ id } as any);
-      if (!user) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-      
-      if (username) {
-        const cleanUsername = username.trim().toLowerCase();
-        if (cleanUsername !== user.username) {
-          const existing = await UserModel.findOne({ username: cleanUsername } as any);
-          if (existing) {
-            res.status(400).json({ error: "Username already taken" });
-            return;
-          }
-          user.username = cleanUsername;
-        }
-      }
-      
-      if (name) user.name = name;
-      if (role) user.role = role;
-      if (phone !== undefined) user.phone = phone;
-      if (password) user.password = password;
-      
-      await user.save();
-      const { password: _, ...sanitized } = user.toObject();
-      res.json(sanitized);
-    } else {
-      const index = localUsers.findIndex(u => u.id === id);
-      if (index === -1) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-      
-      const user = localUsers[index];
-      if (username) {
-        const cleanUsername = username.trim().toLowerCase();
-        if (cleanUsername !== user.username) {
-          const existing = localUsers.find(u => u.username === cleanUsername);
-          if (existing) {
-            res.status(400).json({ error: "Username already taken" });
-            return;
-          }
-          user.username = cleanUsername;
-        }
-      }
-      
-      if (name) user.name = name;
-      if (role) user.role = role;
-      if (phone !== undefined) user.phone = phone;
-      if (password) user.password = password;
-      
-      localUsers[index] = user;
-      const { password: _, ...sanitized } = user;
-      res.json(sanitized);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+
+    const user = await UserModel.findOne({ id } as any);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    
+    if (username) {
+      const cleanUsername = username.trim().toLowerCase();
+      if (cleanUsername !== user.username) {
+        const existing = await UserModel.findOne({ username: cleanUsername } as any);
+        if (existing) {
+          res.status(400).json({ error: "Username already taken" });
+          return;
+        }
+        user.username = cleanUsername;
+      }
+    }
+    
+    if (name) user.name = name;
+    if (role) user.role = role;
+    if (phone !== undefined) user.phone = phone;
+    if (password) user.password = password;
+    
+    await user.save();
+    const { password: _, ...sanitized } = user.toObject();
+    res.json(sanitized);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to update user: " + err.message });
   }
@@ -683,22 +584,17 @@ app.delete("/api/users/:id", async (req, res) => {
       return;
     }
     
-    if (mongoConnected) {
-      const deleted = await UserModel.findOneAndDelete({ id } as any);
-      if (!deleted) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-      res.json({ success: true, message: "User deleted successfully" });
-    } else {
-      const index = localUsers.findIndex(u => u.id === id);
-      if (index === -1) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-      localUsers.splice(index, 1);
-      res.json({ success: true, message: "User deleted successfully" });
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+
+    const deleted = await UserModel.findOneAndDelete({ id } as any);
+    if (!deleted) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ success: true, message: "User deleted successfully" });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to delete user: " + err.message });
   }
@@ -707,20 +603,17 @@ app.delete("/api/users/:id", async (req, res) => {
 // Clear collections endpoint (useful utility)
 app.post("/api/system/reset", async (req, res) => {
   try {
-    if (mongoConnected) {
-      await JobModel.deleteMany({});
-      await InvoiceModel.deleteMany({});
-      await UserModel.deleteMany({});
-      await JobModel.insertMany(INITIAL_JOBS_FALLBACK as any[]);
-      await InvoiceModel.insertMany(INITIAL_INVOICES_FALLBACK as any[]);
-      await UserModel.insertMany(INITIAL_USERS as any[]);
-      res.json({ message: "MongoDB data reset successfully!" });
-    } else {
-      localJobs = [...INITIAL_JOBS_FALLBACK];
-      localInvoices = [...INITIAL_INVOICES_FALLBACK];
-      localUsers = [...INITIAL_USERS];
-      res.json({ message: "In-memory data reset successfully!" });
+    if (!mongoConnected) {
+      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      return;
     }
+    await JobModel.deleteMany({});
+    await InvoiceModel.deleteMany({});
+    await UserModel.deleteMany({});
+    await JobModel.insertMany(INITIAL_JOBS_FALLBACK as any[]);
+    await InvoiceModel.insertMany(INITIAL_INVOICES_FALLBACK as any[]);
+    await UserModel.insertMany(INITIAL_USERS as any[]);
+    res.json({ message: "MongoDB data reset successfully!" });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

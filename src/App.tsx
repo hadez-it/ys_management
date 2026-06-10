@@ -121,8 +121,8 @@ export default function App() {
         console.error('Error fetching db status:', err);
         setDbStatus({
           connected: false,
-          isDemo: true,
-          modeMessage: 'Client-only Sandbox (Vercel Offline Fallback Mode)'
+          isDemo: false,
+          modeMessage: 'Database Connection Offline. Please check your MONGO_URI setup in Settings/Secrets.'
         });
       });
 
@@ -943,16 +943,16 @@ export default function App() {
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
                   dbStatus.connected 
                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                    : 'bg-amber-50 text-amber-750 border border-amber-100'
+                    : 'bg-rose-50 text-rose-750 border border-rose-100'
                 }`}>
                   <span className={`h-2 w-2 rounded-full ${
-                    dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                    dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
                   }`} />
-                  {dbStatus.connected ? 'ချိတ်ဆက်မှု အောင်မြင်သည် (Connected)' : 'စမ်းသပ်မှုမုဒ် (Sandbox/Offline Mode)'}
+                  {dbStatus.connected ? 'ချိတ်ဆက်မှု အောင်မြင်သည် (Connected)' : 'ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)'}
                 </span>
                 
                 <span className="text-[11px] text-slate-400 font-mono font-semibold">
-                  {dbStatus.isDemo ? 'Local Storage' : 'Cloud Database'}
+                  MongoDB Atlas
                 </span>
               </div>
 

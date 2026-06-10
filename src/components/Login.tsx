@@ -46,20 +46,9 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
         onLoginSuccess(userData);
       })
       .catch((err) => {
-        if (err.message === 'Authentication failed: Invalid username or passcode.') {
-          setErrorMsg(err.message);
-        } else {
-          // Client-side authentication fallback (ideal for Vercel static hosting)
-          const matchedUser = INITIAL_FALLBACK_USERS.find(
-            (u) => u.username === cleanUsername && u.password === passVal
-          );
-          if (matchedUser) {
-            const { password, ...userData } = matchedUser;
-            onLoginSuccess(userData as User);
-          } else {
-            setErrorMsg('Authentication failed: Invalid username or passcode.');
-          }
-        }
+        setErrorMsg(err.message === 'BACKEND_OFFLINE' 
+          ? 'ဒေတာဘေ့စ် ချိတ်ဆက်မှု မအောင်မြင်ပါ (Database connection offline). Please examine your MONGO_URI.' 
+          : (err.message || 'Authentication failed: Invalid username or passcode.'));
       })
       .finally(() => {
         setLoading(false);
