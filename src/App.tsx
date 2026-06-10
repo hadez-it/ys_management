@@ -25,6 +25,7 @@ import {
   formatMMK,
   MAP_CENTER_YANGON
 } from './utils.ts';
+import { INITIAL_JOBS_FALLBACK, INITIAL_INVOICES_FALLBACK } from './fallbackData.ts';
 
 // Import components
 import DashboardStats from './components/DashboardStats.tsx';
@@ -77,9 +78,24 @@ export default function App() {
 
   const fetchDeletedJobs = () => {
     fetch('/api/deleted-jobs')
-      .then((res) => res.json())
-      .then((data) => setDeletedJobs(data || []))
-      .catch((err) => console.error('Error fetching deleted jobs:', err));
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) => {
+        setDeletedJobs(data || []);
+        localStorage.setItem('smartfix_deleted_jobs', JSON.stringify(data || []));
+      })
+      .catch((err) => {
+        console.error('Error fetching deleted jobs, falling back to local storage:', err);
+        const localDelVal = localStorage.getItem('smartfix_deleted_jobs');
+        if (localDelVal) {
+          setDeletedJobs(JSON.parse(localDelVal));
+        } else {
+          setDeletedJobs([]);
+          localStorage.setItem('smartfix_deleted_jobs', JSON.stringify([]));
+        }
+      });
   };
 
   // If role changes, reset activeTab to dashboard if current tab is restricted
@@ -100,26 +116,99 @@ export default function App() {
     fetch('/api/db-status')
       .then((res) => res.json())
       .then((data) => setDbStatus(data))
-      .catch((err) => console.error('Error fetching db status:', err));
+      .catch((err) => {
+        console.error('Error fetching db status:', err);
+        setDbStatus({
+          connected: false,
+          isDemo: true,
+          modeMessage: 'Client-only Sandbox (Vercel Offline Fallback Mode)'
+        });
+      });
 
     const fetchJobs = () => {
       fetch('/api/jobs')
-        .then((res) => res.json())
-        .then((data) => setJobs(data || []))
-        .catch((err) => console.error('Error fetching jobs:', err));
+        .then((res) => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then((data) => {
+          setJobs(data || []);
+          localStorage.setItem('smartfix_jobs', JSON.stringify(data || []));
+        })
+        .catch((err) => {
+          console.error('Error fetching jobs, falling back to local storage:', err);
+          const localJobsVal = localStorage.getItem('smartfix_jobs');
+          if (localJobsVal) {
+            setJobs(JSON.parse(localJobsVal));
+          } else {
+            setJobs(INITIAL_JOBS_FALLBACK);
+            localStorage.setItem('smartfix_jobs', JSON.stringify(INITIAL_JOBS_FALLBACK));
+          }
+        });
     };
 
     fetchJobs();
 
     fetch('/api/invoices')
-      .then((res) => res.json())
-      .then((data) => setInvoices(data || []))
-      .catch((err) => console.error('Error fetching invoices:', err));
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) => {
+        setInvoices(data || []);
+        localStorage.setItem('smartfix_invoices', JSON.stringify(data || []));
+      })
+      .catch((err) => {
+        console.error('Error fetching invoices, falling back to local storage:', err);
+        const localInvsVal = localStorage.getItem('smartfix_invoices');
+        if (localInvsVal) {
+          setInvoices(JSON.parse(localInvsVal));
+        } else {
+          setInvoices(INITIAL_INVOICES_FALLBACK);
+          localStorage.setItem('smartfix_invoices', JSON.stringify(INITIAL_INVOICES_FALLBACK));
+        }
+      });
 
-    fetchDeletedJobs();
+    // Fetch deleted jobs helper
+    const fetchDeletedJobsOnStart = () => {
+      fetch('/api/deleted-jobs')
+        .then((res) => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then((data) => {
+          setDeletedJobs(data || []);
+          localStorage.setItem('smartfix_deleted_jobs', JSON.stringify(data || []));
+        })
+        .catch((err) => {
+          console.error('Error fetching deleted jobs, falling back to local storage:', err);
+          const localDelVal = localStorage.getItem('smartfix_deleted_jobs');
+          if (localDelVal) {
+            setDeletedJobs(JSON.parse(localDelVal));
+          } else {
+            setDeletedJobs([]);
+            localStorage.setItem('smartfix_deleted_jobs', JSON.stringify([]));
+          }
+        });
+    };
+
+    fetchDeletedJobsOnStart();
 
     // Poll jobs endpoint every 60 seconds
-    const intervalId = setInterval(fetchJobs, 60000);
+    const intervalId = setInterval(() => {
+      fetch('/api/jobs')
+        .then((res) => {
+          if (res.ok) return res.json();
+          throw new Error();
+        })
+        .then((data) => {
+          setJobs(data || []);
+          localStorage.setItem('smartfix_jobs', JSON.stringify(data || []));
+        })
+        .catch(() => {
+          // Keep offline state silently running
+        });
+    }, 60000);
 
     return () => {
       clearInterval(intervalId);
@@ -147,12 +236,23 @@ export default function App() {
         return res.json();
       })
       .then((savedJob) => {
-        setJobs((prev) => [savedJob, ...prev]);
+        setJobs((prev) => {
+          const updated = [savedJob, ...prev];
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
         setIsNewTicketModalOpen(false);
-        setActiveTab('queue'); // Jump straight to dispatching queue
+        setActiveTab('queue');
       })
       .catch((err) => {
-        alert('Server sync error: ' + err.message);
+        // Fallback for offline/Vercel
+        setJobs((prev) => {
+          const updated = [newJob, ...prev];
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
+        setIsNewTicketModalOpen(false);
+        setActiveTab('queue');
       });
   };
 
@@ -168,7 +268,8 @@ export default function App() {
     const targetJob = jobs.find((j) => j.id === jobId);
     if (!targetJob) return;
 
-    const updatedFields = {
+    const updatedJob: ServiceJob = {
+      ...targetJob,
       status,
       technicianName: technicianName !== undefined ? technicianName : targetJob.technicianName,
       diagnosedProblem: diagnosedProblem !== undefined ? diagnosedProblem : targetJob.diagnosedProblem,
@@ -180,20 +281,32 @@ export default function App() {
     fetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedFields),
+      body: JSON.stringify(updatedJob),
     })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to update job status');
         return res.json();
       })
       .then((savedJob) => {
-        setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
+        setJobs((prev) => {
+          const updated = prev.map((j) => (j.id === jobId ? savedJob : j));
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
         if (status === 'Completed') {
           setInvoiceWizardJob(savedJob);
         }
       })
       .catch((err) => {
-        alert('Server sync status error: ' + err.message);
+        // Fallback for offline/Vercel
+        setJobs((prev) => {
+          const updated = prev.map((j) => (j.id === jobId ? updatedJob : j));
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
+        if (status === 'Completed') {
+          setInvoiceWizardJob(updatedJob);
+        }
       });
   };
 
@@ -202,7 +315,8 @@ export default function App() {
     const targetJob = jobs.find((j) => j.id === jobId);
     if (!targetJob) return;
 
-    const updatedFields = {
+    const updatedJob: ServiceJob = {
+      ...targetJob,
       priorityNumber,
       updatedAt: new Date().toISOString(),
     };
@@ -210,22 +324,33 @@ export default function App() {
     fetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedFields),
+      body: JSON.stringify({ priorityNumber, updatedAt: updatedJob.updatedAt }),
     })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to update priority ranking');
         return res.json();
       })
       .then((savedJob) => {
-        setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
+        setJobs((prev) => {
+          const updated = prev.map((j) => (j.id === jobId ? savedJob : j));
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
       })
       .catch((err) => {
-        alert('Server priority sync error: ' + err.message);
+        // Fallback for offline/Vercel
+        setJobs((prev) => {
+          const updated = prev.map((j) => (j.id === jobId ? updatedJob : j));
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
       });
   };
 
   // Delete customer job and log reason
   const handleDeleteJob = (jobId: string, reason: string) => {
+    const jobToDelete = jobs.find((j) => j.id === jobId);
+
     fetch(`/api/jobs/${jobId}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -236,16 +361,45 @@ export default function App() {
         return res.json();
       })
       .then(() => {
-        setJobs((prev) => prev.filter((j) => j.id !== jobId));
+        setJobs((prev) => {
+          const updated = prev.filter((j) => j.id !== jobId);
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
         fetchDeletedJobs();
       })
       .catch((err) => {
-        alert('Server deletion sync error: ' + err.message);
+        // Fallback for offline/Vercel
+        setJobs((prev) => {
+          const updated = prev.filter((j) => j.id !== jobId);
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
+
+        if (jobToDelete) {
+          const newDeletedJob: DeletedJob = {
+            id: jobToDelete.id,
+            customerName: jobToDelete.customerName,
+            customerPhone: jobToDelete.customerPhone,
+            dateTime: jobToDelete.dateTime,
+            deletedAt: new Date().toISOString(),
+            deleteReason: reason,
+            originalJobData: jobToDelete,
+          };
+          setDeletedJobs((prev) => {
+            const updated = [newDeletedJob, ...prev];
+            localStorage.setItem('smartfix_deleted_jobs', JSON.stringify(updated));
+            return updated;
+          });
+        }
       });
   };
 
   // Edit job details
   const handleEditJob = (jobId: string, updatedJobData: any) => {
+    const targetJob = jobs.find((j) => j.id === jobId);
+    const updatedJob = targetJob ? { ...targetJob, ...updatedJobData, updatedAt: new Date().toISOString() } : null;
+
     fetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -256,10 +410,21 @@ export default function App() {
         return res.json();
       })
       .then((savedJob) => {
-        setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
+        setJobs((prev) => {
+          const updated = prev.map((j) => (j.id === jobId ? savedJob : j));
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
       })
       .catch((err) => {
-        alert('Server job update sync error: ' + err.message);
+        // Fallback for offline/Vercel
+        if (updatedJob) {
+          setJobs((prev) => {
+            const updated = prev.map((j) => (j.id === jobId ? updatedJob : j));
+            localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+            return updated;
+          });
+        }
       });
   };
 
@@ -289,7 +454,11 @@ export default function App() {
         return res.json();
       })
       .then((savedInvoice) => {
-        setInvoices((prev) => [savedInvoice, ...prev]);
+        setInvoices((prev) => {
+          const updated = [savedInvoice, ...prev];
+          localStorage.setItem('smartfix_invoices', JSON.stringify(updated));
+          return updated;
+        });
 
         // Link invoice key to job and lock job
         const updatedJobFields = {
@@ -308,13 +477,38 @@ export default function App() {
             return res.json();
           })
           .then((updatedJob) => {
-            setJobs((prev) => prev.map((j) => (j.id === invoiceWizardJob.id ? updatedJob : j)));
+            setJobs((prev) => {
+              const updated = prev.map((j) => (j.id === invoiceWizardJob.id ? updatedJob : j));
+              localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+              return updated;
+            });
             setInvoiceWizardJob(null);
             setViewingInvoice(savedInvoice);
           });
       })
       .catch((err) => {
-        alert('Invoicing sync error: ' + err.message);
+        // Fallback for offline/Vercel
+        setInvoices((prev) => {
+          const updated = [newInvoice, ...prev];
+          localStorage.setItem('smartfix_invoices', JSON.stringify(updated));
+          return updated;
+        });
+
+        const updatedJob: ServiceJob = {
+          ...invoiceWizardJob,
+          status: 'Completed' as JobStatus,
+          invoiceId: newInvoice.id,
+          updatedAt: new Date().toISOString(),
+        };
+
+        setJobs((prev) => {
+          const updated = prev.map((j) => (j.id === invoiceWizardJob.id ? updatedJob : j));
+          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          return updated;
+        });
+
+        setInvoiceWizardJob(null);
+        setViewingInvoice(newInvoice);
       });
   };
 
