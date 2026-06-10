@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, User, Phone, Laptop, AlertTriangle, MapPin, AlignLeft, Send, Sparkles, RefreshCw } from 'lucide-react';
 import { ServiceJob, DeviceType, UrgencyLevel, LocationCoords } from '../types.ts';
-import MapSelector from './MapSelector.tsx';
 import { MAP_CENTER_YANGON } from '../utils.ts';
 
 interface JobFormProps {
@@ -94,39 +93,37 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" id="service-job-form">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left column: Structured Fields */}
-        <div className="space-y-5 bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between border-b border-gray-50 pb-4">
-            <div>
-              <h3 className="font-semibold text-gray-900 text-sm">Service Ticket Details</h3>
-              <p className="text-xs text-gray-400">Please provide precise customer & device details.</p>
-            </div>
-            
-            {/* Quick Demo Assist Button */}
-            <div className="dropdown relative group">
-              <button
-                type="button"
-                id="btn-auto-presets"
-                className="inline-flex items-center gap-1 text-[11px] bg-blue-50 text-blue-700 font-semibold py-1.5 px-3 rounded-lg hover:bg-blue-100 transition-all cursor-pointer"
-              >
-                <Sparkles className="h-3 w-3" /> Auto Presets
-              </button>
-              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-gray-100 rounded-lg shadow-lg p-1.5 hidden group-hover:block z-15">
-                <p className="text-[10px] text-gray-400 font-semibold px-2 pb-1 border-b border-gray-50 select-none">Quick Test Case:</p>
-                {ISSUE_PRESETS.map((p, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleApplyPreset(p)}
-                    className="w-full text-left p-1.5 text-xs text-gray-600 hover:text-blue-700 hover:bg-blue-50/50 rounded transition-all"
-                  >
-                    ⚡ {p.title}
-                  </button>
-                ))}
-              </div>
+      <div className="space-y-5 bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+        <div className="flex items-center justify-between border-b border-gray-50 pb-4">
+          <div>
+            <h3 className="font-semibold text-gray-900 text-sm">Service Ticket Details</h3>
+            <p className="text-xs text-gray-400">Please provide precise customer & device details.</p>
+          </div>
+          
+          {/* Quick Demo Assist Button */}
+          <div className="dropdown relative group">
+            <button
+              type="button"
+              id="btn-auto-presets"
+              className="inline-flex items-center gap-1 text-[11px] bg-blue-50 text-blue-700 font-semibold py-1.5 px-3 rounded-lg hover:bg-blue-100 transition-all cursor-pointer"
+            >
+              <Sparkles className="h-3 w-3" /> Auto Presets
+            </button>
+            <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-gray-100 rounded-lg shadow-lg p-1.5 hidden group-hover:block z-15">
+              <p className="text-[10px] text-gray-400 font-semibold px-2 pb-1 border-b border-gray-50 select-none">Quick Test Case:</p>
+              {ISSUE_PRESETS.map((p, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleApplyPreset(p)}
+                  className="w-full text-left p-1.5 text-xs text-gray-600 hover:text-blue-700 hover:bg-blue-50/50 rounded transition-all"
+                >
+                  ⚡ {p.title}
+                </button>
+              ))}
             </div>
           </div>
+        </div>
 
           {/* Customer Name */}
           <div className="space-y-1">
@@ -360,43 +357,26 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
           )}
         </div>
 
-        {/* Right column: Map Location Pinning */}
-        <div className="flex flex-col gap-5">
-          <div className="flex-1 min-h-[300px]">
-            <MapSelector
-              selectedCoords={locationCoords}
-              onSelectCoords={setLocationCoords}
-              locationName={locationText}
-              onLocationSelectText={(text) => {
-                if (!locationText.trim()) {
-                  setLocationText(text);
-                }
-              }}
-            />
-          </div>
-
-          {/* Actions Frame */}
-          <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-end gap-3 shrink-0">
-            {onCancel && (
-              <button
-                type="button"
-                id="btn-cancel-job-creation"
-                onClick={onCancel}
-                className="py-2.5 px-4.5 border border-gray-150 text-xs font-semibold rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all"
-              >
-                Cancel
-              </button>
-            )}
+        {/* Actions Frame */}
+        <div className="border-t border-gray-100 pt-5 flex items-center justify-end gap-3 shrink-0 select-none">
+          {onCancel && (
             <button
-              type="submit"
-              id="btn-submit-service-job"
-              className="inline-flex items-center gap-2 py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl cursor-pointer transition-all"
+              type="button"
+              id="btn-cancel-job-creation"
+              onClick={onCancel}
+              className="py-2.5 px-4.5 border border-gray-150 text-xs font-semibold rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-50 cursor-pointer transition-all"
             >
-              <Send className="h-3.5 w-3.5" /> Dispatch Job
+              Cancel
             </button>
-          </div>
+          )}
+          <button
+            type="submit"
+            id="btn-submit-service-job"
+            className="inline-flex items-center gap-2 py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl cursor-pointer transition-all"
+          >
+            <Send className="h-3.5 w-3.5" /> {isEditMode ? 'Update Ticket' : 'Dispatch Job'}
+          </button>
         </div>
-      </div>
     </form>
   );
 }

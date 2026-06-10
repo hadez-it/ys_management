@@ -877,12 +877,12 @@ export default function App() {
       {/* NEW TICKET REGISTRATION POPUP */}
       {isNewTicketModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in" id="new-ticket-modal-overlay">
-          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200/30 max-h-[90vh] flex flex-col overflow-hidden animate-scale-up" id="new-ticket-modal-container">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200/30 max-h-[90vh] flex flex-col overflow-hidden animate-scale-up" id="new-ticket-modal-container">
             {/* Modal Header */}
             <div className="bg-slate-50 px-6 py-5 border-b border-slate-200 flex items-center justify-between shrink-0 text-left select-none">
               <div>
                 <h3 className="font-extrabold text-slate-905 text-base font-display">Register Service Work</h3>
-                <p className="text-xs text-slate-400">Map coordinates pinning & urgent dispatcher dispatching</p>
+                <p className="text-xs text-slate-400">Assign technician & record service ticket details</p>
               </div>
               <button
                 type="button"
