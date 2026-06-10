@@ -548,7 +548,7 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-800 font-sans antialiased pb-20 lg:pb-0 flex flex-col lg:flex-row" id="app-viewport">
+    <div className="h-screen bg-slate-50/50 text-slate-800 font-sans antialiased flex flex-col lg:flex-row overflow-hidden" id="app-viewport">
       
       {/* DESKTOP SIDEBAR (Visible only on screens lg and up) */}
       <aside className="hidden lg:flex lg:w-64 bg-slate-950 text-white flex-col shrink-0 fixed top-0 bottom-0 left-0 border-r border-slate-900 z-30 select-none" id="desktop-sidebar">
@@ -630,10 +630,10 @@ export default function App() {
       </aside>
 
       {/* RIGHT SIDE MAIN CONTAINER */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen overflow-x-hidden">
+      <div className="flex-1 lg:pl-64 flex flex-col h-screen overflow-hidden">
         
         {/* RESPONSIVE FLUID HEADER */}
-        <header className="bg-white border-b border-slate-200/55 sticky top-0 z-20 shrink-0 select-none" id="shop-header">
+        <header className="bg-white border-b border-slate-200/55 z-20 shrink-0 select-none" id="shop-header">
           <div className="mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
             
             {/* Title / Mobile Brand */}
@@ -707,7 +707,7 @@ export default function App() {
 
 
         {/* MAIN BODY AREA & WORKSPACE */}
-        <main className="w-full px-4 sm:px-6 py-6 flex-1 space-y-6">
+        <main className="w-full px-4 sm:px-6 py-6 flex-1 overflow-y-auto pb-24 lg:pb-6 space-y-6">
           
           {invoiceWizardJob ? (
             <InvoiceGenerator
