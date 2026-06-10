@@ -21,6 +21,13 @@ const isDemoMode =
   rawUri.includes("YOUR_") ||
   rawUri === "";
 
+let uriDiagnostics = "present";
+if (!rawUri || rawUri === "") {
+  uriDiagnostics = "missing";
+} else if (rawUri.includes("<db_username>") || rawUri.includes("<db_password>") || rawUri.includes("YOUR_")) {
+  uriDiagnostics = "placeholder";
+}
+
 let mongoConnected = false;
 let lastConnectionError = "";
 
@@ -283,7 +290,8 @@ app.get("/api/db-status", (req, res) => {
     modeMessage: isDemoMode 
       ? "Using Local Sandbox memory state. Update your MONGO_URI variable in Settings/Secrets to connect your MongoDB Atlas Cluster."
       : (mongoConnected ? "Connected to Your MongoDB Atlas Live Cluster." : `Mongoose Error: ${lastConnectionError}`),
-    error: lastConnectionError
+    error: lastConnectionError,
+    uriState: uriDiagnostics
   });
 });
 
