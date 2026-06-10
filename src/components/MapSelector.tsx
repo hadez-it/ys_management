@@ -27,14 +27,14 @@ interface Landmark {
 }
 
 const YANGON_LANDMARKS: Landmark[] = [
-  { name: 'Shwedagon Pagoda (ရွှေတိဂုံစေတီတော်)', coords: { lat: 16.7983, lng: 96.1497 }, type: 'culture', color: 'bg-amber-500' },
-  { name: 'Inya Lake (အင်းလျားကန်)', coords: { lat: 16.8409, lng: 96.1561 }, type: 'lake', color: 'bg-blue-500' },
-  { name: 'Kandawgyi Lake (ကန်တော်ကြီး)', coords: { lat: 16.7944, lng: 96.1664 }, type: 'lake', color: 'bg-sky-500' },
-  { name: 'Sule Pagoda (ဆူးလေဘုရား - Downtown)', coords: { lat: 16.7746, lng: 96.1587 }, type: 'city', color: 'bg-yellow-600' },
-  { name: 'Hledan Junction (လှည်းတန်းဆုံ)', coords: { lat: 16.8277, lng: 96.1306 }, type: 'transit', color: 'bg-violet-500' },
-  { name: 'Junction City Mall (ဂျန်းရှင်းစီးတီး)', coords: { lat: 16.7788, lng: 96.1517 }, type: 'shop', color: 'bg-rose-500' },
-  { name: 'Sanchaung Township (စမ်းချောင်း)', coords: { lat: 16.8080, lng: 96.1315 }, type: 'residential', color: 'bg-emerald-500' },
-  { name: 'MICT Park (လှိုင်နည်းပညာ)', coords: { lat: 16.8488, lng: 96.1285 }, type: 'tech', color: 'bg-blue-600' },
+  { name: 'Shwedagon Pagoda', coords: { lat: 16.7983, lng: 96.1497 }, type: 'culture', color: 'bg-amber-500' },
+  { name: 'Inya Lake', coords: { lat: 16.8409, lng: 96.1561 }, type: 'lake', color: 'bg-blue-500' },
+  { name: 'Kandawgyi Lake', coords: { lat: 16.7944, lng: 96.1664 }, type: 'lake', color: 'bg-sky-500' },
+  { name: 'Sule Pagoda (Downtown)', coords: { lat: 16.7746, lng: 96.1587 }, type: 'city', color: 'bg-yellow-600' },
+  { name: 'Hledan Junction', coords: { lat: 16.8277, lng: 96.1306 }, type: 'transit', color: 'bg-violet-500' },
+  { name: 'Junction City Mall', coords: { lat: 16.7788, lng: 96.1517 }, type: 'shop', color: 'bg-rose-500' },
+  { name: 'Sanchaung Township', coords: { lat: 16.8080, lng: 96.1315 }, type: 'residential', color: 'bg-emerald-500' },
+  { name: 'MICT Park (High Tech)', coords: { lat: 16.8488, lng: 96.1285 }, type: 'tech', color: 'bg-blue-600' },
 ];
 
 export default function MapSelector({ selectedCoords, onSelectCoords, locationName, onLocationSelectText }: MapSelectorProps) {
@@ -62,7 +62,7 @@ export default function MapSelector({ selectedCoords, onSelectCoords, locationNa
             <MapPin className="text-blue-600 h-5 w-5" />
             <div>
               <h4 className="text-sm font-semibold text-gray-800">
-                Customer Location Pin (မြေပုံညွှန်ပြချက်)
+                Customer Location Pin
               </h4>
               <p className="text-xs text-gray-500 font-mono">
                 Coordinates: {selectedCoords.lat.toFixed(4)}°N, {selectedCoords.lng.toFixed(4)}°E
@@ -116,7 +116,7 @@ export default function MapSelector({ selectedCoords, onSelectCoords, locationNa
           <div className="flex items-center gap-1.5 pb-1">
             <Compass className="h-4 w-4 text-blue-600 animate-pulse" />
             <span className="text-xs font-bold text-gray-700 uppercase tracking-wider select-none">
-              Core Landmarks & Townships (စေလွှတ်ရန်နေရာရွေးချယ်ရန်)
+              Core Landmarks & Townships
             </span>
           </div>
 

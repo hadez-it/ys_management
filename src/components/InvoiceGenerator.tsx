@@ -367,7 +367,7 @@ export default function InvoiceGenerator({ job, onSaveInvoice, onCancel }: Invoi
                   <option value="KBZPay">KBZPay / KPay</option>
                   <option value="WavePay">WavePay</option>
                   <option value="CBPay">CBPay</option>
-                  <option value="Cash">Cash (မြေပြင်ငွေသား)</option>
+                  <option value="Cash">Cash</option>
                   <option value="Bank Transfer">AYA / KBZ Bank</option>
                 </select>
               </div>
@@ -420,7 +420,7 @@ export default function InvoiceGenerator({ job, onSaveInvoice, onCancel }: Invoi
           {/* Invoice identifiers */}
           <div className="flex justify-between items-start text-xs border-b border-gray-50 pb-4">
             <div className="space-y-1">
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Billed To (ဖောက်သည်)</p>
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Billed To</p>
               <p className="font-bold text-gray-800 leading-none">{job.customerName}</p>
               <p className="text-gray-500 font-mono text-[10px] mt-1">{job.customerPhone}</p>
             </div>

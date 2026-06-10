@@ -377,7 +377,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                 <div className="flex items-center justify-between px-3 py-1.5 select-none bg-rose-50 border border-rose-100/50 rounded-xl">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                    <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">Overdue (နောက်ကျနေသော ဆာဗစ်များ)</span>
+                    <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">Overdue</span>
                   </div>
                   <span className="text-[10px] bg-rose-200/50 text-rose-800 font-bold px-2 py-0.5 rounded-lg">
                     {overdueJobs.length} ticket{overdueJobs.length > 1 ? 's' : ''}
@@ -395,7 +395,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                 <div className="flex items-center justify-between px-3 py-1.5 select-none bg-blue-50 border border-blue-100/50 rounded-xl">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Today (ယနေ့နောက်ဆုံးချိန်)</span>
+                    <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Today</span>
                   </div>
                   <span className="text-[10px] bg-blue-200/50 text-blue-800 font-bold px-2 py-0.5 rounded-lg">
                     {todayJobs.length} ticket{todayJobs.length > 1 ? 's' : ''}
@@ -413,7 +413,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                 <div className="flex items-center justify-between px-3 py-1.5 select-none bg-amber-55/10 border border-amber-100/40 rounded-xl">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Tomorrow (မနက်ဖြန်ဆာဗစ်များ)</span>
+                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Tomorrow</span>
                   </div>
                   <span className="text-[10px] bg-amber-100 text-amber-850 font-bold px-2 py-0.5 rounded-lg">
                     {tomorrowJobs.length} ticket{tomorrowJobs.length > 1 ? 's' : ''}
@@ -612,7 +612,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
               {/* Dynamic remarks tracking details */}
               <div className="p-4 bg-amber-50/20 border border-amber-100/50 rounded-xl text-left space-y-1.5">
                 <h4 className="text-xs font-semibold text-amber-800 flex items-center gap-2">
-                  <AlertOctagon className="h-3.5 w-3.5 text-amber-500" /> Communication Remarks (ဆက်သွယ်မှုမှတ်တမ်း)
+                  <AlertOctagon className="h-3.5 w-3.5 text-amber-500" /> Communication Remarks
                 </h4>
                 {selectedJob.remarks ? (
                   <div className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed font-sans bg-white p-2.5 rounded-lg border border-amber-100/40 max-h-[140px] overflow-y-auto">
@@ -627,7 +627,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
               {selectedJob.editHistory && selectedJob.editHistory.length > 0 && (
                 <div className="p-4 bg-gray-50 border border-gray-150 rounded-xl text-left space-y-2 animate-fade-in" id="ticket-edit-history-logs">
                   <h4 className="text-xs font-semibold text-gray-700 flex items-center gap-1.5 select-none font-sans">
-                    <Edit className="h-3.5 w-3.5 text-amber-500" /> Ticket Edit History & Audit Logs (တည်းဖြတ်မှုမှတ်တမ်းချုပ်)
+                    <Edit className="h-3.5 w-3.5 text-amber-500" /> Ticket Edit History & Audit Logs
                   </h4>
                   <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
                     {selectedJob.editHistory.map((log, idx) => {
@@ -691,7 +691,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
                   >
                     <Wrench className="h-4 w-4 shrink-0 animate-bounce" />
-                    ပြင်ဆင်မှု ပြီးမြောက်ကြောင်း သတ်မှတ်ရန် (Mark Repair Completed)
+                    Mark Repair Completed
                   </button>
                 </div>
               ) : (
@@ -700,9 +700,9 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                     <button
                       type="button"
                       onClick={() => setShowWorkflow(false)}
-                      className="text-[10px] font-bold text-gray-500 hover:text-gray-800 bg-gray-200/60 hover:bg-gray-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer select-none"
+                      className="text-[10px] font-bold text-gray-500 hover:text-gray-800 bg-gray-200/60 hover:bg-gray-205 px-2.5 py-1 rounded-md transition-colors cursor-pointer select-none"
                     >
-                      ▲ Hide (ဝှက်ရန်)
+                      ▲ Hide
                     </button>
                   </div>
 
@@ -710,12 +710,12 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                     {/* Only 1 workflow: complete status mark */}
                     <div className="space-y-3 p-3 bg-white border border-gray-200 rounded-xl" id="state-widget-servicing">
                       <p className="text-xs text-gray-500 mb-1 font-semibold">
-                        ပြင်ဆင်မှု အချက်အလက်များ ဖြည့်စွက်ပါ (Enter Repair Information):
+                        Enter Repair Information (Diagnosed finding and action done):
                       </p>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase">Diagnosed Fault Findings (စစ်ဆေးတွေ့ရှိချက်)</label>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Diagnosed Fault Findings</label>
                           <input
                             type="text"
                             id="problem-findings-input"
@@ -726,7 +726,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase">Resolution / Action Done (ပြင်ဆင်မှုလုပ်ဆောင်ချက်)</label>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase">Resolution / Action Done</label>
                           <input
                             type="text"
                             id="resolution-findings-input"
@@ -744,14 +744,14 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                           id="btn-complete-service-task"
                           onClick={() => {
                             if (!diagnosedProblem.trim() || !resolutionNotes.trim()) {
-                              alert('ကျေးဇူးပြု၍ စစ်ဆေးတွေ့ရှိချက်နှင့် ပြင်ဆင်မှုလုပ်ဆောင်ချက်များကို ဖြည့်စွက်ပေးပါ! (Please fill both findings and resolution steps!)');
+                              alert('Please fill both findings and resolution steps!');
                               return;
                             }
                             onUpdateJobStatus(selectedJob.id, 'Completed', selectedJob.technicianName, diagnosedProblem, resolutionNotes);
                           }}
                           className="inline-flex items-center gap-1.5 py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg cursor-pointer transition-all text-xs shadow-xs"
                         >
-                          <CheckCircle className="h-3.5 w-3.5" /> ပြင်ဆင်မှုပြီးဆုံးကြောင်း သတ်မှတ်မည် (Log Repair Completed)
+                          <CheckCircle className="h-3.5 w-3.5" /> Log Repair Completed
                         </button>
                       </div>
                     </div>
@@ -760,17 +760,17 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                   {/* COMMUNICATORS & UNREACHABLE DISPATCH PRESET ACTIONS */}
                   <div className="border-t border-gray-200/60 pt-3 space-y-2">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wilder block select-none">
-                      Log Remarks / Customer Unreachable (ဆက်သွယ်မှုမှတ်တမ်း)
+                      Log Remarks / Customer Unreachable Actions
                     </label>
                     
-                    {/* Preset Burmese responses */}
+                    {/* Preset responses */}
                     <div className="flex flex-wrap gap-1.5">
                       <button
                         type="button"
                         onClick={() => {
                           const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                           const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
-                          const text = `[${datePrefix} ${timestamp}] Unreachable: Busy / No Answer (ဖုန်းခေါ်ဆို၍မရပါ - မကိုင်ပါ)`;
+                          const text = `[${datePrefix} ${timestamp}] Unreachable: Busy / No Answer`;
                           const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
                           onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
                         }}
@@ -784,7 +784,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                         onClick={() => {
                           const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                           const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
-                          const text = `[${datePrefix} ${timestamp}] Unreachable: Switched Off (ဖုန်းပိတ်ထားပါ)`;
+                          const text = `[${datePrefix} ${timestamp}] Unreachable: Switched Off`;
                           const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
                           onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
                         }}
@@ -798,7 +798,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                         onClick={() => {
                           const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                           const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
-                          const text = `[${datePrefix} ${timestamp}] Site Unreachable: Customer Closed / Away (ဆိုက်တွင် လူမရှိပါ)`;
+                          const text = `[${datePrefix} ${timestamp}] Site Unreachable: Customer Closed / Away`;
                           const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
                           onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
                         }}
@@ -961,7 +961,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
 
               <div className={`space-y-2 ${isCompletedJob ? 'opacity-40 pointer-events-none select-none' : ''}`}>
                 <label htmlFor="priority-input-num" className="text-xs font-bold text-gray-700 block">
-                  Assign Position / Level (စဥ်ီးစားပေးအဆင့်)
+                  Assign Position / Level (Priority Level)
                 </label>
                 
                 <div className="flex gap-2">
@@ -1073,16 +1073,16 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
 
             <div className="space-y-2.5">
               <label htmlFor="delete-reason-input" className="text-xs font-bold text-gray-700 block">
-                Reason for deletion (ဖျက်သိမ်းရသည့်အကြောင်းအရင်း) <span className="text-rose-500">*</span>
+                Reason for deletion <span className="text-rose-500">*</span>
               </label>
 
               {/* Quick Choice Reason selection buttons */}
               <div className="flex flex-col gap-1.5 pt-0.5">
                 {[
-                  'Customer cancelled request (ဝယ်ယူသူမှ ပယ်ဖျက်ခိုင်းပါသဖြင့်)',
-                  'Incorrect ticket entry / Duplicate entry (အမှားဝင်ခြင်း / ပွားနေခြင်း)',
-                  'Out of service coverage / Technical limit (ဝန်ဆောင်မှုအကန့်အသတ်ဖြစ်၍)',
-                  'Hardware unfixable / Sourcing too expensive (ပြင်မရခြင်း / ပစ္စည်းရှာမရခြင်း)'
+                  'Customer cancelled request',
+                  'Incorrect ticket entry / Duplicate entry',
+                  'Out of service coverage / Technical limit',
+                  'Hardware unfixable / Sourcing too expensive'
                 ].map((reasonOption) => {
                   const isSelected = deleteReasonText === reasonOption;
                   return (

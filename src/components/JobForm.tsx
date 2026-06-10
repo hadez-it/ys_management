@@ -316,15 +316,15 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
           {isEditMode && (
             <div className="space-y-2 bg-amber-50/50 p-4 rounded-xl border border-amber-100/40 text-left animate-fade-in">
               <label htmlFor="edit-reason-input" className="text-xs font-bold text-amber-955 block">
-                Reason for Editing (ပြင်ဆင်ရသည့်အကြောင်းအရင်း) <span className="text-rose-500">*</span>
+                Reason for Editing <span className="text-rose-500">*</span>
               </label>
               
               <div className="flex flex-col gap-1.5">
                 {[
-                  'Customer requested details update (ဝယ်ယူသူမှ အသေးစိတ်ပြောင်းလဲခိုင်းခြင်း)',
-                  'Correction of typo or spelling error (စာလုံးပေါင်း သို့မဟုတ် အမှားပြင်ခြင်း)',
-                  'Rescheduled appointment or assignment shift (ချိန်းဆိုမှု ပြောင်းလဲခြင်း)',
-                  'Updated diagnostic details or issue description (ချို့ယွင်းချက်အသေးစိတ် ပြင်ဆင်ခြင်း)'
+                  'Customer requested details update',
+                  'Correction of typo or spelling error',
+                  'Rescheduled appointment or assignment shift',
+                  'Updated diagnostic details or issue description'
                 ].map((option) => {
                   const isSelected = editReason === option;
                   return (

@@ -21,7 +21,7 @@ export default function InvoiceView({ invoice, onClose }: InvoiceViewProps) {
           <div className="flex items-center gap-2">
             <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-md">
-              Settle Paid Invoice (ပြည်တွင်းဘေလ်ရရှိပြီး)
+              Settle Paid Invoice
             </span>
           </div>
           <button
@@ -61,7 +61,7 @@ export default function InvoiceView({ invoice, onClose }: InvoiceViewProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs border-b border-gray-100 pb-5">
             <div className="space-y-1">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">CLIENT INFO (လက်ခံသူ)</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">CLIENT INFO</p>
               <p className="font-bold text-gray-800 text-sm leading-tight">{invoice.customerName}</p>
               <p className="text-gray-500 font-medium font-mono">{invoice.customerPhone}</p>
             </div>
@@ -143,7 +143,7 @@ export default function InvoiceView({ invoice, onClose }: InvoiceViewProps) {
             </div>
 
             <div className="text-center font-sans space-y-1">
-              <p className="text-[10px] font-bold text-gray-700 select-none">လူကြီးမင်းအား အထူးကျေးဇူးတင်ရှိပါသည်၊၊</p>
+              <p className="text-[10px] font-bold text-gray-700 select-none">We appreciate your business!</p>
               <p className="text-[8px] text-gray-400">Thanks for choosing Antigravity Service!</p>
             </div>
           </div>

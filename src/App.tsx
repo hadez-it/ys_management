@@ -948,7 +948,7 @@ export default function App() {
                   <span className={`h-2 w-2 rounded-full ${
                     dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
                   }`} />
-                  {dbStatus.connected ? 'ချိတ်ဆက်မှု အောင်မြင်သည် (Connected)' : 'ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)'}
+                  {dbStatus.connected ? 'Connected' : 'Database Offline'}
                 </span>
                 
                 <span className="text-[11px] text-slate-400 font-mono font-semibold">
@@ -958,7 +958,7 @@ export default function App() {
 
               {/* Status Message */}
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/50 space-y-1 text-slate-705 text-xs select-text">
-                <p className="font-bold text-slate-800">လက်ရှိအခြေအနေ / Current Message:</p>
+                <p className="font-bold text-slate-800">Current Message:</p>
                 <p className="leading-relaxed font-medium text-slate-600">{dbStatus.modeMessage}</p>
                 {dbStatus.uriUsed && (
                   <p className="text-[10px] text-slate-450 mt-1.5 font-mono truncate">
@@ -970,7 +970,7 @@ export default function App() {
               {/* Error Message Details */}
               {dbStatus.error && (
                 <div className="bg-rose-50/50 p-3.5 rounded-xl border border-rose-100 space-y-1 text-xs select-text text-rose-800">
-                  <p className="font-bold text-rose-900">ဖြစ်ပေါ်နေသော အမှား / Error Log:</p>
+                  <p className="font-bold text-rose-900">Error Log:</p>
                   <p className="font-mono text-[11px] leading-relaxed break-words bg-white/70 p-2 rounded border border-rose-200/50">{dbStatus.error}</p>
                 </div>
               )}
@@ -979,18 +979,18 @@ export default function App() {
               <div className="border-t border-slate-100 pt-3 space-y-2">
                 <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                   <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-slate-600">Vercel Setup</span>
-                  Vercel တွင် ချက်ချင်းဖြေရှင်းနည်း လမ်းညွှန်
+                  Vercel Troubleshooting & Setup Guide
                 </h4>
                 <div className="text-[11.5px] leading-relaxed text-slate-650 space-y-1.5 list-decimal pl-1">
-                  <p>သင်သည် ဤအက်ပ်ကို <strong>Vercel</strong> တွင် host လုပ်ထားပြီး အဝါရောင်/လိမ္မော်ရောင် ဖြစ်နေပါက အောက်ပါအတိုင်း ပြင်ဆင်ပါ -</p>
+                  <p>If you have hosted this application on <strong>Vercel</strong> and are experiencing connection errors, please configure the setup as follows:</p>
                   <ol className="list-decimal pl-4 space-y-1 text-slate-600">
-                    <li>သင်၏ <strong>Vercel Dashboard</strong> ပရောဂျက်ထဲသို့ ဝင်ပါ။</li>
-                    <li>Settings ဘားမှတစ်ဆင့် <strong>Environment Variables</strong> ဘက်သို့ သွားပါ။</li>
-                    <li>အမည်နေရာတွင် <code className="bg-slate-100 px-1 rounded font-mono text-[10px] font-bold text-slate-800">MONGO_URI</code> ဟု ထည့်ပါ။</li>
-                    <li>Value နေရာတွင် သင်၏ <strong>MongoDB Atlas Cluster URI</strong> ချိတ်ဆက်မှုလင့်ခ်ကို ထည့်သွင်းပါ။ (ဥပမာ- <code className="bg-slate-100 px-1 rounded font-mono text-[10px] text-slate-800">mongodb+srv://...</code>)</li>
-                    <li>ထည့်သွင်းပြီးနောက် Vercel Dashboard မှတစ်ဆင့် <strong>Deployments</strong> သွားပြီး လက်ရှိ commit ကို <strong>Redeploy</strong> (သို့မဟုတ် Production ကို ပြန်ပတ်ပေးရန်) လုပ်ဆောင်ပါ။</li>
+                    <li>Access your <strong>Vercel Dashboard</strong> project settings.</li>
+                    <li>Navigate to the <strong>Environment Variables</strong> tab.</li>
+                    <li>Set the key name to <code className="bg-slate-100 px-1 rounded font-mono text-[10px] font-bold text-slate-800">MONGO_URI</code>.</li>
+                    <li>Enter your <strong>MongoDB Atlas Cluster URI</strong> in the value input (e.g., <code className="bg-slate-100 px-1 rounded font-mono text-[10px] text-slate-800">mongodb+srv://...</code>).</li>
+                    <li>After saving, go to the <strong>Deployments</strong> tab and select <strong>Redeploy</strong> to apply the changes to your production environment.</li>
                   </ol>
-                  <p className="text-[10px] text-slate-400 italic mt-1.5">မှတ်ချက် - Env Variable အသစ်များသည် Redeploy လုပ်ပြီးမှသာ စတင်အကျိုးသက်ရောက်ပါမည်။</p>
+                  <p className="text-[10px] text-slate-400 italic mt-1.5">Note: New environment variable settings only take effect after a successful rebuild/redeploy.</p>
                 </div>
               </div>
 
@@ -1001,7 +1001,7 @@ export default function App() {
                   onClick={() => setShowDbStatusModal(false)}
                   className="bg-slate-950 hover:bg-slate-850 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer"
                 >
-                  နားလည်ပါပြီ (Close Details)
+                  Close Details
                 </button>
               </div>
             </div>

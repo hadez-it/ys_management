@@ -312,7 +312,7 @@ app.use("/api", async (req, res, next) => {
     next();
   } catch (err: any) {
     res.status(503).json({ 
-      error: `ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline): ${err.message || lastConnectionError}` 
+      error: `Database Offline: ${err.message || lastConnectionError}` 
     });
   }
 });
@@ -341,7 +341,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     if (!mongoConnected) {
-      res.status(503).json({ error: `ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline): ${lastConnectionError || "MongoDB offline"}` });
+      res.status(503).json({ error: `Database Offline: ${lastConnectionError || "MongoDB offline"}` });
       return;
     }
 
@@ -362,7 +362,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/jobs", async (req, res) => {
   try {
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
     const dbJobs = await JobModel.find().lean();
@@ -376,7 +376,7 @@ app.post("/api/jobs", async (req, res) => {
   try {
     const jobData = req.body;
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
     const newJob = new JobModel(jobData);
@@ -392,7 +392,7 @@ app.put("/api/jobs/:id", async (req, res) => {
     const { id } = req.params;
     
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
 
@@ -451,7 +451,7 @@ app.delete("/api/jobs/:id", async (req, res) => {
     const cleanReason = reason && reason.trim() ? reason.trim() : "No reason provided";
 
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
 
@@ -482,7 +482,7 @@ app.delete("/api/jobs/:id", async (req, res) => {
 app.get("/api/deleted-jobs", async (req, res) => {
   try {
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
     const dbDeleted = await DeletedJobModel.find().sort({ deletedAt: -1 }).lean();
@@ -496,7 +496,7 @@ app.get("/api/deleted-jobs", async (req, res) => {
 app.get("/api/invoices", async (req, res) => {
   try {
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
     const dbInvoices = await InvoiceModel.find().lean();
@@ -510,7 +510,7 @@ app.post("/api/invoices", async (req, res) => {
   try {
     const invoiceData = req.body;
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
     const newInvoice = new InvoiceModel(invoiceData);
@@ -525,7 +525,7 @@ app.post("/api/invoices", async (req, res) => {
 app.get("/api/users", async (req, res) => {
   try {
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
     const users = await UserModel.find({} as any).lean();
@@ -548,7 +548,7 @@ app.post("/api/users", async (req, res) => {
     }
 
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
 
@@ -583,7 +583,7 @@ app.put("/api/users/:id", async (req, res) => {
     const { username, name, role, phone, password } = req.body;
     
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
 
@@ -627,7 +627,7 @@ app.delete("/api/users/:id", async (req, res) => {
     }
     
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
 
@@ -646,7 +646,7 @@ app.delete("/api/users/:id", async (req, res) => {
 app.post("/api/system/reset", async (req, res) => {
   try {
     if (!mongoConnected) {
-      res.status(503).json({ error: "ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline)" });
+      res.status(503).json({ error: "Database Offline" });
       return;
     }
     await JobModel.deleteMany({});
