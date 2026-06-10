@@ -70,6 +70,7 @@ export default function App() {
   // Routing and interactive view triggers
   const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users'>('dashboard');
   const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
+  const [showDbStatusModal, setShowDbStatusModal] = useState(false);
   
   // Specific wizard triggers
   const [invoiceWizardJob, setInvoiceWizardJob] = useState<ServiceJob | null>(null);
@@ -222,7 +223,8 @@ export default function App() {
                             document.getElementById('job-detail-modal-backdrop') || 
                             document.getElementById('priority-selector-overlay') || 
                             document.getElementById('edit-details-modal-overlay') || 
-                            document.getElementById('invoice-view-modal');
+                            document.getElementById('invoice-view-modal') ||
+                            document.getElementById('db-status-detail-modal-overlay');
       if (activeOverlay) {
         document.body.style.overflow = 'hidden';
         document.body.classList.add('modal-open');
@@ -242,7 +244,7 @@ export default function App() {
       document.body.style.overflow = '';
       document.body.classList.remove('modal-open');
     };
-  }, [isNewTicketModalOpen, viewingInvoice, invoiceWizardJob]);
+  }, [isNewTicketModalOpen, viewingInvoice, invoiceWizardJob, showDbStatusModal]);
 
   // 1. Create a service job trigger
   const handleCreateJob = (jobDetails: Omit<ServiceJob, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
@@ -643,16 +645,18 @@ export default function App() {
               <LogOut className="h-3.5 w-3.5" /> Log Out
             </button>
             {dbStatus && (
-              <div 
-                className={`flex items-center justify-center h-8 w-8 rounded-lg border shrink-0 ${
-                  dbStatus.connected ? 'border-emerald-900 bg-emerald-950/25' : 'border-amber-900 bg-amber-950/25'
+              <button 
+                type="button"
+                onClick={() => setShowDbStatusModal(true)}
+                className={`flex items-center justify-center h-8 w-8 rounded-lg border shrink-0 cursor-pointer hover:opacity-80 active:scale-95 transition-all outline-none ${
+                  dbStatus.connected ? 'border-emerald-900 bg-emerald-950/25 focus:ring-1 focus:ring-emerald-500' : 'border-amber-900 bg-amber-950/25 focus:ring-1 focus:ring-amber-500'
                 }`}
-                title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed}` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error}` : dbStatus.modeMessage || "Sandbox Local Mode")}
+                title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed} (Click for details)` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error} (Click for details)` : `${dbStatus.modeMessage || "Sandbox Local Mode"} (Click for details)`)}
               >
                 <span className={`h-2.5 w-2.5 rounded-full ${
                   dbStatus.connected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-amber-500'
                 }`} />
-              </div>
+              </button>
             )}
           </div>
         </div>
@@ -710,16 +714,18 @@ export default function App() {
               {/* Log out for small screens */}
               <div className="flex items-center gap-1.5 lg:hidden">
                 {dbStatus && (
-                  <div 
-                    className={`flex items-center justify-center h-9 w-9 rounded-xl border ${
-                      dbStatus.connected ? 'border-emerald-100 bg-emerald-50/40 text-emerald-600' : 'border-amber-100 bg-amber-50/40 text-amber-600'
+                  <button 
+                    type="button"
+                    onClick={() => setShowDbStatusModal(true)}
+                    className={`flex items-center justify-center h-9 w-9 rounded-xl border cursor-pointer hover:opacity-80 active:scale-95 transition-all outline-none ${
+                      dbStatus.connected ? 'border-emerald-100 bg-emerald-50/40 text-emerald-600 focus:ring-1 focus:ring-emerald-500' : 'border-amber-100 bg-amber-50/40 text-amber-600 focus:ring-1 focus:ring-amber-500'
                     }`}
-                    title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed}` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error}` : dbStatus.modeMessage || "Sandbox Local Mode")}
+                    title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed} (Click for details)` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error} (Click for details)` : `${dbStatus.modeMessage || "Sandbox Local Mode"} (Click for details)`)}
                   >
                     <span className={`h-2 w-2 rounded-full ${
                       dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
                     }`} />
-                  </div>
+                  </button>
                 )}
                 <button
                   type="button"
@@ -902,6 +908,107 @@ export default function App() {
       {viewingInvoice && (
         <InvoiceView invoice={viewingInvoice} onClose={() => setViewingInvoice(null)} />
       )}
+
+      {/* DATABASE CONNECTION STATUS DETAIL MODAL */}
+      {showDbStatusModal && dbStatus && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in" 
+          id="db-status-detail-modal-overlay"
+          onClick={() => setShowDbStatusModal(false)}
+        >
+          <div 
+            className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200/50 flex flex-col overflow-hidden animate-scale-up" 
+            id="db-status-detail-modal-container"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-slate-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 text-left select-none">
+              <div className="flex items-center gap-2">
+                <Database className="h-4.5 w-4.5 text-slate-700" />
+                <h3 className="font-extrabold text-slate-900 text-sm font-display">Database Status Details</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDbStatusModal(false)}
+                className="text-slate-400 hover:text-slate-700 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-xl font-bold cursor-pointer transition-colors"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-5 text-left space-y-4">
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                  dbStatus.connected 
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                    : 'bg-amber-50 text-amber-750 border border-amber-100'
+                }`}>
+                  <span className={`h-2 w-2 rounded-full ${
+                    dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                  }`} />
+                  {dbStatus.connected ? 'ချိတ်ဆက်မှု အောင်မြင်သည် (Connected)' : 'စမ်းသပ်မှုမုဒ် (Sandbox/Offline Mode)'}
+                </span>
+                
+                <span className="text-[11px] text-slate-400 font-mono font-semibold">
+                  {dbStatus.isDemo ? 'Local Storage' : 'Cloud Database'}
+                </span>
+              </div>
+
+              {/* Status Message */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/50 space-y-1 text-slate-705 text-xs select-text">
+                <p className="font-bold text-slate-800">လက်ရှိအခြေအနေ / Current Message:</p>
+                <p className="leading-relaxed font-medium text-slate-600">{dbStatus.modeMessage}</p>
+                {dbStatus.uriUsed && (
+                  <p className="text-[10px] text-slate-450 mt-1.5 font-mono truncate">
+                    <strong>URI Endpoint:</strong> {dbStatus.uriUsed}
+                  </p>
+                )}
+              </div>
+
+              {/* Error Message Details */}
+              {dbStatus.error && (
+                <div className="bg-rose-50/50 p-3.5 rounded-xl border border-rose-100 space-y-1 text-xs select-text text-rose-800">
+                  <p className="font-bold text-rose-900">ဖြစ်ပေါ်နေသော အမှား / Error Log:</p>
+                  <p className="font-mono text-[11px] leading-relaxed break-words bg-white/70 p-2 rounded border border-rose-200/50">{dbStatus.error}</p>
+                </div>
+              )}
+
+              {/* Vercel Troubleshooting Section */}
+              <div className="border-t border-slate-100 pt-3 space-y-2">
+                <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-slate-600">Vercel Setup</span>
+                  Vercel တွင် ချက်ချင်းဖြေရှင်းနည်း လမ်းညွှန်
+                </h4>
+                <div className="text-[11.5px] leading-relaxed text-slate-650 space-y-1.5 list-decimal pl-1">
+                  <p>သင်သည် ဤအက်ပ်ကို <strong>Vercel</strong> တွင် host လုပ်ထားပြီး အဝါရောင်/လိမ္မော်ရောင် ဖြစ်နေပါက အောက်ပါအတိုင်း ပြင်ဆင်ပါ -</p>
+                  <ol className="list-decimal pl-4 space-y-1 text-slate-600">
+                    <li>သင်၏ <strong>Vercel Dashboard</strong> ပရောဂျက်ထဲသို့ ဝင်ပါ။</li>
+                    <li>Settings ဘားမှတစ်ဆင့် <strong>Environment Variables</strong> ဘက်သို့ သွားပါ။</li>
+                    <li>အမည်နေရာတွင် <code className="bg-slate-100 px-1 rounded font-mono text-[10px] font-bold text-slate-800">MONGO_URI</code> ဟု ထည့်ပါ။</li>
+                    <li>Value နေရာတွင် သင်၏ <strong>MongoDB Atlas Cluster URI</strong> ချိတ်ဆက်မှုလင့်ခ်ကို ထည့်သွင်းပါ။ (ဥပမာ- <code className="bg-slate-100 px-1 rounded font-mono text-[10px] text-slate-800">mongodb+srv://...</code>)</li>
+                    <li>ထည့်သွင်းပြီးနောက် Vercel Dashboard မှတစ်ဆင့် <strong>Deployments</strong> သွားပြီး လက်ရှိ commit ကို <strong>Redeploy</strong> (သို့မဟုတ် Production ကို ပြန်ပတ်ပေးရန်) လုပ်ဆောင်ပါ။</li>
+                  </ol>
+                  <p className="text-[10px] text-slate-400 italic mt-1.5">မှတ်ချက် - Env Variable အသစ်များသည် Redeploy လုပ်ပြီးမှသာ စတင်အကျိုးသက်ရောက်ပါမည်။</p>
+                </div>
+              </div>
+
+              {/* Dismiss controls */}
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDbStatusModal(false)}
+                  className="bg-slate-950 hover:bg-slate-850 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer"
+                >
+                  နားလည်ပါပြီ (Close Details)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* NEW TICKET REGISTRATION POPUP */}
       {isNewTicketModalOpen && (
