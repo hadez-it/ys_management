@@ -370,7 +370,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
                 isSelf(user.id) ? 'border-slate-800 bg-slate-50/40' : 'border-slate-200/65'
               }`}
             >
-              <div className="flex gap-3">
+              <div className="flex items-start gap-3">
                 <div className={`p-2.5 rounded-xl shrink-0 ${
                   user.role === 'admin' ? 'bg-slate-950 text-white' :
                   user.role === 'coordinator' ? 'bg-slate-100 text-slate-700' :
