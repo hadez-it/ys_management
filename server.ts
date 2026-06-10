@@ -22,6 +22,7 @@ const isDemoMode =
   rawUri === "";
 
 let mongoConnected = false;
+let lastConnectionError = "";
 
 // Custom Schemas
 const LocationSchema = new mongoose.Schema({
@@ -264,7 +265,8 @@ if (!isDemoMode) {
         console.error("Failed to seed initial MongoDB collections:", err);
       }
     })
-    .catch((err) => {
+    .catch((err: any) => {
+      lastConnectionError = err.message || String(err);
       console.error("ERROR: MongoDB Atlas connection failed:", err.message);
       console.log("Failing back dynamically to in-memory store mode.");
     });
@@ -280,7 +282,8 @@ app.get("/api/db-status", (req, res) => {
     uriUsed: isDemoMode ? "Placeholder Link" : rawUri.split("@").pop(), // Hide user password details
     modeMessage: isDemoMode 
       ? "Using Local Sandbox memory state. Update your MONGO_URI variable in Settings/Secrets to connect your MongoDB Atlas Cluster."
-      : "Connected to Your MongoDB Atlas Live Cluster."
+      : (mongoConnected ? "Connected to Your MongoDB Atlas Live Cluster." : `Mongoose Error: ${lastConnectionError}`),
+    error: lastConnectionError
   });
 });
 

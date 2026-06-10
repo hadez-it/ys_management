@@ -65,7 +65,7 @@ export default function App() {
   const [jobs, setJobs] = useState<ServiceJob[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deletedJobs, setDeletedJobs] = useState<DeletedJob[]>([]);
-  const [dbStatus, setDbStatus] = useState<{ connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string } | null>(null);
+  const [dbStatus, setDbStatus] = useState<{ connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string } | null>(null);
 
   // Routing and interactive view triggers
   const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users'>('dashboard');
@@ -647,7 +647,7 @@ export default function App() {
                 className={`flex items-center justify-center h-8 w-8 rounded-lg border shrink-0 ${
                   dbStatus.connected ? 'border-emerald-900 bg-emerald-950/25' : 'border-amber-900 bg-amber-950/25'
                 }`}
-                title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed}` : "Sandbox Local Mode"}
+                title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed}` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error}` : dbStatus.modeMessage || "Sandbox Local Mode")}
               >
                 <span className={`h-2.5 w-2.5 rounded-full ${
                   dbStatus.connected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-amber-500'
@@ -714,7 +714,7 @@ export default function App() {
                     className={`flex items-center justify-center h-9 w-9 rounded-xl border ${
                       dbStatus.connected ? 'border-emerald-100 bg-emerald-50/40 text-emerald-600' : 'border-amber-100 bg-amber-50/40 text-amber-600'
                     }`}
-                    title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed}` : "Sandbox Local Mode"}
+                    title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed}` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error}` : dbStatus.modeMessage || "Sandbox Local Mode")}
                   >
                     <span className={`h-2 w-2 rounded-full ${
                       dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
