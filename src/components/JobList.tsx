@@ -49,7 +49,6 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
   const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
   
   const [tempRemark, setTempRemark] = useState('');
-  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
 
   // Technician inputs during repair
   const [diagnosedProblem, setDiagnosedProblem] = useState('');
@@ -218,7 +217,6 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
     if (selectedJob) {
       setDiagnosedProblem(selectedJob.diagnosedProblem || '');
       setResolutionNotes(selectedJob.resolutionNotes || '');
-      setShowCustomerDetails(false);
     }
   }, [selectedJobId, selectedJob]);
 
@@ -485,17 +483,10 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                   </span>
                   <span className="text-[10px] sm:text-[11px] text-gray-400">Created {formatDateTime(selectedJob.createdAt)}</span>
                 </div>
-                <div
-                  onClick={() => setShowCustomerDetails(prev => !prev)}
-                  className="mt-1 cursor-pointer group flex flex-wrap items-center gap-2 p-1.5 -ml-1.5 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors select-none text-left"
-                  title="Click to toggle customer & ticket details"
-                >
+                <div className="mt-1.5 text-left">
                   <h3 className="text-base sm:text-lg font-extrabold text-gray-950 font-sans tracking-tight leading-snug break-words">
                     {selectedJob.customerName} : <span className="font-mono text-gray-700 font-bold select-text">{selectedJob.customerPhone}</span>
                   </h3>
-                  <span className="inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded border border-blue-100 transition-colors shrink-0">
-                    {showCustomerDetails ? "▲ Hide info" : "▼ Click for address & hardware"}
-                  </span>
                 </div>
               </div>
               
@@ -546,67 +537,65 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
             <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4 flex-1 overflow-y-auto">
               
               {/* Grid with customer stats vs hardware stats */}
-              {showCustomerDetails && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 animate-scale-up" id="customer-expanded-details-grid">
-                  {/* Customer Info Card */}
-                  <div className="p-3 sm:p-5 bg-gradient-to-br from-blue-50/40 to-indigo-50/40 border border-blue-100/60 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3.5 text-left shadow-xs relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-xl pointer-events-none" />
-                    <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider border-b border-blue-100/50 pb-1.5 sm:pb-2 flex items-center gap-2 select-none font-sans">
-                      <UserIcon className="h-4 w-4 text-blue-500" /> Customer Information
-                    </h4>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <div className="flex items-center justify-between gap-2 bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-blue-100/30">
-                        <div>
-                          <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Phone Number</span>
-                          <strong className="text-gray-950 font-mono text-xs sm:text-base tracking-tight select-text">{selectedJob.customerPhone}</strong>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(selectedJob.customerPhone);
-                            alert('Copied phone number!');
-                          }}
-                          className="text-[9px] sm:text-[10px] bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-2 sm:px-2.5 py-1 rounded transition-colors cursor-pointer select-none"
-                        >
-                          Copy
-                        </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4" id="customer-expanded-details-grid">
+                {/* Customer Info Card */}
+                <div className="p-3 sm:p-5 bg-gradient-to-br from-blue-50/40 to-indigo-50/40 border border-blue-100/60 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3.5 text-left shadow-xs relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-xl pointer-events-none" />
+                  <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider border-b border-blue-100/50 pb-1.5 sm:pb-2 flex items-center gap-2 select-none font-sans">
+                    <UserIcon className="h-4 w-4 text-blue-500" /> Customer Information
+                  </h4>
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <div className="flex items-center justify-between gap-2 bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-blue-100/30">
+                      <div>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Phone Number</span>
+                        <strong className="text-gray-950 font-mono text-xs sm:text-base tracking-tight select-text">{selectedJob.customerPhone}</strong>
                       </div>
-                      
-                      <div className="bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-blue-100/30">
-                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Service Address</span>
-                        <p className="text-gray-900 font-medium text-xs sm:text-sm leading-relaxed break-words select-text">{selectedJob.locationText}</p>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(selectedJob.customerPhone);
+                          alert('Copied phone number!');
+                        }}
+                        className="text-[9px] sm:text-[10px] bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-2 sm:px-2.5 py-1 rounded transition-colors cursor-pointer select-none"
+                      >
+                        Copy
+                      </button>
                     </div>
-                  </div>
-
-                  {/* Device Hardware Info Card */}
-                  <div className="p-3 sm:p-5 bg-gradient-to-br from-indigo-50/40 to-purple-50/40 border border-indigo-100/60 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3.5 text-left shadow-xs relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
-                    <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider border-b border-indigo-100/50 pb-1.5 sm:pb-2 flex items-center gap-2 select-none font-sans">
-                      <Cpu className="h-4 w-4 text-indigo-500" /> Service Ticket Data
-                    </h4>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <div className="bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-indigo-100/30 flex justify-between items-center gap-2">
-                        <div>
-                          <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Device Classification</span>
-                          <strong className="text-gray-900 text-xs sm:text-sm">{selectedJob.deviceType}</strong>
-                        </div>
-                      </div>
-                      {selectedJob.deviceModel && (
-                        <div className="bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-indigo-100/30">
-                          <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Model / Hardware Ref</span>
-                          <strong className="text-gray-900 text-xs sm:text-sm select-text">{selectedJob.deviceModel}</strong>
-                        </div>
-                      )}
-                      <div className="bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-indigo-100/30">
-                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Scheduled Appointment</span>
-                        <strong className="text-indigo-900 text-xs sm:text-sm select-text">{formatDateTime(selectedJob.dateTime)}</strong>
-                      </div>
+                    
+                    <div className="bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-blue-100/30">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Service Address</span>
+                      <p className="text-gray-900 font-medium text-xs sm:text-sm leading-relaxed break-words select-text">{selectedJob.locationText}</p>
                     </div>
                   </div>
                 </div>
-              )}
+
+                {/* Device Hardware Info Card */}
+                <div className="p-3 sm:p-5 bg-gradient-to-br from-indigo-50/40 to-purple-50/40 border border-indigo-100/60 rounded-xl sm:rounded-2xl space-y-2 sm:space-y-3.5 text-left shadow-xs relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl pointer-events-none" />
+                  <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider border-b border-indigo-100/50 pb-1.5 sm:pb-2 flex items-center gap-2 select-none font-sans">
+                    <Cpu className="h-4 w-4 text-indigo-500" /> Service Ticket Data
+                  </h4>
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <div className="bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-indigo-100/30 flex justify-between items-center gap-2">
+                      <div>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Device Classification</span>
+                        <strong className="text-gray-900 text-xs sm:text-sm">{selectedJob.deviceType}</strong>
+                      </div>
+                    </div>
+                    {selectedJob.deviceModel && (
+                      <div className="bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-indigo-100/30">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Model / Hardware Ref</span>
+                        <strong className="text-gray-900 text-xs sm:text-sm select-text">{selectedJob.deviceModel}</strong>
+                      </div>
+                    )}
+                    <div className="bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-indigo-100/30">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Scheduled Appointment</span>
+                      <strong className="text-indigo-900 text-xs sm:text-sm select-text">{formatDateTime(selectedJob.dateTime)}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Hardware Problem Diagnostic description */}
               <div className="p-4 bg-rose-50/20 border border-rose-100/50 rounded-xl text-left">
