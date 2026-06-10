@@ -232,48 +232,90 @@ const INITIAL_INVOICES_FALLBACK = [
   }
 ];
 
-// Connect strictly to MongoDB Atlas (No Sandbox/Local Offline Fallbacks)
-if (uriDiagnostics === "present") {
-  console.log("Connecting to MongoDB Atlas...");
-  mongoose.connect(rawUri)
-    .then(async () => {
-      mongoConnected = true;
-      console.log("SUCCESS: MongoDB Atlas connection established!");
-      
-      // Seed initial data if database is empty
+let cachedConnection: Promise<typeof mongoose> | null = null;
+let databaseSeeded = false;
+
+// Async builder helper to ensure database connectivity before making requests (ideal for serverless cold-starts)
+async function ensureDbConnected() {
+  if (mongoose.connection.readyState === 1) {
+    mongoConnected = true;
+    return;
+  }
+
+  if (uriDiagnostics !== "present") {
+    mongoConnected = false;
+    if (uriDiagnostics === "missing") {
+      lastConnectionError = "MONGO_URI environment variable is missing in setup.";
+    } else {
+      lastConnectionError = "MONGO_URI connection link contains unresolved placeholders (like <db_username>, <db_password> or YOUR_).";
+    }
+    throw new Error(lastConnectionError);
+  }
+
+  try {
+    console.log("Connecting strictly to MongoDB Atlas dynamically...");
+    
+    if (!cachedConnection) {
+      cachedConnection = mongoose.connect(rawUri, {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      });
+    }
+    
+    await cachedConnection;
+    mongoConnected = true;
+    console.log("SUCCESS: MongoDB Atlas connection established!");
+
+    // Seed database on-demand if not already seeded during this runtime lifecycle
+    if (!databaseSeeded) {
       try {
         const jobCount = await JobModel.countDocuments();
         if (jobCount === 0) {
-          console.log("Seeding MongoDB with initial fallback jobs...");
+          console.log("First connection: Seeding initial fallback jobs...");
           await JobModel.insertMany(INITIAL_JOBS_FALLBACK as any[]);
           await InvoiceModel.insertMany(INITIAL_INVOICES_FALLBACK as any[]);
-          console.log("DB seeding completed successfully!");
         }
 
         const userCount = await UserModel.countDocuments();
         if (userCount === 0) {
-          console.log("Seeding MongoDB with initial fallback users...");
+          console.log("First connection: Seeding initial fallback users...");
           await UserModel.insertMany(INITIAL_USERS as any[]);
-          console.log("Seed users added!");
         }
-      } catch (err) {
-        console.error("Failed to seed initial MongoDB collections:", err);
+        databaseSeeded = true;
+      } catch (seedErr) {
+        console.error("Warning: Seeding on-demand failed or was already completed:", seedErr);
       }
-    })
-    .catch((err: any) => {
-      mongoConnected = false;
-      lastConnectionError = err.message || String(err);
-      console.error("ERROR: MongoDB Atlas connection failed:", err.message);
-    });
-} else {
-  mongoConnected = false;
-  if (uriDiagnostics === "missing") {
-    lastConnectionError = "MONGO_URI environment variable is missing in setup.";
-  } else {
-    lastConnectionError = "MONGO_URI connection link contains unresolved placeholders (like <db_username>, <db_password> or YOUR_). Please edit them to your actual credential weights.";
+    }
+  } catch (err: any) {
+    mongoConnected = false;
+    cachedConnection = null; // reset cached connection on failure
+    lastConnectionError = err.message || String(err);
+    console.error("ERROR: MongoDB connections failing dynamically:", lastConnectionError);
+    throw err;
   }
-  console.error(`ERROR: MongoDB cannot connect because MONGO_URI status is [${uriDiagnostics}]: ${lastConnectionError}`);
 }
+
+// A dynamic serverless-friendly database auto-resolution middleware for API requests
+app.use("/api", async (req, res, next) => {
+  // If it's just checking status, try resolving lazily but proceed to normal handler so status returns diagnostic logs properly
+  if (req.path === "/db-status") {
+    try {
+      await ensureDbConnected();
+    } catch {
+      // Intentionally bypassed to let /api/db-status API return detailed error text rather than crashing
+    }
+    return next();
+  }
+
+  try {
+    await ensureDbConnected();
+    next();
+  } catch (err: any) {
+    res.status(503).json({ 
+      error: `ဒေတာဘေ့စ် ချိတ်ဆက်မထားပါ (Database Offline): ${err.message || lastConnectionError}` 
+    });
+  }
+});
 
 // REST API Endpoints
 app.get("/api/db-status", (req, res) => {
