@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import { createServer as createViteServer } from "vite";
 
 // Load configuration
 dotenv.config();
@@ -11,16 +10,6 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-
-// Determine URI configuration status
-const rawUri = process.env.MONGO_URI || "";
-
-let uriDiagnostics = "present";
-if (!rawUri || rawUri === "") {
-  uriDiagnostics = "missing";
-} else if (rawUri.includes("<db_username>") || rawUri.includes("<db_password>") || rawUri.includes("YOUR_")) {
-  uriDiagnostics = "placeholder";
-}
 
 let mongoConnected = false;
 let lastConnectionError = "";
@@ -242,9 +231,17 @@ async function ensureDbConnected() {
     return;
   }
 
-  if (uriDiagnostics !== "present") {
+  const currentUri = process.env.MONGO_URI || "";
+  let currentUriDiagnostics = "present";
+  if (!currentUri || currentUri === "") {
+    currentUriDiagnostics = "missing";
+  } else if (currentUri.includes("<db_username>") || currentUri.includes("<db_password>") || currentUri.includes("YOUR_")) {
+    currentUriDiagnostics = "placeholder";
+  }
+
+  if (currentUriDiagnostics !== "present") {
     mongoConnected = false;
-    if (uriDiagnostics === "missing") {
+    if (currentUriDiagnostics === "missing") {
       lastConnectionError = "MONGO_URI environment variable is missing in setup.";
     } else {
       lastConnectionError = "MONGO_URI connection link contains unresolved placeholders (like <db_username>, <db_password> or YOUR_).";
@@ -256,7 +253,7 @@ async function ensureDbConnected() {
     console.log("Connecting strictly to MongoDB Atlas dynamically...");
     
     if (!cachedConnection) {
-      cachedConnection = mongoose.connect(rawUri, {
+      cachedConnection = mongoose.connect(currentUri, {
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
       });
@@ -319,15 +316,23 @@ app.use("/api", async (req, res, next) => {
 
 // REST API Endpoints
 app.get("/api/db-status", (req, res) => {
+  const currentUri = process.env.MONGO_URI || "";
+  let currentUriDiagnostics = "present";
+  if (!currentUri || currentUri === "") {
+    currentUriDiagnostics = "missing";
+  } else if (currentUri.includes("<db_username>") || currentUri.includes("<db_password>") || currentUri.includes("YOUR_")) {
+    currentUriDiagnostics = "placeholder";
+  }
+
   res.json({
     connected: mongoConnected,
     isDemo: false,
-    uriUsed: (rawUri && uriDiagnostics === "present") ? rawUri.split("@").pop() : "No Valid Link",
+    uriUsed: (currentUri && currentUriDiagnostics === "present") ? currentUri.split("@").pop() : "No Valid Link",
     modeMessage: mongoConnected 
       ? "Connected to Your MongoDB Atlas Live Cluster." 
       : `Database Connection Offline: ${lastConnectionError || "Please check your MONGO_URI connection settings."}`,
     error: lastConnectionError,
-    uriState: uriDiagnostics
+    uriState: currentUriDiagnostics
   });
 });
 
@@ -664,6 +669,7 @@ app.post("/api/system/reset", async (req, res) => {
 // Vite Setup on Express
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
