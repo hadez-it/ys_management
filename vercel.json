@@ -1,15 +1,7 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/index.ts",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/static"
-    }
-  ],
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
   "functions": {
     "api/index.ts": {
       "runtime": "@vercel/node@3",
@@ -22,7 +14,7 @@
       "destination": "/api/index"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
