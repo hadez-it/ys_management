@@ -6,6 +6,10 @@
 
 A service job management system with MongoDB Atlas integration.
 
+- Service job tracking
+- Invoice management
+- User management
+
 View your app in AI Studio: https://ai.studio/apps/2d951936-0f3d-42e1-9462-6403c9eb4a19
 
 ## Run Locally
