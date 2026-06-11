@@ -2,12 +2,6 @@
   "version": 2,
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "functions": {
-    "api/index.ts": {
-      "runtime": "@vercel/node",
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
       "source": "/api/:path*",
