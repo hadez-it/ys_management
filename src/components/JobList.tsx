@@ -158,12 +158,13 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
       Assigned: 'bg-indigo-50 text-indigo-700 border-indigo-100',
       Dispatched: 'bg-violet-50 text-violet-700 border-violet-100',
       ServiceInProgress: 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse',
+      Repairing: 'bg-orange-50 text-orange-700 border-orange-100 animate-pulse',
       Completed: 'bg-emerald-50 text-emerald-700 border-emerald-100',
       Cancelled: 'bg-red-50 text-red-700 border-red-100',
     };
     return (
       <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${map[status] || 'bg-gray-50'}`}>
-        {status === 'ServiceInProgress' ? '🛠️ Servicing' : status === 'Dispatched' ? '🛵 En Route' : status}
+        {status === 'ServiceInProgress' ? '🛠️ Servicing' : status === 'Dispatched' ? '🛵 En Route' : status === 'Repairing' ? '🔧 Repairing' : status}
       </span>
     );
   };
@@ -335,6 +336,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                 <option value="Created">Created</option>
                 <option value="Dispatched">Dispatched</option>
                 <option value="ServiceInProgress">Servicing</option>
+                <option value="Repairing">Repairing</option>
                 <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
@@ -683,15 +685,35 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
             {selectedJob.status !== 'Completed' && selectedJob.status !== 'Cancelled' ? (
               // Active ticket: toggleable workflow
               !showWorkflow ? (
-                <div className="p-4 bg-slate-50 border-t border-gray-100 text-center shrink-0 sticky bottom-0 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+                <div className="p-4 bg-slate-50 border-t border-gray-100 text-center shrink-0 sticky bottom-0 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] flex flex-col sm:flex-row gap-3">
+                  {selectedJob.status !== 'Repairing' && (
+                    <button
+                      type="button"
+                      id="btn-mark-repairing"
+                      onClick={() => {
+                        onUpdateJobStatus(
+                          selectedJob.id,
+                          'Repairing',
+                          selectedJob.technicianName,
+                          selectedJob.diagnosedProblem,
+                          selectedJob.resolutionNotes,
+                          selectedJob.remarks
+                        );
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs sm:text-sm shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
+                    >
+                      <Wrench className="h-4 w-4 shrink-0 animate-spin" />
+                      Start Repairing
+                    </button>
+                  )}
                   <button
                     type="button"
                     id="btn-show-workflow"
                     onClick={() => setShowWorkflow(true)}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
                   >
-                    <Wrench className="h-4 w-4 shrink-0 animate-bounce" />
-                    Mark Repair Completed
+                    <CheckCircle className="h-4 w-4 shrink-0" />
+                    {selectedJob.status === 'Repairing' ? 'Complete Repair Work' : 'Mark Repair Completed'}
                   </button>
                 </div>
               ) : (
@@ -1010,11 +1032,11 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                     setPrioritySettingJob(null);
                   }}
                   className={`flex-1 py-1.5 text-xs font-semibold rounded-xl border text-center transition-all cursor-pointer ${
-                    prioritySettingJob.priorityNumber === undefined || isCompletedJob
+                    (!prioritySettingJob.priorityNumber && !priorityInputValue) || isCompletedJob
                       ? 'border-gray-100 bg-gray-50/50 text-gray-300 cursor-not-allowed pointer-events-none'
                       : 'border-red-100 bg-red-50 text-red-700 hover:bg-red-100'
                   }`}
-                  disabled={prioritySettingJob.priorityNumber === undefined || isCompletedJob}
+                  disabled={(!prioritySettingJob.priorityNumber && !priorityInputValue) || isCompletedJob}
                 >
                   Clear Priority
                 </button>

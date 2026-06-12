@@ -357,14 +357,18 @@ export default function App() {
 
     const updatedJob: ServiceJob = {
       ...targetJob,
-      priorityNumber,
       updatedAt: new Date().toISOString(),
     };
+    if (priorityNumber !== undefined) {
+      updatedJob.priorityNumber = priorityNumber;
+    } else {
+      delete updatedJob.priorityNumber;
+    }
 
     fetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priorityNumber, updatedAt: updatedJob.updatedAt }),
+      body: JSON.stringify({ priorityNumber: priorityNumber === undefined ? null : priorityNumber, updatedAt: updatedJob.updatedAt }),
     })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to update priority ranking');

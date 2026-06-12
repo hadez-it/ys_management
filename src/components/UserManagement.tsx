@@ -268,10 +268,6 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-0.5">
-          <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-2">
-            <Users className="h-5 w-5 text-slate-800" /> Administrative Accounts
-          </h3>
-          <p className="text-xs text-slate-400">Control system operators, assignments, and dispatch role-based privileges.</p>
         </div>
 
         <div className="flex gap-2 shrink-0">

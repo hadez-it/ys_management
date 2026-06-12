@@ -17,7 +17,7 @@ interface DashboardStatsProps {
 export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter }: DashboardStatsProps) {
   const totalJobsCount = jobs.length;
   const dispatchingCount = jobs.filter((j) => j.status === 'Dispatched').length;
-  const activeRepairCount = jobs.filter((j) => j.status === 'ServiceInProgress').length;
+  const activeRepairCount = jobs.filter((j) => j.status === 'ServiceInProgress' || j.status === 'Repairing').length;
   const completedJobsCount = jobs.filter((j) => j.status === 'Completed').length;
   
   const totalRevenue = invoices

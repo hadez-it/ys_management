@@ -3,6 +3,7 @@ export type JobStatus =
   | 'Assigned'           // Technician assigned
   | 'Dispatched'         // Technician on the way
   | 'ServiceInProgress'  // Service being performed at customer site
+  | 'Repairing'          // Machine undergoing manual repair works
   | 'Completed'          // Work completed, ready for invoice or invoiced
   | 'Cancelled';         // Job aborted
 

@@ -381,8 +381,20 @@ app.put("/api/jobs/:id", async (req, res) => {
     }
     
     const updateQuery: any = { $set: { ...fieldsToUpdate, updatedAt: new Date().toISOString() } };
+    if (fieldsToUpdate.priorityNumber === null || fieldsToUpdate.priorityNumber === undefined) {
+      if (updateQuery.$set) {
+        delete updateQuery.$set.priorityNumber;
+      }
+      if (!updateQuery.$unset) {
+        updateQuery.$unset = {};
+      }
+      updateQuery.$unset.priorityNumber = "";
+    }
     if (fieldsToUpdate.status === "Completed") {
-      updateQuery.$unset = { priorityNumber: "" };
+      if (!updateQuery.$unset) {
+        updateQuery.$unset = {};
+      }
+      updateQuery.$unset.priorityNumber = "";
     }
     
     if (editReason) {
