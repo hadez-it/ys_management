@@ -76,6 +76,7 @@ export default function App() {
   const [invoiceWizardJob, setInvoiceWizardJob] = useState<ServiceJob | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [isWiping, setIsWiping] = useState(false);
 
   const fetchDeletedJobs = () => {
     fetch('/api/deleted-jobs')
@@ -456,6 +457,45 @@ export default function App() {
             return updated;
           });
         }
+      });
+  };
+
+  // Completely clean dataset of all legacy/mock jobs and invoices
+  const handleWipeAllData = () => {
+    if (!window.confirm('Are you absolutely sure you want to completely erase all active jobs, invoices, and history to start with a fresh blank workspace? This operation clears all pre-setup/mock data.')) {
+      return;
+    }
+    setIsWiping(true);
+    fetch('/api/system/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Wipe operation failed');
+        return res.json();
+      })
+      .then(() => {
+        setJobs([]);
+        setInvoices([]);
+        setDeletedJobs([]);
+        localStorage.setItem('smartfix_jobs', JSON.stringify([]));
+        localStorage.setItem('smartfix_invoices', JSON.stringify([]));
+        localStorage.setItem('smartfix_deleted_jobs', JSON.stringify([]));
+        setShowDbStatusModal(false);
+      })
+      .catch((err) => {
+        console.error('Wipe error:', err);
+        // Clean up client-side fallback as fallback
+        setJobs([]);
+        setInvoices([]);
+        setDeletedJobs([]);
+        localStorage.setItem('smartfix_jobs', JSON.stringify([]));
+        localStorage.setItem('smartfix_invoices', JSON.stringify([]));
+        localStorage.setItem('smartfix_deleted_jobs', JSON.stringify([]));
+        setShowDbStatusModal(false);
+      })
+      .finally(() => {
+        setIsWiping(false);
       });
   };
 
@@ -975,7 +1015,17 @@ export default function App() {
               )}
 
               {/* Dismiss controls */}
-              <div className="pt-2 flex justify-end">
+              <div className="pt-2 flex justify-between gap-2">
+                {currentUser?.role === 'admin' && (
+                  <button
+                    type="button"
+                    disabled={isWiping}
+                    onClick={handleWipeAllData}
+                    className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {isWiping ? 'Wiping Data...' : 'Wipe Mock/Simulated Data'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowDbStatusModal(false)}
