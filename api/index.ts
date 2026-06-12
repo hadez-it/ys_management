@@ -222,14 +222,6 @@ const INITIAL_INVOICES_FALLBACK = [
 
 let cachedConnection: Promise<typeof mongoose> | null = null;
 let databaseSeeded = false;
-let lastConnectAttemptTime = 0;
-const CONNECT_COOLDOWN_MS = 25000; // 25 seconds cooldown to prevent log spamming and API blocking
-
-// Global Server-side In-Memory Fallback Databases
-let MEMORY_JOBS = JSON.parse(JSON.stringify(INITIAL_JOBS_FALLBACK));
-let MEMORY_INVOICES = JSON.parse(JSON.stringify(INITIAL_INVOICES_FALLBACK));
-let MEMORY_DELETED_JOBS: any[] = [];
-let MEMORY_USERS = JSON.parse(JSON.stringify(INITIAL_USERS));
 
 // Async builder helper to ensure database connectivity before making requests (ideal for serverless cold-starts)
 async function ensureDbConnected() {
@@ -237,14 +229,6 @@ async function ensureDbConnected() {
     mongoConnected = true;
     return;
   }
-
-  const now = Date.now();
-  if (!mongoConnected && lastConnectionError && (now - lastConnectAttemptTime < CONNECT_COOLDOWN_MS)) {
-    const remainSecs = Math.ceil((CONNECT_COOLDOWN_MS - (now - lastConnectAttemptTime)) / 1000);
-    throw new Error(`${lastConnectionError} (ချိတ်ဆက်ရန် နောက်ထပ် ${remainSecs} စက္ကန့် စောင့်ဆိုင်းနေပါသည် - Fallback Engine အသုံးပြုနေသည်)`);
-  }
-
-  lastConnectAttemptTime = now;
 
   const currentUri = process.env.MONGO_URI || "";
   let currentUriDiagnostics = "present";
@@ -323,9 +307,9 @@ app.use("/api", async (req, res, next) => {
     await ensureDbConnected();
     next();
   } catch (err: any) {
-    // In-Memory fallback option so that the app NEVER crashes even when Mongo connection is bad (e.g. Bad auth/Bad URI)
-    console.log("WARN: Using local Server Memory Fallback Mode because Live MongoDB is offline:", err.message || lastConnectionError);
-    next();
+    res.status(503).json({ 
+      error: `MongoDB Live Database ချိတ်ဆက်မှုမအောင်မြင်ပါ။ ဖြစ်နိုင်ချေရှိသော အကြောင်းရင်း - ${err.message || lastConnectionError}. MONGO_URI variable ကို ပြန်လည်စစ်ဆေးပါ။` 
+    });
   }
 });
 
@@ -360,26 +344,19 @@ app.post("/api/auth/login", async (req, res) => {
       return;
     }
 
-    const cleanUsername = username.trim().toLowerCase();
-
-    if (mongoConnected) {
-      const user = await UserModel.findOne({ username: cleanUsername } as any).lean();
-      if (!user || user.password !== password) {
-        res.status(401).json({ error: "Invalid username or password" });
-        return;
-      }
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } else {
-      // In-Memory Fallback Authentication
-      const user = MEMORY_USERS.find((u: any) => u.username === cleanUsername);
-      if (!user || user.password !== password) {
-        res.status(401).json({ error: "Invalid username or password" });
-        return;
-      }
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+
+    const cleanUsername = username.trim().toLowerCase();
+    const user = await UserModel.findOne({ username: cleanUsername } as any).lean();
+    if (!user || user.password !== password) {
+      res.status(401).json({ error: "Invalid username or password" });
+      return;
+    }
+    const { password: _, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -388,12 +365,12 @@ app.post("/api/auth/login", async (req, res) => {
 // JOB API Endpoints
 app.get("/api/jobs", async (req, res) => {
   try {
-    if (mongoConnected) {
-      const dbJobs = await JobModel.find().lean();
-      res.json(dbJobs);
-    } else {
-      res.json(MEMORY_JOBS);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+    const dbJobs = await JobModel.find().lean();
+    res.json(dbJobs);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -402,14 +379,13 @@ app.get("/api/jobs", async (req, res) => {
 app.post("/api/jobs", async (req, res) => {
   try {
     const jobData = req.body;
-    if (mongoConnected) {
-      const newJob = new JobModel(jobData);
-      await newJob.save();
-      res.status(201).json(newJob);
-    } else {
-      MEMORY_JOBS.push(jobData);
-      res.status(201).json(jobData);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+    const newJob = new JobModel(jobData);
+    await newJob.save();
+    res.status(201).json(newJob);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -423,89 +399,49 @@ app.put("/api/jobs/:id", async (req, res) => {
       fieldsToUpdate.priorityNumber = null;
     }
 
-    if (mongoConnected) {
-      const jobToEdit = await JobModel.findOne({ id } as any);
-      if (!jobToEdit) {
-        res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
-        return;
-      }
-      
-      const updateQuery: any = { $set: { ...fieldsToUpdate, updatedAt: new Date().toISOString() } };
-      if (fieldsToUpdate.status === "Completed") {
-        updateQuery.$unset = { priorityNumber: "" };
-      }
-      
-      if (editReason) {
-        const changes: string[] = [];
-        if (jobToEdit.customerName !== fieldsToUpdate.customerName && fieldsToUpdate.customerName !== undefined) changes.push("Customer Name");
-        if (jobToEdit.customerPhone !== fieldsToUpdate.customerPhone && fieldsToUpdate.customerPhone !== undefined) changes.push("Phone Number");
-        if (jobToEdit.dateTime !== fieldsToUpdate.dateTime && fieldsToUpdate.dateTime !== undefined) changes.push("Appointment Time");
-        if (jobToEdit.locationText !== fieldsToUpdate.locationText && fieldsToUpdate.locationText !== undefined) changes.push("Address");
-        if (jobToEdit.deviceType !== fieldsToUpdate.deviceType && fieldsToUpdate.deviceType !== undefined) changes.push("Device Type");
-        if (jobToEdit.deviceModel !== fieldsToUpdate.deviceModel && fieldsToUpdate.deviceModel !== undefined) changes.push("Device Model");
-        if (jobToEdit.deviceIssue !== fieldsToUpdate.deviceIssue && fieldsToUpdate.deviceIssue !== undefined) changes.push("Problem Description");
-        if (jobToEdit.urgency !== fieldsToUpdate.urgency && fieldsToUpdate.urgency !== undefined) changes.push("Urgency Level");
-        if (jobToEdit.status !== fieldsToUpdate.status && fieldsToUpdate.status !== undefined) changes.push("Ticket Status");
-        if (jobToEdit.technicianName !== fieldsToUpdate.technicianName && fieldsToUpdate.technicianName !== undefined) changes.push("Technician");
-
-        const log = {
-          editedAt: new Date().toISOString(),
-          reason: editReason,
-          changedFields: changes.join(", ") || "General Info Update"
-        };
-        updateQuery.$push = { editHistory: log };
-      }
-      
-      const updatedJob = await JobModel.findOneAndUpdate(
-        { id: id } as any,
-        updateQuery,
-        { new: true } as any
-      );
-      res.json(updatedJob);
-    } else {
-      // In-Memory Fallback Job Update
-      const jobIdx = MEMORY_JOBS.findIndex((j: any) => j.id === id);
-      if (jobIdx === -1) {
-        res.status(404).json({ error: `Job with ID ${id} is not found in memory.` });
-        return;
-      }
-
-      const jobToEdit = MEMORY_JOBS[jobIdx];
-      const changes: string[] = [];
-      if (editReason) {
-        if (jobToEdit.customerName !== fieldsToUpdate.customerName && fieldsToUpdate.customerName !== undefined) changes.push("Customer Name");
-        if (jobToEdit.customerPhone !== fieldsToUpdate.customerPhone && fieldsToUpdate.customerPhone !== undefined) changes.push("Phone Number");
-        if (jobToEdit.dateTime !== fieldsToUpdate.dateTime && fieldsToUpdate.dateTime !== undefined) changes.push("Appointment Time");
-        if (jobToEdit.locationText !== fieldsToUpdate.locationText && fieldsToUpdate.locationText !== undefined) changes.push("Address");
-        if (jobToEdit.deviceType !== fieldsToUpdate.deviceType && fieldsToUpdate.deviceType !== undefined) changes.push("Device Type");
-        if (jobToEdit.deviceModel !== fieldsToUpdate.deviceModel && fieldsToUpdate.deviceModel !== undefined) changes.push("Device Model");
-        if (jobToEdit.deviceIssue !== fieldsToUpdate.deviceIssue && fieldsToUpdate.deviceIssue !== undefined) changes.push("Problem Description");
-        if (jobToEdit.urgency !== fieldsToUpdate.urgency && fieldsToUpdate.urgency !== undefined) changes.push("Urgency Level");
-        if (jobToEdit.status !== fieldsToUpdate.status && fieldsToUpdate.status !== undefined) changes.push("Ticket Status");
-        if (jobToEdit.technicianName !== fieldsToUpdate.technicianName && fieldsToUpdate.technicianName !== undefined) changes.push("Technician");
-      }
-
-      const updatedJob = {
-        ...jobToEdit,
-        ...fieldsToUpdate,
-        updatedAt: new Date().toISOString(),
-        editHistory: [
-          ...(jobToEdit.editHistory || []),
-          ...(editReason ? [{
-            editedAt: new Date().toISOString(),
-            reason: editReason,
-            changedFields: changes.join(", ") || "General Info Update"
-          }] : [])
-        ]
-      };
-
-      if (fieldsToUpdate.status === "Completed") {
-        delete updatedJob.priorityNumber;
-      }
-
-      MEMORY_JOBS[jobIdx] = updatedJob;
-      res.json(updatedJob);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+
+    const jobToEdit = await JobModel.findOne({ id } as any);
+    if (!jobToEdit) {
+      res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
+      return;
+    }
+    
+    const updateQuery: any = { $set: { ...fieldsToUpdate, updatedAt: new Date().toISOString() } };
+    if (fieldsToUpdate.status === "Completed") {
+      updateQuery.$unset = { priorityNumber: "" };
+    }
+    
+    if (editReason) {
+      const changes: string[] = [];
+      if (jobToEdit.customerName !== fieldsToUpdate.customerName && fieldsToUpdate.customerName !== undefined) changes.push("Customer Name");
+      if (jobToEdit.customerPhone !== fieldsToUpdate.customerPhone && fieldsToUpdate.customerPhone !== undefined) changes.push("Phone Number");
+      if (jobToEdit.dateTime !== fieldsToUpdate.dateTime && fieldsToUpdate.dateTime !== undefined) changes.push("Appointment Time");
+      if (jobToEdit.locationText !== fieldsToUpdate.locationText && fieldsToUpdate.locationText !== undefined) changes.push("Address");
+      if (jobToEdit.deviceType !== fieldsToUpdate.deviceType && fieldsToUpdate.deviceType !== undefined) changes.push("Device Type");
+      if (jobToEdit.deviceModel !== fieldsToUpdate.deviceModel && fieldsToUpdate.deviceModel !== undefined) changes.push("Device Model");
+      if (jobToEdit.deviceIssue !== fieldsToUpdate.deviceIssue && fieldsToUpdate.deviceIssue !== undefined) changes.push("Problem Description");
+      if (jobToEdit.urgency !== fieldsToUpdate.urgency && fieldsToUpdate.urgency !== undefined) changes.push("Urgency Level");
+      if (jobToEdit.status !== fieldsToUpdate.status && fieldsToUpdate.status !== undefined) changes.push("Ticket Status");
+      if (jobToEdit.technicianName !== fieldsToUpdate.technicianName && fieldsToUpdate.technicianName !== undefined) changes.push("Technician");
+
+      const log = {
+        editedAt: new Date().toISOString(),
+        reason: editReason,
+        changedFields: changes.join(", ") || "General Info Update"
+      };
+      updateQuery.$push = { editHistory: log };
+    }
+    
+    const updatedJob = await JobModel.findOneAndUpdate(
+      { id: id } as any,
+      updateQuery,
+      { new: true } as any
+    );
+    res.json(updatedJob);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -518,48 +454,29 @@ app.delete("/api/jobs/:id", async (req, res) => {
     const { reason } = req.body;
     const cleanReason = reason && reason.trim() ? reason.trim() : "No reason provided";
 
-    if (mongoConnected) {
-      const jobToDelete = await JobModel.findOne({ id } as any);
-      if (!jobToDelete) {
-        res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
-        return;
-      }
-      
-      const archived = new DeletedJobModel({
-        id: jobToDelete.id,
-        customerName: jobToDelete.customerName,
-        customerPhone: jobToDelete.customerPhone,
-        dateTime: jobToDelete.dateTime,
-        deletedAt: new Date().toISOString(),
-        deleteReason: cleanReason,
-        originalJobData: jobToDelete.toObject()
-      });
-      await archived.save();
-      await JobModel.deleteOne({ id } as any);
-      res.json({ success: true, message: "Job deleted and reasons archived successfully." });
-    } else {
-      // In-Memory Fallback Job Deletion / Archiving
-      const jobIdx = MEMORY_JOBS.findIndex((j: any) => j.id === id);
-      if (jobIdx === -1) {
-        res.status(404).json({ error: `Job with ID ${id} is not found in memory.` });
-        return;
-      }
-
-      const jobToDelete = MEMORY_JOBS[jobIdx];
-      const archived = {
-        id: jobToDelete.id,
-        customerName: jobToDelete.customerName,
-        customerPhone: jobToDelete.customerPhone,
-        dateTime: jobToDelete.dateTime,
-        deletedAt: new Date().toISOString(),
-        deleteReason: cleanReason,
-        originalJobData: jobToDelete
-      };
-
-      MEMORY_DELETED_JOBS.unshift(archived);
-      MEMORY_JOBS.splice(jobIdx, 1);
-      res.json({ success: true, message: "Job deleted and reasons archived successfully (Memory)." });
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+
+    const jobToDelete = await JobModel.findOne({ id } as any);
+    if (!jobToDelete) {
+      res.status(404).json({ error: `Job with ID ${id} is not present in database.` });
+      return;
+    }
+    
+    const archived = new DeletedJobModel({
+      id: jobToDelete.id,
+      customerName: jobToDelete.customerName,
+      customerPhone: jobToDelete.customerPhone,
+      dateTime: jobToDelete.dateTime,
+      deletedAt: new Date().toISOString(),
+      deleteReason: cleanReason,
+      originalJobData: jobToDelete.toObject()
+    });
+    await archived.save();
+    await JobModel.deleteOne({ id } as any);
+    res.json({ success: true, message: "Job deleted and reasons archived successfully." });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -568,12 +485,12 @@ app.delete("/api/jobs/:id", async (req, res) => {
 // GET Deleted Jobs Log
 app.get("/api/deleted-jobs", async (req, res) => {
   try {
-    if (mongoConnected) {
-      const dbDeleted = await DeletedJobModel.find().sort({ deletedAt: -1 }).lean();
-      res.json(dbDeleted);
-    } else {
-      res.json(MEMORY_DELETED_JOBS);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+    const dbDeleted = await DeletedJobModel.find().sort({ deletedAt: -1 }).lean();
+    res.json(dbDeleted);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -582,12 +499,12 @@ app.get("/api/deleted-jobs", async (req, res) => {
 // INVOICE API Endpoints
 app.get("/api/invoices", async (req, res) => {
   try {
-    if (mongoConnected) {
-      const dbInvoices = await InvoiceModel.find().lean();
-      res.json(dbInvoices);
-    } else {
-      res.json(MEMORY_INVOICES);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+    const dbInvoices = await InvoiceModel.find().lean();
+    res.json(dbInvoices);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -596,14 +513,13 @@ app.get("/api/invoices", async (req, res) => {
 app.post("/api/invoices", async (req, res) => {
   try {
     const invoiceData = req.body;
-    if (mongoConnected) {
-      const newInvoice = new InvoiceModel(invoiceData);
-      await newInvoice.save();
-      res.status(201).json(newInvoice);
-    } else {
-      MEMORY_INVOICES.push(invoiceData);
-      res.status(201).json(invoiceData);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+    const newInvoice = new InvoiceModel(invoiceData);
+    await newInvoice.save();
+    res.status(201).json(newInvoice);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -612,20 +528,16 @@ app.post("/api/invoices", async (req, res) => {
 // User Management API endpoints
 app.get("/api/users", async (req, res) => {
   try {
-    if (mongoConnected) {
-      const users = await UserModel.find({} as any).lean();
-      const sanitized = users.map((u: any) => {
-        const { password, ...rest } = u;
-        return rest;
-      });
-      res.json(sanitized);
-    } else {
-      const sanitized = MEMORY_USERS.map((u: any) => {
-        const { password, ...rest } = u;
-        return rest;
-      });
-      res.json(sanitized);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+    const users = await UserModel.find({} as any).lean();
+    const sanitized = users.map((u: any) => {
+      const { password, ...rest } = u;
+      return rest;
+    });
+    res.json(sanitized);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch users: " + err.message });
   }
@@ -641,46 +553,30 @@ app.post("/api/users", async (req, res) => {
 
     const cleanUsername = username.trim().toLowerCase();
 
-    if (mongoConnected) {
-      const existing = await UserModel.findOne({ username: cleanUsername } as any);
-      if (existing) {
-        res.status(400).json({ error: "Username already taken" });
-        return;
-      }
-
-      const newUser = {
-        id: "usr-" + Date.now(),
-        username: cleanUsername,
-        password: password,
-        name: name,
-        role: role,
-        phone: phone || ""
-      };
-
-      const mongoUser = new UserModel(newUser);
-      await mongoUser.save();
-      const { password: _, ...sanitized } = newUser;
-      res.status(201).json(sanitized);
-    } else {
-      const existing = MEMORY_USERS.find((u: any) => u.username === cleanUsername);
-      if (existing) {
-        res.status(400).json({ error: "Username already taken" });
-        return;
-      }
-
-      const newUser = {
-        id: "usr-" + Date.now(),
-        username: cleanUsername,
-        password: password,
-        name: name,
-        role: role,
-        phone: phone || ""
-      };
-
-      MEMORY_USERS.push(newUser);
-      const { password: _, ...sanitized } = newUser;
-      res.status(201).json(sanitized);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+
+    const existing = await UserModel.findOne({ username: cleanUsername } as any);
+    if (existing) {
+      res.status(400).json({ error: "Username already taken" });
+      return;
+    }
+
+    const newUser = {
+      id: "usr-" + Date.now(),
+      username: cleanUsername,
+      password: password,
+      name: name,
+      role: role,
+      phone: phone || ""
+    };
+
+    const mongoUser = new UserModel(newUser);
+    await mongoUser.save();
+    const { password: _, ...sanitized } = newUser;
+    res.status(201).json(sanitized);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to create user: " + err.message });
   }
@@ -691,62 +587,37 @@ app.put("/api/users/:id", async (req, res) => {
     const { id } = req.params;
     const { username, name, role, phone, password } = req.body;
 
-    if (mongoConnected) {
-      const user = await UserModel.findOne({ id } as any);
-      if (!user) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-      
-      if (username) {
-        const cleanUsername = username.trim().toLowerCase();
-        if (cleanUsername !== user.username) {
-          const existing = await UserModel.findOne({ username: cleanUsername } as any);
-           if (existing) {
-            res.status(400).json({ error: "Username already taken" });
-            return;
-          }
-          user.username = cleanUsername;
-        }
-      }
-      
-      if (name) user.name = name;
-      if (role) user.role = role;
-      if (phone !== undefined) user.phone = phone;
-      if (password) user.password = password;
-      
-      await user.save();
-      const { password: _, ...sanitized } = user.toObject();
-      res.json(sanitized);
-    } else {
-      const userIdx = MEMORY_USERS.findIndex((u: any) => u.id === id);
-      if (userIdx === -1) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-
-      const user = MEMORY_USERS[userIdx];
-      if (username) {
-        const cleanUsername = username.trim().toLowerCase();
-        if (cleanUsername !== user.username) {
-          const existing = MEMORY_USERS.find((u: any) => u.username === cleanUsername);
-          if (existing) {
-            res.status(400).json({ error: "Username already taken" });
-            return;
-          }
-          user.username = cleanUsername;
-        }
-      }
-
-      if (name) user.name = name;
-      if (role) user.role = role;
-      if (phone !== undefined) user.phone = phone;
-      if (password) user.password = password;
-
-      MEMORY_USERS[userIdx] = user;
-      const { password: _, ...sanitized } = user;
-      res.json(sanitized);
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+
+    const user = await UserModel.findOne({ id } as any);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    
+    if (username) {
+      const cleanUsername = username.trim().toLowerCase();
+      if (cleanUsername !== user.username) {
+        const existing = await UserModel.findOne({ username: cleanUsername } as any);
+         if (existing) {
+          res.status(400).json({ error: "Username already taken" });
+          return;
+        }
+        user.username = cleanUsername;
+      }
+    }
+    
+    if (name) user.name = name;
+    if (role) user.role = role;
+    if (phone !== undefined) user.phone = phone;
+    if (password) user.password = password;
+    
+    await user.save();
+    const { password: _, ...sanitized } = user.toObject();
+    res.json(sanitized);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to update user: " + err.message });
   }
@@ -760,23 +631,17 @@ app.delete("/api/users/:id", async (req, res) => {
       return;
     }
 
-    if (mongoConnected) {
-      const deleted = await UserModel.findOneAndDelete({ id } as any);
-      if (!deleted) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-      res.json({ success: true, message: "User deleted successfully" });
-    } else {
-      const userIdx = MEMORY_USERS.findIndex((u: any) => u.id === id);
-      if (userIdx === -1) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-
-      MEMORY_USERS.splice(userIdx, 1);
-      res.json({ success: true, message: "User deleted successfully" });
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+
+    const deleted = await UserModel.findOneAndDelete({ id } as any);
+    if (!deleted) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ success: true, message: "User deleted successfully" });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to delete user: " + err.message });
   }
@@ -785,21 +650,17 @@ app.delete("/api/users/:id", async (req, res) => {
 // Clear collections endpoint (useful utility)
 app.post("/api/system/reset", async (req, res) => {
   try {
-    if (mongoConnected) {
-      await JobModel.deleteMany({});
-      await InvoiceModel.deleteMany({});
-      await UserModel.deleteMany({});
-      await JobModel.insertMany(INITIAL_JOBS_FALLBACK as any[]);
-      await InvoiceModel.insertMany(INITIAL_INVOICES_FALLBACK as any[]);
-      await UserModel.insertMany(INITIAL_USERS as any[]);
-      res.json({ message: "MongoDB data reset successfully!" });
-    } else {
-      MEMORY_JOBS = JSON.parse(JSON.stringify(INITIAL_JOBS_FALLBACK));
-      MEMORY_INVOICES = JSON.parse(JSON.stringify(INITIAL_INVOICES_FALLBACK));
-      MEMORY_USERS = JSON.parse(JSON.stringify(INITIAL_USERS));
-      MEMORY_DELETED_JOBS = [];
-      res.json({ message: "In-Memory database reset successfully!" });
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
     }
+    await JobModel.deleteMany({});
+    await InvoiceModel.deleteMany({});
+    await UserModel.deleteMany({});
+    await JobModel.insertMany(INITIAL_JOBS_FALLBACK as any[]);
+    await InvoiceModel.insertMany(INITIAL_INVOICES_FALLBACK as any[]);
+    await UserModel.insertMany(INITIAL_USERS as any[]);
+    res.json({ message: "MongoDB data reset successfully!" });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
