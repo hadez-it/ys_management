@@ -98,16 +98,32 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
 
                 {/* Condition-specific direct errors */}
                 {dbStatus.error && (
-                  <div className="text-[11px] text-rose-800 bg-rose-50/70 p-3 rounded-xl border border-rose-100 space-y-1.5">
-                    <p className="font-bold text-rose-950">
-                      ❌ MongoDB Live Connection Error
+                  <div className="text-[11px] text-rose-805 bg-rose-50/75 p-3 rounded-2xl border border-rose-100 space-y-2">
+                    <p className="font-bold text-rose-950 flex items-center gap-1">
+                      <span>❌ MongoDB ချိတ်ဆက်မှု အဆင်မပြေပါ</span>
                     </p>
-                    <div className="bg-white/90 border border-rose-100 font-mono text-[10px] p-2 rounded-lg break-words leading-normal max-h-24 overflow-y-auto">
+                    <div className="bg-white/90 border border-rose-100 font-mono text-[10px] p-2.5 rounded-xl break-words leading-normal max-h-24 overflow-y-auto">
                       {dbStatus.error}
                     </div>
-                    <p className="text-[10px] text-rose-700/90 leading-normal">
-                      <strong>Tip:</strong> Ensure you have whitelisted all IP addresses in your Atlas Cluster Network Access List (e.g. adding <code className="bg-rose-100/50 px-1 font-bold">0.0.0.0/0</code> for global access).
-                    </p>
+                    <div className="text-[10px] text-rose-800 space-y-1 bg-white/40 p-2.5 rounded-xl border border-rose-100/50">
+                      <p className="font-extrabold text-rose-900 border-b border-rose-100 pb-1 mb-1 select-none">
+                        💡 ဖြေရှင်းရန် နည်းလမ်းများ (Troubleshooting Tips):
+                      </p>
+                      <ul className="list-disc pl-4 space-y-1 leading-normal">
+                        <li>
+                          <strong>လော့ဂ်အင် တိုက်ရိုက်မှားယွင်းခြင်း:</strong> Mongo link config တွင် ဖြည့်စွက်ထားသော <code className="bg-rose-100 text-rose-700 px-1 rounded">username</code> သို့မဟုတ် <code className="bg-rose-100 text-rose-700 px-1 rounded">password</code> မှားယွင်းနေပါသည်။
+                        </li>
+                        <li>
+                          <strong>ကွင်းစကွင်းပိတ်များ မပါစေရန်:</strong> MONGO_URI တွင် ကွင်းစကွင်းပိတ်များဖြစ်သော <code className="bg-rose-100 text-rose-700 font-bold px-1 rounded">&lt;</code> နှင့် <code className="bg-rose-100 text-rose-700 font-bold px-1 rounded">&gt;</code> သင်္ကေတများ လုံးဝ (လုံးဝ) မပါဝင်ရပါ။ ဥပမာ - <code className="bg-slate-150 text-slate-700 px-1 rounded">username:password</code> ပုံစံသာ တိုက်ရိုက်ရှိရပါမည်။
+                        </li>
+                        <li>
+                          <strong>Special Characters ရှိပါက:</strong> Password တွင် <code className="bg-rose-100 text-rose-700 px-1 rounded">@, :, /, +, #</code> စသည့် သင်္ကေတများ ပါဝင်နေလျှင် ၎င်းတို့ကို URL-encode ပြုလုပ်ပေးရန် လိုအပ်သည် (ဥပမာ <code className="bg-rose-100 text-rose-700 px-1 rounded">@</code> အစား <code className="bg-slate-100 px-1 rounded font-bold">%40</code> ဟု ရေးပေးရမည်)။
+                        </li>
+                        <li>
+                          <strong>IP Whitelist စစ်ဆေးရန်:</strong> Mongo Atlas ရှိ <strong>Network Access</strong> တွင် IP-address အားလုံးဝင်ရောက်နိုင်ရန် <code className="bg-rose-105 text-rose-705 font-bold px-1 rounded">0.0.0.0/0</code> ကို whitelist လုပ်ထားကြောင်း ပြန်လည်စစ်ဆေးပါ။
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                 )}
               </div>
