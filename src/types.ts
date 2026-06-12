@@ -7,7 +7,7 @@ export type JobStatus =
   | 'Completed'          // Work completed, ready for invoice or invoiced
   | 'Cancelled';         // Job aborted
 
-export type DeviceType = 'Laptop' | 'Desktop' | 'Printer' | 'Networking' | 'Other';
+export type DeviceType = string;
 export type UrgencyLevel = 'Low' | 'Medium' | 'High' | 'Critical';
 
 export interface LocationCoords {

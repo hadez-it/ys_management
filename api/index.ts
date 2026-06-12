@@ -3,11 +3,17 @@ import path from "path";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 // Load configuration
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "jwt-fallback-secret-key-12345";
+
+// SHA256 Password Hashing Helper
+function hashPassword(password: string): string {
+  return crypto.createHash("sha256").update(password).digest("hex");
+}
 
 const app = express();
 
@@ -228,8 +234,12 @@ async function ensureDbConnected() {
       try {
         const userCount = await UserModel.countDocuments();
         if (userCount === 0) {
-          console.log("First connection: Database is completely fresh. Seeding initial fallback users...");
-          await UserModel.insertMany(INITIAL_USERS as any[]);
+          console.log("First connection: Database is completely fresh. Seeding initial fallback users with SHA256 hashed passwords...");
+          const hashedUsers = INITIAL_USERS.map((user) => ({
+            ...user,
+            password: hashPassword(user.password)
+          }));
+          await UserModel.insertMany(hashedUsers as any[]);
 
           const jobCount = await JobModel.countDocuments();
           if (jobCount === 0) {
@@ -338,12 +348,34 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     const cleanUsername = username.trim().toLowerCase();
-    const user = await UserModel.findOne({ username: cleanUsername } as any).lean();
-    if (!user || user.password !== password) {
+    const user = await UserModel.findOne({ username: cleanUsername } as any);
+    if (!user) {
       res.status(401).json({ error: "Invalid username or password" });
       return;
     }
-    const { password: _, ...userWithoutPassword } = user;
+
+    const hashedPassword = hashPassword(password);
+    const matchesHashed = user.password === hashedPassword;
+    const matchesPlain = user.password === password;
+
+    if (!matchesHashed && !matchesPlain) {
+      res.status(401).json({ error: "Invalid username or password" });
+      return;
+    }
+
+    // Auto-migrate to secure SHA256 hash if the stored password was plain text
+    if (matchesPlain && !matchesHashed) {
+      try {
+        user.password = hashedPassword;
+        await user.save();
+        console.log(`[Migration] Automatically migrated user "${cleanUsername}" password storage to SHA256.`);
+      } catch (migrateErr) {
+        console.error("Warning: Failed to auto-migrate user password to SHA256:", migrateErr);
+      }
+    }
+
+    const userObj = user.toObject();
+    const { password: _, ...userWithoutPassword } = userObj;
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       JWT_SECRET,
@@ -676,7 +708,7 @@ app.post("/api/users", async (req, res) => {
     const newUser = {
       id: "usr-" + Date.now(),
       username: cleanUsername,
-      password: password,
+      password: hashPassword(password),
       name: name,
       role: role,
       phone: phone || ""
@@ -722,7 +754,7 @@ app.put("/api/users/:id", async (req, res) => {
     if (name) user.name = name;
     if (role) user.role = role;
     if (phone !== undefined) user.phone = phone;
-    if (password) user.password = password;
+    if (password) user.password = hashPassword(password);
     
     await user.save();
     const { password: _, ...sanitized } = user.toObject();

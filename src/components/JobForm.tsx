@@ -119,37 +119,19 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
             />
           </div>
 
-          {/* Device Selection */}
-          <div className="space-y-1.5 bg-gray-50/40 p-3 rounded-xl border border-gray-100/50">
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Laptop className="h-3.5 w-3.5 text-gray-400" /> Device Specific Classification
+          {/* Item Type */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5" htmlFor="item-type">
+              <Laptop className="h-3.5 w-3.5 text-gray-400" /> Item Type <span className="text-rose-500">*</span>
             </label>
-            <div className="grid grid-cols-5 gap-1 pt-1">
-              {(['Laptop', 'Desktop', 'Printer', 'Networking', 'Other'] as DeviceType[]).map((type) => {
-                const isActive = deviceType === type;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setDeviceType(type)}
-                    className={`py-1.5 text-[10px] rounded-lg border text-center font-semibold transition-all cursor-pointer ${
-                      isActive
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-100 bg-white text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                );
-              })}
-            </div>
-            
             <input
               type="text"
-              placeholder="Model / Hardware Reference (e.g. MacBook Pro M3, Asus ROG, Epson L3210)"
-              value={deviceModel}
-              onChange={(e) => setDeviceModel(e.target.value)}
-              className="w-full bg-white border border-gray-150 text-xs rounded-xl py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all font-sans mt-2"
+              id="item-type"
+              placeholder="e.g. Laptop, Printer, CCTV, AC, Refrigerator, Mobile"
+              value={deviceType}
+              onChange={(e) => setDeviceType(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-100 text-sm rounded-xl py-2 px-3.5 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 transition-all font-sans"
+              required
             />
           </div>
 

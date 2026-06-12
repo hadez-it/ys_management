@@ -583,7 +583,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                   <div className="space-y-2 text-sm text-gray-700">
                     <div className="bg-white/70 backdrop-blur-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-indigo-100/30 flex justify-between items-center gap-2">
                       <div>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Device Classification</span>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 block uppercase tracking-wider leading-none mb-1 select-none">Item Type</span>
                         <strong className="text-gray-900 text-xs sm:text-sm">{selectedJob.deviceType}</strong>
                       </div>
                     </div>

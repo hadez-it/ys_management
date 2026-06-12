@@ -132,7 +132,7 @@ export default function App() {
     }
   }, [currentUser, activeTab]);
 
-  // Load state on mount from Backend APIs
+  // Fetch DB Status (Public endpoint)
   useEffect(() => {
     fetch('/api/db-status')
       .then((res) => res.json())
@@ -145,6 +145,35 @@ export default function App() {
           modeMessage: 'Database Connection Offline. Please check your MONGO_URI setup in Settings/Secrets.'
         });
       });
+  }, []);
+
+  // Load state from Backend APIs when user is logged-authorized
+  useEffect(() => {
+    if (!currentUser?.token) {
+      // Just fallback to local storage values silently if user is not authenticated yet
+      const localJobsVal = localStorage.getItem('smartfix_jobs');
+      const localInvsVal = localStorage.getItem('smartfix_invoices');
+      const localActVal = localStorage.getItem('smartfix_activity_logs');
+      
+      if (localJobsVal) {
+        setJobs(JSON.parse(localJobsVal));
+      } else {
+        setJobs(INITIAL_JOBS_FALLBACK);
+      }
+      
+      if (localInvsVal) {
+        setInvoices(JSON.parse(localInvsVal));
+      } else {
+        setInvoices(INITIAL_INVOICES_FALLBACK);
+      }
+      
+      if (localActVal) {
+        setActivityLogs(JSON.parse(localActVal));
+      } else {
+        setActivityLogs([]);
+      }
+      return;
+    }
 
     const fetchJobs = () => {
       authFetch('/api/jobs')
@@ -234,7 +263,7 @@ export default function App() {
     return () => {
       clearInterval(intervalId);
     };
-  }, []);
+  }, [currentUser?.token]);
 
   // Global modal watcher hook to prevent background body and container scrolling
   useEffect(() => {
