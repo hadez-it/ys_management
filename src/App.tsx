@@ -912,7 +912,7 @@ export default function App() {
       {/* DATABASE CONNECTION STATUS DETAIL MODAL */}
       {showDbStatusModal && dbStatus && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in" 
+          className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto" 
           id="db-status-detail-modal-overlay"
           onClick={() => setShowDbStatusModal(false)}
         >
@@ -993,7 +993,7 @@ export default function App() {
 
       {/* NEW TICKET REGISTRATION POPUP */}
       {isNewTicketModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in" id="new-ticket-modal-overlay">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-4 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto" id="new-ticket-modal-overlay">
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200/30 max-h-[90vh] flex flex-col overflow-hidden animate-scale-up" id="new-ticket-modal-container">
             {/* Modal Header */}
             <div className="bg-slate-50 px-6 py-5 border-b border-slate-200 flex items-center justify-between shrink-0 text-left select-none">

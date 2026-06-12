@@ -444,7 +444,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
       {/* LIGHTBOX FOR CREATE / EDIT ACCOUNT FORM */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in" id="account-form-overlay">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto" id="account-form-overlay">
           <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl border border-slate-250/20 max-h-[90vh] flex flex-col overflow-hidden animate-scale-up" id="account-form-container">
             
             {/* Modal Header */}
@@ -568,7 +568,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
       {/* CONFIRM DELETE MODAL */}
       {confirmDeleteUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in" id="delete-user-overlay">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto" id="delete-user-overlay">
           <div className="bg-white max-w-sm w-full rounded-3xl p-6 border border-slate-100 text-left animate-scale-up space-y-4">
             <div className="flex items-center gap-2 text-rose-600">
               <ShieldAlert className="h-5 w-5 shrink-0" />

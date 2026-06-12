@@ -14,7 +14,7 @@ export default function InvoiceView({ invoice, onClose }: InvoiceViewProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" id="invoice-view-modal">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-4 pt-4 sm:pt-4 z-50 animate-fade-in sm:items-center overflow-y-auto" id="invoice-view-modal">
       <div className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] border border-gray-150 transform transition-all duration-300">
         {/* Modal Header */}
         <div className="p-5 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">

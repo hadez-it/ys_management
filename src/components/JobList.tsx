@@ -467,7 +467,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
       {/* JOBS DETAILS MODAL OVERLAY (POPUP) */}
       {isModalOpen && selectedJob && (
         <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 z-50 animate-fade-in"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center p-2 sm:p-4 pt-4 sm:pt-4 z-50 animate-fade-in sm:items-center overflow-y-auto"
           id="job-detail-modal-backdrop"
           onClick={() => setIsModalOpen(false)}
         >
@@ -920,7 +920,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
         const isCompletedJob = prioritySettingJob.status === 'Completed';
         return (
           <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center p-4 pt-10 sm:pt-4 z-50 animate-fade-in sm:items-center overflow-y-auto"
             id="priority-selector-overlay"
             onClick={() => setPrioritySettingJob(null)}
           >
@@ -1040,7 +1040,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
       {/* PERSISTENT DELETE REASON CONFIRMATION MODAL OVERLAY */}
       {isDeleteConfirmOpen && selectedJob && (
         <div
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-55 animate-fade-in"
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-start justify-center p-4 pt-10 sm:pt-4 z-55 animate-fade-in sm:items-center overflow-y-auto"
           id="delete-confirmation-backdrop"
           onClick={() => setIsDeleteConfirmOpen(false)}
         >
@@ -1148,12 +1148,12 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
       {/* EDIT MODAL OVERLAY PORTAL */}
       {isEditFormOpen && selectedJob && (
         <div
-          className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 z-55 animate-fade-in overflow-y-auto"
+          className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm flex items-start justify-center p-4 pt-4 sm:pt-4 z-55 animate-fade-in sm:items-center overflow-y-auto"
           id="edit-details-modal-overlay"
           onClick={() => setIsEditFormOpen(false)}
         >
           <div
-            className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden flex flex-col shadow-2xl relative animate-scale-up border border-amber-100 p-6 space-y-4 my-8 text-left"
+            className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden flex flex-col shadow-2xl relative animate-scale-up border border-amber-100 p-6 space-y-4 my-2 sm:my-8 text-left"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
