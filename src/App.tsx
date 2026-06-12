@@ -244,7 +244,7 @@ export default function App() {
 
     fetchActivityLogsOnStart();
 
-    // Poll jobs endpoint every 60 seconds
+    // Poll jobs endpoint every 8 seconds for a near-realtime dynamic auto-update
     const intervalId = setInterval(() => {
       authFetch('/api/jobs')
         .then((res) => {
@@ -258,7 +258,7 @@ export default function App() {
         .catch(() => {
           // Keep offline state silently running
         });
-    }, 60000);
+    }, 8000);
 
     return () => {
       clearInterval(intervalId);
