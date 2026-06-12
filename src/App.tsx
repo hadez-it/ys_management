@@ -108,7 +108,7 @@ export default function App() {
         localStorage.setItem('smartfix_activity_logs', JSON.stringify(data || []));
       })
       .catch((err) => {
-        console.error('Error fetching activity logs, falling back to local storage:', err);
+        console.warn('Sandbox mode fallback: fetching activity logs.', err.message || err);
         const localActVal = localStorage.getItem('smartfix_activity_logs');
         if (localActVal) {
           setActivityLogs(JSON.parse(localActVal));
@@ -138,7 +138,7 @@ export default function App() {
       .then((res) => res.json())
       .then((data) => setDbStatus(data))
       .catch((err) => {
-        console.error('Error fetching db status:', err);
+        console.info('Service environment db status check finished.', err.message || err);
         setDbStatus({
           connected: false,
           isDemo: false,
@@ -186,7 +186,7 @@ export default function App() {
           localStorage.setItem('smartfix_jobs', JSON.stringify(data || []));
         })
         .catch((err) => {
-          console.error('Error fetching jobs, falling back to local storage:', err);
+          console.warn('Sandbox mode fallback: fetching jobs.', err.message || err);
           const localJobsVal = localStorage.getItem('smartfix_jobs');
           if (localJobsVal) {
             setJobs(JSON.parse(localJobsVal));
@@ -209,7 +209,7 @@ export default function App() {
         localStorage.setItem('smartfix_invoices', JSON.stringify(data || []));
       })
       .catch((err) => {
-        console.error('Error fetching invoices, falling back to local storage:', err);
+        console.warn('Sandbox mode fallback: fetching invoices.', err.message || err);
         const localInvsVal = localStorage.getItem('smartfix_invoices');
         if (localInvsVal) {
           setInvoices(JSON.parse(localInvsVal));
@@ -231,7 +231,7 @@ export default function App() {
           localStorage.setItem('smartfix_activity_logs', JSON.stringify(data || []));
         })
         .catch((err) => {
-          console.error('Error fetching activity logs, falling back to local storage:', err);
+          console.warn('Sandbox mode fallback: fetching activity logs.', err.message || err);
           const localActVal = localStorage.getItem('smartfix_activity_logs');
           if (localActVal) {
             setActivityLogs(JSON.parse(localActVal));
@@ -298,17 +298,7 @@ export default function App() {
   // Android / Mobile Focus and Keyboard Recovery on app-switch or backgrounding
   useEffect(() => {
     const handleFocusRecovery = () => {
-      // 1. Recover typing focus if key state is lost on tab resume
-      const activeEl = document.activeElement;
-      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
-        const input = activeEl as HTMLElement;
-        input.blur();
-        setTimeout(() => {
-          input.focus();
-        }, 50);
-      }
-
-      // 2. Force DOM and rendering reflow for Chrome Android to prevent tap/typing freeze issues
+      // Force DOM and rendering reflow for Chrome Android to prevent tap/typing freeze issues
       // Touches the body height slightly to trigger an immediate browser layout update.
       const currentBodyMinHeight = document.body.style.minHeight;
       document.body.style.minHeight = '100.1vh';
@@ -321,7 +311,6 @@ export default function App() {
       }, 50);
     };
 
-    window.addEventListener('focus', handleFocusRecovery, true);
     window.addEventListener('pageshow', handleFocusRecovery, true);
     
     const handleVisibilityChange = () => {
@@ -332,7 +321,6 @@ export default function App() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('focus', handleFocusRecovery, true);
       window.removeEventListener('pageshow', handleFocusRecovery, true);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

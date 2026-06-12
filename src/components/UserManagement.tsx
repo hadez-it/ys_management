@@ -55,6 +55,20 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null);
 
   const fetchUsers = () => {
+    if (!currentUser?.token) {
+      // Fallback silently if user is not authenticated yet
+      const localUsers = localStorage.getItem('smartfix_users');
+      if (localUsers) {
+        setUsers(JSON.parse(localUsers));
+      } else {
+        const cleanUsers = INITIAL_FALLBACK_USERS.map(({ password, ...u }) => u) as User[];
+        setUsers(cleanUsers);
+        localStorage.setItem('smartfix_users', JSON.stringify(cleanUsers));
+      }
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     fetch('/api/users', {
       headers: getAuthHeaders()
@@ -69,7 +83,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
         setErrorMsg('');
       })
       .catch((err) => {
-        console.error('Error fetching users, falling back to local storage:', err);
+        console.warn('Sandbox mode / Database offline: fetching users fallback to local storage.', err.message || err);
         const localUsers = localStorage.getItem('smartfix_users');
         if (localUsers) {
           setUsers(JSON.parse(localUsers));
