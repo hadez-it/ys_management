@@ -42,12 +42,23 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
   const [role, setRole] = useState<UserRole>('technician');
   const [phone, setPhone] = useState<string>('');
 
+  // Auth headers generator helper
+  const getAuthHeaders = (additionalHeaders: Record<string, string> = {}) => {
+    const headers: Record<string, string> = { ...additionalHeaders };
+    if (currentUser?.token) {
+      headers['Authorization'] = `Bearer ${currentUser.token}`;
+    }
+    return headers;
+  };
+
   // Delete confirmation state
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null);
 
   const fetchUsers = () => {
     setLoading(true);
-    fetch('/api/users')
+    fetch('/api/users', {
+      headers: getAuthHeaders()
+    })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to retrieve system accounts');
         return res.json();
@@ -138,7 +149,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
     fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload),
     })
       .then(async (res) => {
@@ -191,6 +202,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
     fetch(`/api/users/${userId}`, {
       method: 'DELETE',
+      headers: getAuthHeaders()
     })
       .then(async (res) => {
         const data = await res.json();

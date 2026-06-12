@@ -61,6 +61,25 @@ export default function App() {
     } catch (_) {}
   };
 
+  // Authenticated fetch wrapper for custom JWT authorization
+  const authFetch = (url: string, options: RequestInit = {}) => {
+    const headers = {
+      ...(options.headers || {}),
+    } as Record<string, string>;
+
+    if (currentUser?.token) {
+      headers['Authorization'] = `Bearer ${currentUser.token}`;
+    }
+    if (currentUser?.username) {
+      headers['X-Operator-Username'] = currentUser.username;
+    }
+
+    return fetch(url, {
+      ...options,
+      headers,
+    });
+  };
+
   // Global States synced with Express REST + MongoDB Server
   const [jobs, setJobs] = useState<ServiceJob[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -79,7 +98,7 @@ export default function App() {
   const [isWiping, setIsWiping] = useState(false);
 
   const fetchActivityLogs = () => {
-    fetch('/api/activity-logs')
+    authFetch('/api/activity-logs')
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -128,7 +147,7 @@ export default function App() {
       });
 
     const fetchJobs = () => {
-      fetch('/api/jobs')
+      authFetch('/api/jobs')
         .then((res) => {
           if (!res.ok) throw new Error();
           return res.json();
@@ -151,7 +170,7 @@ export default function App() {
 
     fetchJobs();
 
-    fetch('/api/invoices')
+    authFetch('/api/invoices')
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -173,7 +192,7 @@ export default function App() {
 
     // Fetch activity logs helper
     const fetchActivityLogsOnStart = () => {
-      fetch('/api/activity-logs')
+      authFetch('/api/activity-logs')
         .then((res) => {
           if (!res.ok) throw new Error();
           return res.json();
@@ -198,7 +217,7 @@ export default function App() {
 
     // Poll jobs endpoint every 60 seconds
     const intervalId = setInterval(() => {
-      fetch('/api/jobs')
+      authFetch('/api/jobs')
         .then((res) => {
           if (res.ok) return res.json();
           throw new Error();
@@ -301,11 +320,10 @@ export default function App() {
       updatedAt: new Date().toISOString(),
     };
 
-    fetch('/api/jobs', {
+    authFetch('/api/jobs', {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
-        'X-Operator-Username': currentUser?.username || 'system'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(newJob),
     })
@@ -357,11 +375,10 @@ export default function App() {
       updatedAt: new Date().toISOString(),
     };
 
-    fetch(`/api/jobs/${jobId}`, {
+    authFetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 
-        'Content-Type': 'application/json',
-        'X-Operator-Username': currentUser?.username || 'system'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(updatedJob),
     })
@@ -408,7 +425,7 @@ export default function App() {
       delete updatedJob.priorityNumber;
     }
 
-    fetch(`/api/jobs/${jobId}`, {
+    authFetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ priorityNumber: priorityNumber === undefined ? null : priorityNumber, updatedAt: updatedJob.updatedAt }),
@@ -438,11 +455,10 @@ export default function App() {
   const handleDeleteJob = (jobId: string, reason: string) => {
     const jobToDelete = jobs.find((j) => j.id === jobId);
 
-    fetch(`/api/jobs/${jobId}`, {
+    authFetch(`/api/jobs/${jobId}`, {
       method: 'DELETE',
       headers: { 
-        'Content-Type': 'application/json',
-        'X-Operator-Username': currentUser?.username || 'system'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ reason }),
     })
@@ -491,11 +507,10 @@ export default function App() {
     const targetJob = jobs.find((j) => j.id === jobId);
     const updatedJob = targetJob ? { ...targetJob, ...updatedJobData, updatedAt: new Date().toISOString() } : null;
 
-    fetch(`/api/jobs/${jobId}`, {
+    authFetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 
-        'Content-Type': 'application/json',
-        'X-Operator-Username': currentUser?.username || 'system'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(updatedJobData),
     })
@@ -529,7 +544,7 @@ export default function App() {
       return;
     }
     setIsWiping(true);
-    fetch('/api/system/reset', {
+    authFetch('/api/system/reset', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     })
@@ -578,7 +593,7 @@ export default function App() {
       createdTime: new Date().toISOString(),
     };
 
-    fetch('/api/invoices', {
+    authFetch('/api/invoices', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newInvoice),
@@ -601,7 +616,7 @@ export default function App() {
           updatedAt: new Date().toISOString(),
         };
 
-        return fetch(`/api/jobs/${invoiceWizardJob.id}`, {
+        return authFetch(`/api/jobs/${invoiceWizardJob.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatedJobFields),

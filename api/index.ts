@@ -2,9 +2,12 @@ import express from "express";
 import path from "path";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import jwt from "jsonwebtoken";
 
 // Load configuration
 dotenv.config();
+
+const JWT_SECRET = process.env.JWT_SECRET || "jwt-fallback-secret-key-12345";
 
 const app = express();
 
@@ -249,6 +252,33 @@ async function ensureDbConnected() {
   }
 }
 
+// JWT Verification Middleware
+const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // Public endpoints do not require token
+  const path = req.path;
+  if (path === "/db-status" || path === "/auth/login") {
+    return next();
+  }
+
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    res.status(401).json({ error: "Access denied. Token missing from Authorization header." });
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; username: string; role: string };
+    (req as any).user = decoded;
+    next();
+  } catch (err) {
+    res.status(403).json({ error: "Invalid or expired token." });
+  }
+};
+
+app.use("/api", authenticateToken);
+
 // A dynamic serverless-friendly database auto-resolution middleware for API requests
 app.use("/api", async (req, res, next) => {
   // If it's just checking status, try resolving lazily but proceed to normal handler so status returns diagnostic logs properly
@@ -314,7 +344,12 @@ app.post("/api/auth/login", async (req, res) => {
       return;
     }
     const { password: _, ...userWithoutPassword } = user;
-    res.json(userWithoutPassword);
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+    res.json({ ...userWithoutPassword, token });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
