@@ -202,7 +202,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
         {/* Info footer */}
         <p className="text-center text-[10px] text-slate-400 leading-normal">
           Enterprise role restrictions prevent unauthorized access.<br/>
-          SmartFix Co., Ltd &copy; 2026. All Rights Reserved.
+          Yangon Store Co., Ltd &copy; 2026. All Rights Reserved.
         </p>
 
       </div>

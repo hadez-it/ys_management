@@ -100,29 +100,7 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
             <p className="text-xs text-gray-400">Please provide precise customer & device details.</p>
           </div>
           
-          {/* Quick Demo Assist Button */}
-          <div className="dropdown relative group">
-            <button
-              type="button"
-              id="btn-auto-presets"
-              className="inline-flex items-center gap-1 text-[11px] bg-blue-50 text-blue-700 font-semibold py-1.5 px-3 rounded-lg hover:bg-blue-100 transition-all cursor-pointer"
-            >
-              <Sparkles className="h-3 w-3" /> Auto Presets
-            </button>
-            <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-gray-100 rounded-lg shadow-lg p-1.5 hidden group-hover:block z-15">
-              <p className="text-[10px] text-gray-400 font-semibold px-2 pb-1 border-b border-gray-50 select-none">Quick Test Case:</p>
-              {ISSUE_PRESETS.map((p, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleApplyPreset(p)}
-                  className="w-full text-left p-1.5 text-xs text-gray-600 hover:text-blue-700 hover:bg-blue-50/50 rounded transition-all"
-                >
-                  ⚡ {p.title}
-                </button>
-              ))}
-            </div>
-          </div>
+
         </div>
 
           {/* Customer Name */}

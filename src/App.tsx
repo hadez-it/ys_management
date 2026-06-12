@@ -590,9 +590,8 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-sm font-black uppercase tracking-widest font-display text-slate-100">
-              SmartFix
+              Yangon Store
             </h1>
-            <p className="text-[10px] text-slate-450 font-bold">Solutions Enterprise</p>
           </div>
         </div>
 
@@ -682,7 +681,7 @@ export default function App() {
                    activeTab === 'deleted' ? 'Disposal Registry' : 'Team Directory'}
                 </h2>
                 <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase hidden sm:block">
-                  SmartFix Dispatch Hub
+                  Yangon Store Dispatch Hub
                 </p>
               </div>
             </div>

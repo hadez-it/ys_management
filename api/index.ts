@@ -265,17 +265,17 @@ async function ensureDbConnected() {
     // Seed database on-demand if not already seeded during this runtime lifecycle
     if (!databaseSeeded) {
       try {
-        const jobCount = await JobModel.countDocuments();
-        if (jobCount === 0) {
-          console.log("First connection: Seeding initial fallback jobs...");
-          await JobModel.insertMany(INITIAL_JOBS_FALLBACK as any[]);
-          await InvoiceModel.insertMany(INITIAL_INVOICES_FALLBACK as any[]);
-        }
-
         const userCount = await UserModel.countDocuments();
         if (userCount === 0) {
-          console.log("First connection: Seeding initial fallback users...");
+          console.log("First connection: Database is completely fresh. Seeding initial fallback users...");
           await UserModel.insertMany(INITIAL_USERS as any[]);
+
+          const jobCount = await JobModel.countDocuments();
+          if (jobCount === 0) {
+            console.log("Seeding initial fallback jobs...");
+            await JobModel.insertMany(INITIAL_JOBS_FALLBACK as any[]);
+            await InvoiceModel.insertMany(INITIAL_INVOICES_FALLBACK as any[]);
+          }
         }
         databaseSeeded = true;
       } catch (seedErr) {
