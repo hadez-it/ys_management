@@ -247,6 +247,49 @@ export default function App() {
     };
   }, [isNewTicketModalOpen, viewingInvoice, invoiceWizardJob, showDbStatusModal]);
 
+  // Android / Mobile Focus and Keyboard Recovery on app-switch or backgrounding
+  useEffect(() => {
+    const handleFocusRecovery = () => {
+      // 1. Recover typing focus if key state is lost on tab resume
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        const input = activeEl as HTMLElement;
+        input.blur();
+        setTimeout(() => {
+          input.focus();
+        }, 50);
+      }
+
+      // 2. Force DOM and rendering reflow for Chrome Android to prevent tap/typing freeze issues
+      // Touches the body height slightly to trigger an immediate browser layout update.
+      const currentBodyMinHeight = document.body.style.minHeight;
+      document.body.style.minHeight = '100.1vh';
+      
+      // Trigger a force repaint/style-recalculation
+      document.body.offsetHeight; // force reflow
+
+      setTimeout(() => {
+        document.body.style.minHeight = currentBodyMinHeight;
+      }, 50);
+    };
+
+    window.addEventListener('focus', handleFocusRecovery, true);
+    window.addEventListener('pageshow', handleFocusRecovery, true);
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleFocusRecovery();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusRecovery, true);
+      window.removeEventListener('pageshow', handleFocusRecovery, true);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // 1. Create a service job trigger
   const handleCreateJob = (jobDetails: Omit<ServiceJob, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
     const nextIdNum = jobs.length + 101 + Math.floor(Math.random() * 900);
