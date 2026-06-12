@@ -88,6 +88,45 @@ const DeletedJobSchema = new mongoose.Schema({
 
 const DeletedJobModel = mongoose.models.DeletedJob || mongoose.model("DeletedJob", DeletedJobSchema);
 
+const ActivityLogSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  actionType: { type: String, required: true },
+  jobId: { type: String, required: true },
+  customerName: { type: String },
+  deviceType: { type: String },
+  username: { type: String, required: true },
+  timestamp: { type: String, required: true },
+  details: { type: String }
+});
+
+const ActivityLogModel = mongoose.models.ActivityLog || mongoose.model("ActivityLog", ActivityLogSchema);
+
+async function logActivity({ actionType, jobId, customerName, deviceType, username, details }: {
+  actionType: string;
+  jobId: string;
+  customerName?: string;
+  deviceType?: string;
+  username: string;
+  details?: string;
+}) {
+  try {
+    const newLog = new ActivityLogModel({
+      id: "ACT-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+      actionType,
+      jobId,
+      customerName: customerName || "N/A",
+      deviceType: deviceType || "N/A",
+      username: username || "system",
+      timestamp: new Date().toISOString(),
+      details: details || ""
+    });
+    await newLog.save();
+    console.log(`[Activity Log] ${actionType} logged successfully for job: ${jobId} by user: ${username}`);
+  } catch (err) {
+    console.error("Warning: Failed to save activity log:", err);
+  }
+}
+
 const UserSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   username: { type: String, required: true, unique: true },
@@ -304,6 +343,18 @@ app.post("/api/jobs", async (req, res) => {
     }
     const newJob = new JobModel(jobData);
     await newJob.save();
+
+    // Log Activity
+    const operator = req.headers["x-operator-username"] || req.query.username || "system";
+    await logActivity({
+      actionType: "Created",
+      jobId: newJob.id,
+      customerName: newJob.customerName,
+      deviceType: newJob.deviceType,
+      username: String(operator),
+      details: `New ticket registered. Issue: ${newJob.deviceIssue}. Urgency: ${newJob.urgency}.`
+    });
+
     res.status(201).json(newJob);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -360,6 +411,45 @@ app.put("/api/jobs/:id", async (req, res) => {
       updateQuery,
       { new: true } as any
     );
+
+    // Log Activity
+    const operator = req.headers["x-operator-username"] || req.query.username || "system";
+    const oldStatus = jobToEdit.status;
+    const newStatus = fieldsToUpdate.status;
+
+    if (newStatus && oldStatus !== newStatus) {
+      let activityType = "Updated";
+      let detailString = `Status transitioned from ${oldStatus} to ${newStatus}.`;
+      if (newStatus === "Completed") {
+        activityType = "Completed";
+        detailString = `Service Ticket completed. Resolution notes: ${fieldsToUpdate.resolutionNotes || jobToEdit.resolutionNotes || "None"}`;
+      } else if (newStatus === "Cancelled" || newStatus === "Canceled") {
+        activityType = "Canceled";
+        detailString = `Service Ticket canceled. Remark/Reason: ${fieldsToUpdate.remarks || jobToEdit.remarks || "No reason given"}`;
+      } else {
+        activityType = "Updated Status";
+        detailString = `Status updated to ${newStatus}. Assigned tech: ${fieldsToUpdate.technicianName || jobToEdit.technicianName || "None"}.`;
+      }
+
+      await logActivity({
+        actionType: activityType,
+        jobId: jobToEdit.id,
+        customerName: jobToEdit.customerName,
+        deviceType: jobToEdit.deviceType,
+        username: String(operator),
+        details: detailString
+      });
+    } else {
+      await logActivity({
+        actionType: "Updated",
+        jobId: jobToEdit.id,
+        customerName: jobToEdit.customerName,
+        deviceType: jobToEdit.deviceType,
+        username: String(operator),
+        details: editReason ? `Ticket details updated. Reason: ${editReason}` : "Ticket general information modified."
+      });
+    }
+
     res.json(updatedJob);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -394,6 +484,18 @@ app.delete("/api/jobs/:id", async (req, res) => {
       originalJobData: jobToDelete.toObject()
     });
     await archived.save();
+
+    // Log Activity
+    const operator = req.headers["x-operator-username"] || req.query.username || "system";
+    await logActivity({
+      actionType: "Deleted",
+      jobId: jobToDelete.id,
+      customerName: jobToDelete.customerName,
+      deviceType: jobToDelete.deviceType,
+      username: String(operator),
+      details: `Ticket permanently deleted. Reason/Explanations: ${cleanReason}`
+    });
+
     await JobModel.deleteOne({ id } as any);
     res.json({ success: true, message: "Job deleted and reasons archived successfully." });
   } catch (err: any) {
@@ -401,7 +503,7 @@ app.delete("/api/jobs/:id", async (req, res) => {
   }
 });
 
-// GET Deleted Jobs Log
+// GET Deleted Jobs Log (Backward compatibility helper)
 app.get("/api/deleted-jobs", async (req, res) => {
   try {
     if (!mongoConnected) {
@@ -412,6 +514,47 @@ app.get("/api/deleted-jobs", async (req, res) => {
     res.json(dbDeleted);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET Activity Logs
+app.get("/api/activity-logs", async (req, res) => {
+  try {
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
+    }
+    const logs = await ActivityLogModel.find().sort({ timestamp: -1 }).lean();
+    res.json(logs);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST Manual Activity Log (for client-side or offline syncing actions)
+app.post("/api/activity-logs", async (req, res) => {
+  try {
+    const { actionType, jobId, customerName, deviceType, username, details, timestamp } = req.body;
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
+    }
+    
+    const newLog = new ActivityLogModel({
+      id: "ACT-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+      actionType: actionType || "Updated",
+      jobId: jobId || "SYSTEM",
+      customerName: customerName || "N/A",
+      deviceType: deviceType || "N/A",
+      username: username || "system",
+      timestamp: timestamp || new Date().toISOString(),
+      details: details || ""
+    });
+    
+    await newLog.save();
+    res.status(201).json(newLog);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -576,6 +719,8 @@ app.post("/api/system/reset", async (req, res) => {
     await JobModel.deleteMany({});
     await InvoiceModel.deleteMany({});
     await UserModel.deleteMany({});
+    await ActivityLogModel.deleteMany({});
+    await DeletedJobModel.deleteMany({});
     await JobModel.insertMany(INITIAL_JOBS_FALLBACK as any[]);
     await InvoiceModel.insertMany(INITIAL_INVOICES_FALLBACK as any[]);
     await UserModel.insertMany(INITIAL_USERS as any[]);

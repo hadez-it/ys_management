@@ -86,6 +86,17 @@ export interface DeletedJob {
   originalJobData: ServiceJob;
 }
 
+export interface ActivityLog {
+  id: string;
+  actionType: string; // e.g. 'Created' | 'Canceled' | 'Completed' | 'Deleted' | 'Updated'
+  jobId: string;
+  customerName: string;
+  deviceType: string;
+  username: string;
+  timestamp: string;
+  details: string;
+}
+
 export type UserRole = 'admin' | 'coordinator' | 'senior_technician' | 'technician';
 
 export interface User {

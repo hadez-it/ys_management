@@ -20,7 +20,7 @@ import {
   Calendar,
   Layers3
 } from 'lucide-react';
-import { ServiceJob, Invoice, JobStatus, DeviceType, UrgencyLevel, LocationCoords, DeletedJob, User, UserRole } from './types.ts';
+import { ServiceJob, Invoice, JobStatus, DeviceType, UrgencyLevel, LocationCoords, DeletedJob, User, UserRole, ActivityLog } from './types.ts';
 import {
   formatMMK,
   MAP_CENTER_YANGON
@@ -64,7 +64,7 @@ export default function App() {
   // Global States synced with Express REST + MongoDB Server
   const [jobs, setJobs] = useState<ServiceJob[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [deletedJobs, setDeletedJobs] = useState<DeletedJob[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string } | null>(null);
 
   // Routing and interactive view triggers
@@ -78,24 +78,24 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isWiping, setIsWiping] = useState(false);
 
-  const fetchDeletedJobs = () => {
-    fetch('/api/deleted-jobs')
+  const fetchActivityLogs = () => {
+    fetch('/api/activity-logs')
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
       })
       .then((data) => {
-        setDeletedJobs(data || []);
-        localStorage.setItem('smartfix_deleted_jobs', JSON.stringify(data || []));
+        setActivityLogs(data || []);
+        localStorage.setItem('smartfix_activity_logs', JSON.stringify(data || []));
       })
       .catch((err) => {
-        console.error('Error fetching deleted jobs, falling back to local storage:', err);
-        const localDelVal = localStorage.getItem('smartfix_deleted_jobs');
-        if (localDelVal) {
-          setDeletedJobs(JSON.parse(localDelVal));
+        console.error('Error fetching activity logs, falling back to local storage:', err);
+        const localActVal = localStorage.getItem('smartfix_activity_logs');
+        if (localActVal) {
+          setActivityLogs(JSON.parse(localActVal));
         } else {
-          setDeletedJobs([]);
-          localStorage.setItem('smartfix_deleted_jobs', JSON.stringify([]));
+          setActivityLogs([]);
+          localStorage.setItem('smartfix_activity_logs', JSON.stringify([]));
         }
       });
   };
@@ -171,30 +171,30 @@ export default function App() {
         }
       });
 
-    // Fetch deleted jobs helper
-    const fetchDeletedJobsOnStart = () => {
-      fetch('/api/deleted-jobs')
+    // Fetch activity logs helper
+    const fetchActivityLogsOnStart = () => {
+      fetch('/api/activity-logs')
         .then((res) => {
           if (!res.ok) throw new Error();
           return res.json();
         })
         .then((data) => {
-          setDeletedJobs(data || []);
-          localStorage.setItem('smartfix_deleted_jobs', JSON.stringify(data || []));
+          setActivityLogs(data || []);
+          localStorage.setItem('smartfix_activity_logs', JSON.stringify(data || []));
         })
         .catch((err) => {
-          console.error('Error fetching deleted jobs, falling back to local storage:', err);
-          const localDelVal = localStorage.getItem('smartfix_deleted_jobs');
-          if (localDelVal) {
-            setDeletedJobs(JSON.parse(localDelVal));
+          console.error('Error fetching activity logs, falling back to local storage:', err);
+          const localActVal = localStorage.getItem('smartfix_activity_logs');
+          if (localActVal) {
+            setActivityLogs(JSON.parse(localActVal));
           } else {
-            setDeletedJobs([]);
-            localStorage.setItem('smartfix_deleted_jobs', JSON.stringify([]));
+            setActivityLogs([]);
+            localStorage.setItem('smartfix_activity_logs', JSON.stringify([]));
           }
         });
     };
 
-    fetchDeletedJobsOnStart();
+    fetchActivityLogsOnStart();
 
     // Poll jobs endpoint every 60 seconds
     const intervalId = setInterval(() => {
@@ -260,7 +260,10 @@ export default function App() {
 
     fetch('/api/jobs', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Operator-Username': currentUser?.username || 'system'
+      },
       body: JSON.stringify(newJob),
     })
       .then((res) => {
@@ -273,6 +276,7 @@ export default function App() {
           localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
           return updated;
         });
+        fetchActivityLogs();
         setIsNewTicketModalOpen(false);
         setActiveTab('queue');
       })
@@ -312,7 +316,10 @@ export default function App() {
 
     fetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Operator-Username': currentUser?.username || 'system'
+      },
       body: JSON.stringify(updatedJob),
     })
       .then((res) => {
@@ -325,6 +332,7 @@ export default function App() {
           localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
           return updated;
         });
+        fetchActivityLogs();
         if (status === 'Completed') {
           setInvoiceWizardJob(savedJob);
         }
@@ -385,7 +393,10 @@ export default function App() {
 
     fetch(`/api/jobs/${jobId}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Operator-Username': currentUser?.username || 'system'
+      },
       body: JSON.stringify({ reason }),
     })
       .then((res) => {
@@ -398,7 +409,7 @@ export default function App() {
           localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
           return updated;
         });
-        fetchDeletedJobs();
+        fetchActivityLogs();
       })
       .catch((err) => {
         // Fallback for offline/Vercel
@@ -409,18 +420,19 @@ export default function App() {
         });
 
         if (jobToDelete) {
-          const newDeletedJob: DeletedJob = {
-            id: jobToDelete.id,
+          const newActLog: ActivityLog = {
+            id: 'ACT-LOCAL-' + Date.now(),
+            actionType: 'Deleted',
+            jobId: jobToDelete.id,
             customerName: jobToDelete.customerName,
-            customerPhone: jobToDelete.customerPhone,
-            dateTime: jobToDelete.dateTime,
-            deletedAt: new Date().toISOString(),
-            deleteReason: reason,
-            originalJobData: jobToDelete,
+            deviceType: jobToDelete.deviceType,
+            username: currentUser?.username || 'system',
+            timestamp: new Date().toISOString(),
+            details: `Ticket permanently deleted. Reason/Explanations: ${reason}`
           };
-          setDeletedJobs((prev) => {
-            const updated = [newDeletedJob, ...prev];
-            localStorage.setItem('smartfix_deleted_jobs', JSON.stringify(updated));
+          setActivityLogs((prev) => {
+            const updated = [newActLog, ...prev];
+            localStorage.setItem('smartfix_activity_logs', JSON.stringify(updated));
             return updated;
           });
         }
@@ -434,7 +446,10 @@ export default function App() {
 
     fetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Operator-Username': currentUser?.username || 'system'
+      },
       body: JSON.stringify(updatedJobData),
     })
       .then((res) => {
@@ -447,6 +462,7 @@ export default function App() {
           localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
           return updated;
         });
+        fetchActivityLogs();
       })
       .catch((err) => {
         // Fallback for offline/Vercel
@@ -477,10 +493,10 @@ export default function App() {
       .then(() => {
         setJobs([]);
         setInvoices([]);
-        setDeletedJobs([]);
+        setActivityLogs([]);
         localStorage.setItem('smartfix_jobs', JSON.stringify([]));
         localStorage.setItem('smartfix_invoices', JSON.stringify([]));
-        localStorage.setItem('smartfix_deleted_jobs', JSON.stringify([]));
+        localStorage.setItem('smartfix_activity_logs', JSON.stringify([]));
         setShowDbStatusModal(false);
       })
       .catch((err) => {
@@ -488,10 +504,10 @@ export default function App() {
         // Clean up client-side fallback as fallback
         setJobs([]);
         setInvoices([]);
-        setDeletedJobs([]);
+        setActivityLogs([]);
         localStorage.setItem('smartfix_jobs', JSON.stringify([]));
         localStorage.setItem('smartfix_invoices', JSON.stringify([]));
-        localStorage.setItem('smartfix_deleted_jobs', JSON.stringify([]));
+        localStorage.setItem('smartfix_activity_logs', JSON.stringify([]));
         setShowDbStatusModal(false);
       })
       .finally(() => {
@@ -606,7 +622,7 @@ export default function App() {
     { id: 'dashboard', label: 'Dashboard', icon: Layers },
     { id: 'queue', label: 'Service Queue', icon: Inbox },
     { id: 'invoices', label: 'Invoice Ledger', icon: FileText },
-    { id: 'deleted', label: 'Disposal Logs', icon: Trash2 },
+    { id: 'deleted', label: 'Activity Logs', icon: History },
     { id: 'users', label: 'Operators', icon: Users },
   ].filter((tab) => {
     if (!currentUser) return false;
@@ -718,7 +734,7 @@ export default function App() {
                   {activeTab === 'dashboard' ? 'Overview Stats' :
                    activeTab === 'queue' ? 'Dispatching Queue' :
                    activeTab === 'invoices' ? 'Billing History' :
-                   activeTab === 'deleted' ? 'Disposal Registry' : 'Team Directory'}
+                   activeTab === 'deleted' ? 'Activity Log History' : 'Team Directory'}
                 </h2>
                 <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase hidden sm:block">
                   Yangon Store Dispatch Hub
@@ -880,52 +896,69 @@ export default function App() {
               {activeTab === 'deleted' && (
                 <div className="bg-white border border-slate-200/55 rounded-2xl p-5 md:p-6 shadow-xs text-left animate-fade-in space-y-5" id="deleted-list-tab-module">
                   <div className="space-y-0.5">
-                    <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-1.5 text-rose-600">
-                      <Trash2 className="h-5 w-5 text-rose-650" /> Disposal & Disposal Archive
+                    <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-1.5 text-slate-800">
+                      <History className="h-5 w-5 text-slate-700" /> Operational Activity Logs
                     </h3>
-                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Archived cancellations logs and delete reasons</p>
+                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Audit trail of ticket creations, completions, cancellations, and deletions</p>
                   </div>
 
                   <div className="border border-slate-200 rounded-xl overflow-x-auto" id="deleted-jobs-register">
                     <table className="w-full text-xs text-left">
                       <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 select-none">
                         <tr>
+                          <th className="p-4">Timestamp</th>
                           <th className="p-4">Ticket Ref</th>
+                          <th className="p-4">Operator</th>
+                          <th className="p-4">Event Action</th>
                           <th className="p-4">Customer Details</th>
-                          <th className="p-4">Deleted Clock</th>
-                          <th className="p-4">Original Device</th>
-                          <th className="p-4">Cancellation Explanation</th>
+                          <th className="p-4">Activity Log Details</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-sans">
-                        {deletedJobs.map((delJob) => {
-                          const dateText = delJob.deletedAt ? new Date(delJob.deletedAt).toLocaleString('en-US', {
+                        {activityLogs.map((log) => {
+                          const dateText = log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             hour: '2-digit',
-                            minute: '2-digit'
+                            minute: '2-digit',
+                            second: '2-digit'
                           }) : '-';
+
+                          let badgeBg = 'bg-slate-100 text-slate-700 border-slate-200';
+                          if (log.actionType === 'Created') badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                          if (log.actionType === 'Completed') badgeBg = 'bg-purple-50 text-purple-700 border-purple-100';
+                          if (log.actionType === 'Canceled' || log.actionType === 'Cancelled') badgeBg = 'bg-amber-50 text-amber-700 border-amber-100';
+                          if (log.actionType === 'Deleted') badgeBg = 'bg-rose-50 text-rose-700 border-rose-100';
+                          if (log.actionType === 'Updated' || log.actionType === 'Updated Status') badgeBg = 'bg-sky-50 text-sky-700 border-sky-100';
+
                           return (
-                            <tr key={delJob.id + delJob.deletedAt} className="hover:bg-rose-50/10">
-                              <td className="p-4 font-mono font-bold text-rose-655">{delJob.id}</td>
-                              <td className="p-4">
-                                <p className="font-bold text-slate-900">{delJob.customerName}</p>
-                                <p className="text-[10px] text-slate-400 font-mono">{delJob.customerPhone}</p>
+                            <tr key={log.id || ('log-' + Math.random())} className="hover:bg-slate-50/50">
+                              <td className="p-4 font-semibold text-slate-500 font-mono whitespace-nowrap">{dateText}</td>
+                              <td className="p-4 font-mono font-bold text-slate-700">{log.jobId}</td>
+                              <td className="p-4 font-bold text-slate-800 whitespace-nowrap">
+                                <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200/60 lowercase">@{log.username || 'system'}</span>
                               </td>
-                              <td className="p-4 font-semibold text-slate-500">{dateText}</td>
-                              <td className="p-4 font-bold text-slate-800">{delJob.originalJobData?.deviceType} {delJob.originalJobData?.deviceModel ? `(${delJob.originalJobData.deviceModel})` : ''}</td>
+                              <td className="p-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badgeBg}`}>
+                                  {log.actionType}
+                                </span>
+                              </td>
                               <td className="p-4">
-                                <div className="bg-rose-50/60 text-rose-800 font-semibold px-3 py-1.5 rounded-lg border border-rose-100 text-[11px] leading-relaxed select-text">
-                                  {delJob.deleteReason}
-                                </div>
+                                <p className="font-bold text-slate-900">{log.customerName || 'N/A'}</p>
+                                <p className="text-[10px] text-slate-400 font-mono italic">{log.deviceType || 'Unknown Device'}</p>
+                              </td>
+                              <td className="p-4">
+                                <p className="text-slate-600 leading-relaxed max-w-sm select-text font-normal">
+                                  {log.details || 'No additional activity notes provided.'}
+                                </p>
                               </td>
                             </tr>
                           );
                         })}
-                        {deletedJobs.length === 0 && (
+                        {activityLogs.length === 0 && (
                           <tr>
-                            <td colSpan={5} className="py-12 text-center text-slate-400 italic">
-                              No archived deletions logs yet.
+                            <td colSpan={6} className="py-12 text-center text-slate-400 italic font-medium">
+                              No recorded activity logs found. Try performing actions such as creating, updating, or deleting tickets.
                             </td>
                           </tr>
                         )}

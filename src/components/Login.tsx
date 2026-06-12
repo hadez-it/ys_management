@@ -77,7 +77,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
             {dbStatus.connected ? (
               <div className="flex items-center justify-center gap-1.5 text-[10.5px] text-emerald-600 bg-emerald-50/70 border border-emerald-100 rounded-2xl py-1.5 px-3.5 w-fit mx-auto font-bold shadow-xs">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>MongoDB Database Connected (Successfully Connected)</span>
+                <span>Connected</span>
               </div>
             ) : (
               <div className="bg-amber-50/90 border border-amber-200/80 rounded-2xl p-4 space-y-3 shadow-sm">
