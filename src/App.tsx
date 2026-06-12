@@ -627,7 +627,7 @@ export default function App() {
     { id: 'queue', label: 'Service Queue', icon: Inbox },
     { id: 'invoices', label: 'Invoice Ledger', icon: FileText },
     { id: 'deleted', label: 'Activity Logs', icon: History },
-    { id: 'users', label: 'Operators', icon: Users },
+    { id: 'users', label: 'Users', icon: Users },
   ].filter((tab) => {
     if (!currentUser) return false;
     if (currentUser.role === 'admin') return true;
