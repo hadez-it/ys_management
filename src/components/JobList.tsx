@@ -230,6 +230,43 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
   const upcomingJobs = filteredJobs.filter(j => getJobCategory(j) === 'Upcoming').sort(sortJobsInQueue);
   const archiveJobs = filteredJobs.filter(j => getJobCategory(j) === 'Archive').sort(sortJobsInQueue);
 
+  const groupJobsByDateString = (jobsList: ServiceJob[]) => {
+    const groups: { [key: string]: ServiceJob[] } = {};
+    jobsList.forEach(job => {
+      try {
+        const datePart = job.dateTime.split('T')[0];
+        const dateObj = new Date(datePart);
+        const dateKey = !isNaN(dateObj.getTime())
+          ? dateObj.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+          : 'Other Date';
+        if (!groups[dateKey]) {
+          groups[dateKey] = [];
+        }
+        groups[dateKey].push(job);
+      } catch {
+        const fallback = 'Other Date';
+        if (!groups[fallback]) {
+          groups[fallback] = [];
+        }
+        groups[fallback].push(job);
+      }
+    });
+    return groups;
+  };
+
+  const getSortedDateGroups = (grouped: { [key: string]: ServiceJob[] }) => {
+    return Object.entries(grouped).sort(([dateA], [dateB]) => {
+      if (dateA === 'Other Date') return 1;
+      if (dateB === 'Other Date') return -1;
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+  };
+
   const renderJobCard = (job: ServiceJob) => {
     const isSelected = job.id === selectedJobId && isModalOpen;
     return (
@@ -265,7 +302,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
 
         <div className="flex items-start justify-between gap-2.5">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-bold font-mono tracking-wider text-gray-400">
+            <span className="text-[10px] font-black font-mono tracking-wider text-slate-900">
               {job.id}
             </span>
             {job.status === 'Completed' ? (
@@ -376,90 +413,145 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
           <div className="space-y-6">
             {/* 1. Overdue Section */}
             {overdueJobs.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-3 py-1.5 select-none bg-rose-50 border border-rose-100/50 rounded-xl">
+              <div className="bg-rose-50/10 border border-rose-200 p-5 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between select-none pb-2.5 border-b border-rose-100/50">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-                    <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">Overdue</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                    <span className="text-xs font-bold text-rose-800 uppercase tracking-wider font-sans">Overdue</span>
                   </div>
-                  <span className="text-[10px] bg-rose-200/50 text-rose-800 font-bold px-2 py-0.5 rounded-lg">
+                  <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2.5 py-0.5 rounded-lg">
                     {overdueJobs.length} ticket{overdueJobs.length > 1 ? 's' : ''}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {overdueJobs.map((job) => renderJobCard(job))}
+                <div className="space-y-5 divide-y divide-rose-200/50">
+                  {getSortedDateGroups(groupJobsByDateString(overdueJobs)).map(([dateKey, jobsForDate], idx) => (
+                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                      <div className="flex items-center gap-1.5 px-0.5">
+                        <span className="text-[10px] font-extrabold text-rose-800 bg-rose-100/60 px-2.5 py-0.5 rounded-lg border border-rose-200/50 font-mono tracking-wide">
+                          📅 {dateKey}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {jobsForDate.map((job) => renderJobCard(job))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
             {/* 2. Today Section */}
             {todayJobs.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-3 py-1.5 select-none bg-blue-50 border border-blue-100/50 rounded-xl">
+              <div className="bg-blue-50/5 border border-blue-100/80 p-4 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between select-none pb-2.5 border-b border-blue-100/40">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Today</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="text-xs font-bold text-blue-800 uppercase tracking-wider font-sans">Today</span>
                   </div>
-                  <span className="text-[10px] bg-blue-200/50 text-blue-800 font-bold px-2 py-0.5 rounded-lg">
+                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2.5 py-0.5 rounded-lg">
                     {todayJobs.length} ticket{todayJobs.length > 1 ? 's' : ''}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {todayJobs.map((job) => renderJobCard(job))}
+                <div className="space-y-5 divide-y divide-blue-200/50">
+                  {getSortedDateGroups(groupJobsByDateString(todayJobs)).map(([dateKey, jobsForDate], idx) => (
+                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                      <div className="flex items-center gap-1.5 px-0.5">
+                        <span className="text-[10px] font-extrabold text-blue-800 bg-blue-100/60 px-2.5 py-0.5 rounded-lg border border-blue-200/50 font-mono tracking-wide">
+                          📅 {dateKey}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {jobsForDate.map((job) => renderJobCard(job))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
             {/* 3. Tomorrow Section */}
             {tomorrowJobs.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-3 py-1.5 select-none bg-amber-55/10 border border-amber-100/40 rounded-xl">
+              <div className="bg-amber-50/5 border border-amber-100/70 p-4 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between select-none pb-2.5 border-b border-amber-100/40">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Tomorrow</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider font-sans">Tomorrow</span>
                   </div>
-                  <span className="text-[10px] bg-amber-100 text-amber-850 font-bold px-2 py-0.5 rounded-lg">
+                  <span className="text-[10px] bg-amber-150-adjusted-bg bg-amber-100 text-amber-900 font-bold px-2.5 py-0.5 rounded-lg">
                     {tomorrowJobs.length} ticket{tomorrowJobs.length > 1 ? 's' : ''}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {tomorrowJobs.map((job) => renderJobCard(job))}
+                <div className="space-y-5 divide-y divide-amber-200/50">
+                  {getSortedDateGroups(groupJobsByDateString(tomorrowJobs)).map(([dateKey, jobsForDate], idx) => (
+                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                      <div className="flex items-center gap-1.5 px-0.5">
+                        <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100/60 px-2.5 py-0.5 rounded-lg border border-amber-200/50 font-mono tracking-wide">
+                          📅 {dateKey}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {jobsForDate.map((job) => renderJobCard(job))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
             {/* 4. Upcoming / Later Section */}
             {upcomingJobs.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-3 py-1.5 select-none bg-slate-50 border border-slate-150 rounded-xl">
+              <div className="bg-slate-50/5 border border-slate-200 p-4 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between select-none pb-2.5 border-b border-slate-100">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-slate-400" />
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Upcoming Tasks</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider font-sans">Upcoming Tasks</span>
                   </div>
-                  <span className="text-[10px] bg-slate-200/60 text-slate-700 font-bold px-2 py-0.5 rounded-lg">
+                  <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded-lg">
                     {upcomingJobs.length} ticket{upcomingJobs.length > 1 ? 's' : ''}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {upcomingJobs.map((job) => renderJobCard(job))}
+                <div className="space-y-5 divide-y divide-slate-200/50">
+                  {getSortedDateGroups(groupJobsByDateString(upcomingJobs)).map(([dateKey, jobsForDate], idx) => (
+                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                      <div className="flex items-center gap-1.5 px-0.5">
+                        <span className="text-[10px] font-extrabold text-slate-700 bg-slate-100/80 px-2.5 py-0.5 rounded-lg border border-slate-200/60 font-mono tracking-wide">
+                          📅 {dateKey}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {jobsForDate.map((job) => renderJobCard(job))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
             {/* 5. Closed Archive Section */}
             {archiveJobs.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between px-3 py-1.5 select-none bg-gray-50 border border-gray-100 rounded-xl">
+              <div className="bg-gray-50/10 border border-gray-200/80 p-4 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between select-none pb-2.5 border-b border-gray-200/50">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-gray-300" />
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Completed / Closed Archive</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider font-sans">Completed / Closed Archive</span>
                   </div>
-                  <span className="text-[10px] bg-gray-200/60 text-gray-600 font-medium px-2 py-0.5 rounded-lg">
+                  <span className="text-[10px] bg-gray-100 text-gray-600 font-medium px-2.5 py-0.5 rounded-lg">
                     {archiveJobs.length} ticket{archiveJobs.length > 1 ? 's' : ''}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-12">
-                  {archiveJobs.map((job) => renderJobCard(job))}
+                <div className="space-y-5 divide-y divide-gray-200">
+                  {getSortedDateGroups(groupJobsByDateString(archiveJobs)).map(([dateKey, jobsForDate], idx) => (
+                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                      <div className="flex items-center gap-1.5 px-0.5">
+                        <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-lg border border-gray-200/60 font-mono tracking-wide">
+                          📅 {dateKey}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {jobsForDate.map((job) => renderJobCard(job))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -707,15 +799,17 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                       Start Repairing
                     </button>
                   )}
-                  <button
-                    type="button"
-                    id="btn-show-workflow"
-                    onClick={() => setShowWorkflow(true)}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
-                  >
-                    <CheckCircle className="h-4 w-4 shrink-0" />
-                    {selectedJob.status === 'Repairing' ? 'Complete Repair Work' : 'Mark Repair Completed'}
-                  </button>
+                  {selectedJob.status === 'Repairing' && (
+                    <button
+                      type="button"
+                      id="btn-show-workflow"
+                      onClick={() => setShowWorkflow(true)}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-sm transition-all cursor-pointer hover:shadow-md active:scale-95"
+                    >
+                      <CheckCircle className="h-4 w-4 shrink-0" />
+                      Complete Repair Work
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="p-4 sm:p-5 bg-slate-50 border-t border-gray-100 text-left shrink-0 space-y-3.5 animate-scale-up sticky bottom-0 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] max-h-[48vh] overflow-y-auto">

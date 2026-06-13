@@ -35,15 +35,6 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
       badgeColor: 'bg-slate-100 text-slate-700'
     },
     {
-      title: 'Dispatch Status',
-      value: dispatchingCount,
-      desc: 'Technicians en route',
-      icon: Clock,
-      filter: 'Dispatched',
-      color: 'hover:border-blue-400 focus:bg-blue-50/10',
-      badgeColor: 'bg-blue-50 text-blue-700'
-    },
-    {
       title: 'Active Servicing',
       value: activeRepairCount,
       desc: 'Repairs in progress',
@@ -65,7 +56,7 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
 
   return (
     <div className="space-y-4 text-left" id="dashboard-statistics">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {kpis.map((kpi, idx) => {
           const IconComponent = kpi.icon;
           return (
