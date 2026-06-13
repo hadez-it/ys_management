@@ -1,0 +1,18 @@
+{
+  "short_name": "ServiceApp",
+  "name": "Computer Service Management",
+  "icons": [
+    {
+      "src": "/icon-512.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "theme_color": "#020617",
+  "orientation": "portrait",
+  "description": "App for computer service shops with job tracking, technician dispatch, inventory, and invoice generation."
+}
