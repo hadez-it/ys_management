@@ -78,6 +78,43 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
     };
   }, [isModalOpen, prioritySettingJob, isDeleteConfirmOpen, isEditFormOpen]);
 
+  // Capture Android / mobile browser back button to close open modals instead of exiting page completely
+  const isAnyModalOpen = isModalOpen || !!prioritySettingJob || isDeleteConfirmOpen || isEditFormOpen;
+  const didPushStateRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (isAnyModalOpen) {
+      if (!didPushStateRef.current) {
+        window.history.pushState({ modalActive: true }, '');
+        didPushStateRef.current = true;
+      }
+    } else {
+      if (didPushStateRef.current) {
+        didPushStateRef.current = false;
+        if (window.history.state && window.history.state.modalActive) {
+          window.history.back();
+        }
+      }
+    }
+  }, [isAnyModalOpen]);
+
+  React.useEffect(() => {
+    const handlePopState = () => {
+      if (didPushStateRef.current) {
+        didPushStateRef.current = false;
+        setIsModalOpen(false);
+        setPrioritySettingJob(null);
+        setIsDeleteConfirmOpen(false);
+        setIsEditFormOpen(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
   // Touch hold state refs to differentiate tap vs long touch on mobile
   const touchTimerRef = React.useRef<any>(null);
   const isLongPressRef = React.useRef(false);

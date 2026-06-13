@@ -11,8 +11,19 @@ interface LoginProps {
 export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  React.useEffect(() => {
+    const savedUser = localStorage.getItem('remember_username') || '';
+    const savedPass = localStorage.getItem('remember_password') || '';
+    if (savedUser || savedPass) {
+      setUsername(savedUser);
+      setPassword(savedPass);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +54,13 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
          return res.json();
       })
       .then((userData: User) => {
+        if (rememberMe) {
+          localStorage.setItem('remember_username', username);
+          localStorage.setItem('remember_password', password);
+        } else {
+          localStorage.removeItem('remember_username');
+          localStorage.removeItem('remember_password');
+        }
         onLoginSuccess(userData);
       })
       .catch((err) => {
@@ -100,27 +118,27 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
                 {dbStatus.error && (
                   <div className="text-[11px] text-rose-805 bg-rose-50/75 p-3 rounded-2xl border border-rose-100 space-y-2">
                     <p className="font-bold text-rose-950 flex items-center gap-1">
-                      <span>❌ MongoDB ချိတ်ဆက်မှု အဆင်မပြေပါ</span>
+                      <span>❌ MongoDB Connection Failed</span>
                     </p>
                     <div className="bg-white/90 border border-rose-100 font-mono text-[10px] p-2.5 rounded-xl break-words leading-normal max-h-24 overflow-y-auto">
                       {dbStatus.error}
                     </div>
                     <div className="text-[10px] text-rose-800 space-y-1 bg-white/40 p-2.5 rounded-xl border border-rose-100/50">
                       <p className="font-extrabold text-rose-900 border-b border-rose-100 pb-1 mb-1 select-none">
-                        💡 ဖြေရှင်းရန် နည်းလမ်းများ (Troubleshooting Tips):
+                        💡 Troubleshooting Tips:
                       </p>
                       <ul className="list-disc pl-4 space-y-1 leading-normal">
                         <li>
-                          <strong>လော့ဂ်အင် တိုက်ရိုက်မှားယွင်းခြင်း:</strong> Mongo link config တွင် ဖြည့်စွက်ထားသော <code className="bg-rose-100 text-rose-700 px-1 rounded">username</code> သို့မဟုတ် <code className="bg-rose-100 text-rose-700 px-1 rounded">password</code> မှားယွင်းနေပါသည်။
+                          <strong>Incorrect credentials in MONGO_URI:</strong> The specified <code className="bg-rose-100 text-rose-700 px-1 rounded">username</code> or <code className="bg-rose-100 text-rose-700 px-1 rounded">password</code> inside the MONGO_URI string might be incorrect.
                         </li>
                         <li>
-                          <strong>ကွင်းစကွင်းပိတ်များ မပါစေရန်:</strong> MONGO_URI တွင် ကွင်းစကွင်းပိတ်များဖြစ်သော <code className="bg-rose-100 text-rose-700 font-bold px-1 rounded">&lt;</code> နှင့် <code className="bg-rose-100 text-rose-700 font-bold px-1 rounded">&gt;</code> သင်္ကေတများ လုံးဝ (လုံးဝ) မပါဝင်ရပါ။ ဥပမာ - <code className="bg-slate-150 text-slate-700 px-1 rounded">username:password</code> ပုံစံသာ တိုက်ရိုက်ရှိရပါမည်။
+                          <strong>Remove placeholder brackets:</strong> Do not include bracket characters <code className="bg-rose-100 text-rose-700 font-bold px-1 rounded">&lt;</code> and <code className="bg-rose-100 text-rose-700 font-bold px-1 rounded">&gt;</code> in your MONGO_URI String. These should be replaced as direct values, e.g., <code className="bg-slate-150 text-slate-700 px-1 rounded">username:password</code>.
                         </li>
                         <li>
-                          <strong>Special Characters ရှိပါက:</strong> Password တွင် <code className="bg-rose-100 text-rose-700 px-1 rounded">@, :, /, +, #</code> စသည့် သင်္ကေတများ ပါဝင်နေလျှင် ၎င်းတို့ကို URL-encode ပြုလုပ်ပေးရန် လိုအပ်သည် (ဥပမာ <code className="bg-rose-100 text-rose-700 px-1 rounded">@</code> အစား <code className="bg-slate-100 px-1 rounded font-bold">%40</code> ဟု ရေးပေးရမည်)။
+                          <strong>URL-encode special characters:</strong> If the password contains symbols like <code className="bg-rose-100 text-rose-700 px-1 rounded">@, :, /, +, #</code>, they must be URL-encoded (for example, replace <code className="bg-rose-100 text-rose-700 px-1 rounded">@</code> with <code className="bg-slate-100 px-1 rounded font-bold">%40</code>).
                         </li>
                         <li>
-                          <strong>IP Whitelist စစ်ဆေးရန်:</strong> Mongo Atlas ရှိ <strong>Network Access</strong> တွင် IP-address အားလုံးဝင်ရောက်နိုင်ရန် <code className="bg-rose-105 text-rose-705 font-bold px-1 rounded">0.0.0.0/0</code> ကို whitelist လုပ်ထားကြောင်း ပြန်လည်စစ်ဆေးပါ။
+                          <strong>Verify IP Access settings:</strong> In the MongoDB Atlas console under <strong>Network Access</strong>, ensure that <code className="bg-rose-105 text-rose-705 font-bold px-1 rounded">0.0.0.0/0</code> is configured to whitelist connections from any external source.
                         </li>
                       </ul>
                     </div>
@@ -179,6 +197,21 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
                   required
                 />
               </div>
+            </div>
+
+            <div className="flex items-center justify-between select-none py-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="chk-remember-me"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-slate-300 text-slate-900 focus:ring-slate-950 h-3.5 w-3.5 accent-slate-950 cursor-pointer"
+                />
+                <span className="text-[11px] text-slate-500 font-medium select-none">
+                  Remember my credentials
+                </span>
+              </label>
             </div>
 
             <button
