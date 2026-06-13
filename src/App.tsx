@@ -732,7 +732,7 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-sm font-black uppercase tracking-widest font-display text-slate-100">
-              Yangon Store
+              YS SVC
             </h1>
           </div>
         </div>
@@ -823,7 +823,7 @@ export default function App() {
                    activeTab === 'deleted' ? 'Activity Log History' : 'Team Directory'}
                 </h2>
                 <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase hidden sm:block">
-                  Yangon Store Dispatch Hub
+                  YS SVC Dispatch Hub
                 </p>
               </div>
             </div>

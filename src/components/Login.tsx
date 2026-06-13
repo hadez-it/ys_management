@@ -84,7 +84,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
           </div>
           <div className="space-y-0.5">
             <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 font-display">
-              Yangon Store
+              YS SVC
             </h2>
           </div>
         </div>
@@ -235,7 +235,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
         {/* Info footer */}
         <p className="text-center text-[10px] text-slate-400 leading-normal">
           Enterprise role restrictions prevent unauthorized access.<br/>
-          Yangon Store Co., Ltd &copy; 2026. All Rights Reserved.
+          YS SVC Co., Ltd &copy; 2026. All Rights Reserved.
         </p>
 
       </div>
