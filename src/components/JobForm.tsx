@@ -57,6 +57,7 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
   const [urgency, setUrgency] = useState<UrgencyLevel>(initialData?.urgency || 'Medium');
 
   const [editReason, setEditReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Triggered when clicking a preset to auto-populate fields for speed-testing
   const handleApplyPreset = (preset: typeof ISSUE_PRESETS[0]) => {
@@ -67,6 +68,8 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     if (!customerName.trim() || !customerPhone.trim() || !selectedDate || !selectedTime || !locationText.trim() || !deviceIssue.trim()) {
       alert('Please fill out all the required fields and place of service!');
       return;
@@ -77,6 +80,7 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
       return;
     }
 
+    setIsSubmitting(true);
     const combinedDateTime = `${selectedDate}T${selectedTime}`;
 
     onSubmit({
@@ -113,11 +117,14 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
             <input
               type="text"
               id="customer-name"
-              placeholder="e.g. Ko Phyo, Daw Su"
+              placeholder=""
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               className="w-full bg-gray-50 border border-gray-100 text-sm rounded-xl py-2 px-3.5 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 transition-all font-sans"
               required
+              title=""
+              autoComplete="off"
+              spellCheck={false}
             />
           </div>
 
@@ -329,9 +336,18 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
           <button
             type="submit"
             id="btn-submit-service-job"
-            className="inline-flex items-center gap-2 py-2.5 px-5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl cursor-pointer transition-all"
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-2 py-2.5 px-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl cursor-pointer transition-all"
           >
-            <Send className="h-3.5 w-3.5" /> {isEditMode ? 'Update Ticket' : 'Dispatch Job'}
+            {isSubmitting ? (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" /> {isEditMode ? 'Updating...' : 'Dispatching...'}
+              </>
+            ) : (
+              <>
+                <Send className="h-3.5 w-3.5" /> {isEditMode ? 'Update Ticket' : 'Dispatch Job'}
+              </>
+            )}
           </button>
         </div>
     </form>

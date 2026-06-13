@@ -292,8 +292,9 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
           </p>
         </div>
 
-        <div className="mt-2 text-xs bg-gray-50 p-2 rounded-lg text-gray-600 line-clamp-2 leading-relaxed">
-          <strong className="text-gray-700">{job.deviceType}:</strong> {job.deviceIssue}
+        <div className="mt-2 text-xs bg-gray-50 p-2 rounded-lg text-gray-600 line-clamp-2 leading-relaxed flex items-start gap-1.5">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400 mt-0.5" />
+          <span>{job.locationText}</span>
         </div>
 
         <div className="mt-3 flex items-center justify-between border-t border-gray-100/50 pt-2 text-[10px] text-gray-400">

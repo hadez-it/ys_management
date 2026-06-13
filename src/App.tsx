@@ -91,6 +91,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users'>('dashboard');
   const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
   const [showDbStatusModal, setShowDbStatusModal] = useState(false);
+  const [isDispatching, setIsDispatching] = useState(false);
   
   // Specific wizard triggers
   const [invoiceWizardJob, setInvoiceWizardJob] = useState<ServiceJob | null>(null);
@@ -329,6 +330,9 @@ export default function App() {
 
   // 1. Create a service job trigger
   const handleCreateJob = (jobDetails: Omit<ServiceJob, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
+    if (isDispatching) return;
+    setIsDispatching(true);
+
     const nextIdNum = jobs.length + 101 + Math.floor(Math.random() * 900);
     const newJob: ServiceJob = {
       ...jobDetails,
@@ -357,6 +361,7 @@ export default function App() {
         });
         fetchActivityLogs();
         setIsNewTicketModalOpen(false);
+        setIsDispatching(false);
         setActiveTab('queue');
       })
       .catch((err) => {
@@ -367,6 +372,7 @@ export default function App() {
           return updated;
         });
         setIsNewTicketModalOpen(false);
+        setIsDispatching(false);
         setActiveTab('queue');
       });
   };
@@ -839,7 +845,10 @@ export default function App() {
                 <button
                   type="button"
                   id="btn-shortcut-add-job"
-                  onClick={() => setIsNewTicketModalOpen(true)}
+                  onClick={() => {
+                    setIsDispatching(false);
+                    setIsNewTicketModalOpen(true);
+                  }}
                   className="inline-flex items-center gap-1.5 bg-slate-950 hover:bg-slate-850 text-white text-xs font-bold py-2.5 px-4 rounded-xl cursor-pointer transition-all active:scale-98 shadow-sm"
                 >
                   <PlusCircle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">New Ticket</span><span className="sm:hidden">New</span>
