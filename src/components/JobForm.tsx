@@ -34,7 +34,9 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
   
   // Parse date and time from initialData if any
   const parsedDate = initialData?.dateTime ? initialData.dateTime.split('T')[0] : '';
-  const parsedTime = initialData?.dateTime ? initialData.dateTime.split('T')[1]?.substring(0, 5) : '10:00';
+  const parsedTime = initialData?.dateTime 
+    ? (initialData.dateTime.includes('none') ? 'none' : initialData.dateTime.split('T')[1]?.substring(0, 5) || 'none')
+    : 'none';
 
   // Modern segmented Date/Time states constrained between 10:00 AM & 4:00 PM
   const todayStr = (() => {
@@ -45,7 +47,7 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
     }
   })();
   const [selectedDate, setSelectedDate] = useState(parsedDate || todayStr);
-  const [selectedTime, setSelectedTime] = useState(parsedTime || '10:00');
+  const [selectedTime, setSelectedTime] = useState(parsedTime);
 
   const [locationText, setLocationText] = useState(initialData?.locationText || '');
   const [locationCoords, setLocationCoords] = useState<LocationCoords>(initialData?.locationCoords || MAP_CENTER_YANGON);
@@ -171,40 +173,35 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
           {/* Modern Time Selector (10am - 4pm restriction) */}
           <div className="space-y-2 text-left" id="modern-appointment-time-picker">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-gray-400" /> Time Slot <span className="text-rose-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5" htmlFor="appointment-time-select">
+                <Calendar className="h-3.5 w-3.5 text-gray-400" /> Time Slot <span className="text-gray-400 text-[10px] font-normal font-sans ml-1">(Optional)</span>
               </label>
               <span className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full border border-blue-100 font-mono">
                 10:00 AM - 4:00 PM Only
               </span>
             </div>
             
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { value: '10:00', label: '10:00 AM' },
-                { value: '11:00', label: '11:00 AM' },
-                { value: '12:00', label: '12:00 PM' },
-                { value: '13:00', label: '1:00 PM' },
-                { value: '14:00', label: '2:00 PM' },
-                { value: '15:00', label: '3:00 PM' },
-                { value: '16:00', label: '4:00 PM' },
-              ].map((slot) => {
-                const isActive = selectedTime === slot.value;
-                return (
-                  <button
-                    key={slot.value}
-                    type="button"
-                    onClick={() => setSelectedTime(slot.value)}
-                    className={`py-2 px-1 text-[11px] rounded-xl border text-center transition-all duration-150 cursor-pointer font-medium font-sans ${
-                      isActive
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold shadow-xs scale-102'
-                        : 'border-gray-100 bg-gray-50/50 hover:bg-gray-100/70 text-gray-500'
-                    }`}
-                  >
-                    {slot.label}
-                  </button>
-                );
-              })}
+            <div className="relative">
+              <select
+                id="appointment-time-select"
+                value={selectedTime}
+                onChange={(e) => setSelectedTime(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 text-sm rounded-xl py-2 px-3.5 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 transition-all text-gray-700 font-semibold cursor-pointer block appearance-none pr-10"
+              >
+                <option value="none">None / Unspecified (Optional)</option>
+                <option value="10:00">10:00 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="12:00">12:00 PM</option>
+                <option value="13:00">1:00 PM</option>
+                <option value="14:00">2:00 PM</option>
+                <option value="15:00">3:00 PM</option>
+                <option value="16:00">4:00 PM</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-gray-500">
+                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                </svg>
+              </div>
             </div>
           </div>
 

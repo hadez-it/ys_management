@@ -18,7 +18,8 @@ import {
   Users,
   LogOut,
   Calendar,
-  Layers3
+  Layers3,
+  Terminal
 } from 'lucide-react';
 import { ServiceJob, Invoice, JobStatus, DeviceType, UrgencyLevel, LocationCoords, DeletedJob, User, UserRole, ActivityLog } from './types.ts';
 import {
@@ -720,8 +721,8 @@ export default function App() {
       <aside className="hidden lg:flex lg:w-64 bg-slate-950 text-white flex-col shrink-0 fixed top-0 bottom-0 left-0 border-r border-slate-900 z-30 select-none" id="desktop-sidebar">
         {/* Brand Banner */}
         <div className="p-6 border-b border-slate-900 flex items-center gap-3">
-          <div className="bg-white text-slate-950 p-2 rounded-xl flex items-center justify-center shadow-sm">
-            <Wrench className="h-4 w-4" />
+          <div className="bg-black text-slate-100 border border-slate-800 p-2 rounded-xl flex items-center justify-center shadow-sm">
+            <Terminal className="h-4 w-4" />
           </div>
           <div>
             <h1 className="text-sm font-black uppercase tracking-widest font-display text-slate-100">
@@ -806,7 +807,7 @@ export default function App() {
             {/* Title / Mobile Brand */}
             <div className="flex items-center gap-2.5 text-left">
               <div className="bg-slate-950 text-white p-2 rounded-xl flex items-center justify-center lg:hidden shrink-0">
-                <Wrench className="h-4.5 w-4.5" />
+                <Terminal className="h-4.5 w-4.5" />
               </div>
               <div>
                 <h2 className="text-sm lg:text-base font-extrabold tracking-tight text-slate-900 font-display">

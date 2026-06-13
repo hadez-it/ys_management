@@ -13,7 +13,33 @@ export function formatMMK(amount: number): string {
 // Helper to format dates
 export function formatDateTime(dateString: string): string {
   if (!dateString) return '';
+  
+  if (dateString.includes('Tnone') || dateString.endsWith('T') || dateString.includes('none')) {
+    const datePart = dateString.split('T')[0];
+    const date = new Date(datePart);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }) + ' (No specific time)';
+    }
+  }
+  
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    const datePart = dateString.split('T')[0];
+    const testDate = new Date(datePart);
+    if (!isNaN(testDate.getTime())) {
+      return testDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }) + ' (No specific time)';
+    }
+    return dateString;
+  }
+  
   return date.toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
