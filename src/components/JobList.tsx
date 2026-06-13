@@ -214,14 +214,14 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
     }
   };
 
-  // Pre-fill input details if the job changes
+  // Pre-fill input details only when a different job is selected or the modal is opened
   React.useEffect(() => {
-    if (selectedJob) {
+    if (isModalOpen && selectedJob) {
       setDiagnosedProblem(selectedJob.diagnosedProblem || '');
       setResolutionNotes(selectedJob.resolutionNotes || '');
       setShowWorkflow(false);
     }
-  }, [selectedJobId, selectedJob]);
+  }, [selectedJobId, isModalOpen]);
 
   // Grouped filtered jobs
   const overdueJobs = filteredJobs.filter(j => getJobCategory(j) === 'Overdue').sort(sortJobsInQueue);
