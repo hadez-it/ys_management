@@ -44,8 +44,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('All');
-  const [urgencyFilter, setUrgencyFilter] = useState<string>('All');
+  const [hideCompleted, setHideCompleted] = useState<boolean>(true);
   const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
   
   const [tempRemark, setTempRemark] = useState('');
@@ -183,10 +182,11 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
       (job.deviceModel || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.id.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesStatus = statusFilter === 'All' || job.status === statusFilter;
-    const matchesUrgency = urgencyFilter === 'All' || job.urgency === urgencyFilter;
-
-    return matchesSearch && matchesStatus && matchesUrgency;
+    if (hideCompleted && job.status === 'Completed') {
+      return false;
+    }
+    
+    return matchesSearch;
   });
 
   const getStatusBadge = (status: JobStatus) => {
@@ -397,41 +397,19 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
               className="w-full bg-gray-50 border border-gray-100 pl-9 pr-3 py-2.5 rounded-xl text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 transition-all font-sans"
             />
           </div>
-
-          <div className="flex flex-wrap gap-2.5 items-center text-[11px] shrink-0">
-            {/* Status Filter */}
-            <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1.5 rounded-lg border border-gray-100">
-              <span className="text-gray-500 font-semibold">Status:</span>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-transparent border-none py-0 px-1 text-gray-700 font-medium focus:outline-none cursor-pointer"
-              >
-                <option value="All">All Projects</option>
-                <option value="Created">Created</option>
-                <option value="Dispatched">Dispatched</option>
-                <option value="ServiceInProgress">Servicing</option>
-                <option value="Repairing">Repairing</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-
-            {/* Urgency Filter */}
-            <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1.5 rounded-lg border border-gray-100">
-              <span className="text-gray-500 font-semibold">Urgency:</span>
-              <select
-                value={urgencyFilter}
-                onChange={(e) => setUrgencyFilter(e.target.value)}
-                className="bg-transparent border-none py-0 px-1 text-gray-700 font-medium focus:outline-none cursor-pointer"
-              >
-                <option value="All">All Urgencies</option>
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Critical">Critical</option>
-              </select>
-            </div>
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl select-none shrink-0">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                id="toggle-hide-completed"
+                checked={hideCompleted}
+                onChange={(e) => setHideCompleted(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+              />
+              <span className="text-xs text-gray-600 font-medium cursor-pointer">
+                Hide Completed Tickets
+              </span>
+            </label>
           </div>
         </div>
       </div>
@@ -443,7 +421,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
             <Clock className="h-10 w-10 text-gray-300 mx-auto" />
             <p className="text-xs font-bold text-gray-500 mt-3.5">No Service Jobs Found</p>
             <p className="text-[11px] text-gray-400 mt-1 max-w-xs mx-auto">
-              We couldn't find any queues matching your status or search keywords. Try adjusting your filter parameters above.
+              We couldn't find any queues matching your search. Try adjusting your search keywords.
             </p>
           </div>
         ) : (
