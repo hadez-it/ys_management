@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Wrench,
   Inbox,
@@ -895,171 +896,182 @@ export default function App() {
               onCancel={() => setInvoiceWizardJob(null)}
             />
           ) : (
-            <div className="space-y-6">
-              {activeTab === 'dashboard' && (
-                <div className="space-y-6 animate-fade-in" id="dashboard-tab-module">
-                  <DashboardStats
-                    jobs={jobs}
-                    invoices={invoices}
-                    onSelectedStatusFilter={handleOpenStatusFilterFromDashboard}
-                  />
-                </div>
-              )}
+            <div className="overflow-x-hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.22, ease: "easeInOut" }}
+                  className="space-y-6"
+                >
+                  {activeTab === 'dashboard' && (
+                    <div className="space-y-6" id="dashboard-tab-module">
+                      <DashboardStats
+                        jobs={jobs}
+                        invoices={invoices}
+                        onSelectedStatusFilter={handleOpenStatusFilterFromDashboard}
+                      />
+                    </div>
+                  )}
 
-              {activeTab === 'queue' && (
-                <div className="animate-fade-in" id="dispatcher-queue-tab-module">
-                  <JobList
-                    jobs={jobs}
-                    onUpdateJobStatus={handleUpdateJobStatus}
-                    onUpdateJobPriority={handleUpdateJobPriority}
-                    onOpenInvoiceWizard={handleOpenInvoiceWizard}
-                    onViewInvoice={handleViewInvoiceById}
-                    onDeleteJob={handleDeleteJob}
-                    onEditJob={handleEditJob}
-                    currentUser={currentUser || undefined}
-                  />
-                </div>
-              )}
+                  {activeTab === 'queue' && (
+                    <div id="dispatcher-queue-tab-module">
+                      <JobList
+                        jobs={jobs}
+                        onUpdateJobStatus={handleUpdateJobStatus}
+                        onUpdateJobPriority={handleUpdateJobPriority}
+                        onOpenInvoiceWizard={handleOpenInvoiceWizard}
+                        onViewInvoice={handleViewInvoiceById}
+                        onDeleteJob={handleDeleteJob}
+                        onEditJob={handleEditJob}
+                        currentUser={currentUser || undefined}
+                      />
+                    </div>
+                  )}
 
-              {activeTab === 'invoices' && (
-                <div className="bg-white border border-slate-200/55 rounded-2xl p-5 md:p-6 shadow-xs text-left animate-fade-in space-y-5" id="invoices-list-tab-module">
-                  <div className="space-y-0.5">
-                    <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-1.5">
-                      <History className="h-5 w-5 text-slate-800" /> Settlement Ledger
-                    </h3>
-                    <p className="text-xs text-slate-400">Review final transaction logs, KBZPay entries, and invoices details.</p>
-                  </div>
+                  {activeTab === 'invoices' && (
+                    <div className="bg-white border border-slate-200/55 rounded-2xl p-5 md:p-6 shadow-xs text-left space-y-5" id="invoices-list-tab-module">
+                      <div className="space-y-0.5">
+                        <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-1.5">
+                          <History className="h-5 w-5 text-slate-800" /> Settlement Ledger
+                        </h3>
+                        <p className="text-xs text-slate-400">Review final transaction logs, KBZPay entries, and invoices details.</p>
+                      </div>
 
-                  <div className="border border-slate-200 rounded-xl overflow-x-auto" id="historic-invoices-register">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 select-none">
-                        <tr>
-                          <th className="p-4">Ref Number</th>
-                          <th className="p-4">Customer Details</th>
-                          <th className="p-4">Payment Method</th>
-                          <th className="p-4 text-right">Settled Amount</th>
-                          <th className="p-4 text-center">Status</th>
-                          <th className="p-4 text-center w-28">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-sans">
-                        {invoices.map((inv) => (
-                          <tr key={inv.id} className="hover:bg-slate-50/50">
-                            <td className="p-4 font-mono font-bold text-slate-900">{inv.id}</td>
-                            <td className="p-4">
-                              <p className="font-bold text-slate-900">{inv.customerName}</p>
-                              <p className="text-[10px] text-slate-400 font-mono">{inv.customerPhone}</p>
-                            </td>
-                            <td className="p-4 font-semibold text-slate-600">{inv.paymentMethod}</td>
-                            <td className="p-4 text-right font-extrabold text-slate-900 font-display">{formatMMK(inv.total)}</td>
-                            <td className="p-4 text-center">
-                              <span className="inline-flex text-[9px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-250 font-bold select-none">
-                                Paid
-                              </span>
-                            </td>
-                            <td className="p-4 text-center">
-                              <button
-                                type="button"
-                                id={`view-registered-inv-${inv.id}`}
-                                onClick={() => setViewingInvoice(inv)}
-                                className="text-xs text-slate-950 hover:text-slate-800 font-bold cursor-pointer"
-                              >
-                                View Invoice
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        {invoices.length === 0 && (
-                          <tr>
-                            <td colSpan={6} className="py-12 text-center text-slate-400 italic">
-                              No settlements logged yet.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'deleted' && (
-                <div className="bg-white border border-slate-200/55 rounded-2xl p-5 md:p-6 shadow-xs text-left animate-fade-in space-y-5" id="deleted-list-tab-module">
-                  <div className="space-y-0.5">
-                    <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-1.5 text-slate-800">
-                      <History className="h-5 w-5 text-slate-700" /> Operational Activity Logs
-                    </h3>
-                    <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Audit trail of ticket creations, completions, cancellations, and deletions</p>
-                  </div>
-
-                  <div className="border border-slate-200 rounded-xl overflow-x-auto" id="deleted-jobs-register">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 select-none">
-                        <tr>
-                          <th className="p-4">Timestamp</th>
-                          <th className="p-4">Ticket Ref</th>
-                          <th className="p-4">Operator</th>
-                          <th className="p-4">Event Action</th>
-                          <th className="p-4">Customer Details</th>
-                          <th className="p-4">Activity Log Details</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-sans">
-                        {activityLogs.map((log) => {
-                          const dateText = log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit'
-                          }) : '-';
-
-                          let badgeBg = 'bg-slate-100 text-slate-700 border-slate-200';
-                          if (log.actionType === 'Created') badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-                          if (log.actionType === 'Completed') badgeBg = 'bg-purple-50 text-purple-700 border-purple-100';
-                          if (log.actionType === 'Canceled' || log.actionType === 'Cancelled') badgeBg = 'bg-amber-50 text-amber-700 border-amber-100';
-                          if (log.actionType === 'Deleted') badgeBg = 'bg-rose-50 text-rose-700 border-rose-100';
-                          if (log.actionType === 'Updated' || log.actionType === 'Updated Status') badgeBg = 'bg-sky-50 text-sky-700 border-sky-100';
-
-                          return (
-                            <tr key={log.id || ('log-' + Math.random())} className="hover:bg-slate-50/50">
-                              <td className="p-4 font-semibold text-slate-500 font-mono whitespace-nowrap">{dateText}</td>
-                              <td className="p-4 font-mono font-bold text-slate-700">{log.jobId}</td>
-                              <td className="p-4 font-bold text-slate-800 whitespace-nowrap">
-                                <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200/60 lowercase">@{log.username || 'system'}</span>
-                              </td>
-                              <td className="p-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badgeBg}`}>
-                                  {log.actionType}
-                                </span>
-                              </td>
-                              <td className="p-4">
-                                <p className="font-bold text-slate-900">{log.customerName || 'N/A'}</p>
-                                <p className="text-[10px] text-slate-400 font-mono italic">{log.deviceType || 'Unknown Device'}</p>
-                              </td>
-                              <td className="p-4">
-                                <p className="text-slate-600 leading-relaxed max-w-sm select-text font-normal">
-                                  {log.details || 'No additional activity notes provided.'}
-                                </p>
-                              </td>
+                      <div className="border border-slate-200 rounded-xl overflow-x-auto" id="historic-invoices-register">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 select-none">
+                            <tr>
+                              <th className="p-4">Ref Number</th>
+                              <th className="p-4">Customer Details</th>
+                              <th className="p-4">Payment Method</th>
+                              <th className="p-4 text-right">Settled Amount</th>
+                              <th className="p-4 text-center">Status</th>
+                              <th className="p-4 text-center w-28">Action</th>
                             </tr>
-                          );
-                        })}
-                        {activityLogs.length === 0 && (
-                          <tr>
-                            <td colSpan={6} className="py-12 text-center text-slate-400 italic font-medium">
-                              No recorded activity logs found. Try performing actions such as creating, updating, or deleting tickets.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 font-sans">
+                            {invoices.map((inv) => (
+                              <tr key={inv.id} className="hover:bg-slate-50/50">
+                                <td className="p-4 font-mono font-bold text-slate-900">{inv.id}</td>
+                                <td className="p-4">
+                                  <p className="font-bold text-slate-900">{inv.customerName}</p>
+                                  <p className="text-[10px] text-slate-400 font-mono">{inv.customerPhone}</p>
+                                </td>
+                                <td className="p-4 font-semibold text-slate-600">{inv.paymentMethod}</td>
+                                <td className="p-4 text-right font-extrabold text-slate-900 font-display">{formatMMK(inv.total)}</td>
+                                <td className="p-4 text-center">
+                                  <span className="inline-flex text-[9px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-250 font-bold select-none">
+                                    Paid
+                                  </span>
+                                </td>
+                                <td className="p-4 text-center">
+                                  <button
+                                    type="button"
+                                    id={`view-registered-inv-${inv.id}`}
+                                    onClick={() => setViewingInvoice(inv)}
+                                    className="text-xs text-slate-950 hover:text-slate-800 font-bold cursor-pointer"
+                                  >
+                                    View Invoice
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            {invoices.length === 0 && (
+                              <tr>
+                                <td colSpan={6} className="py-12 text-center text-slate-400 italic">
+                                  No settlements logged yet.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
 
-              {activeTab === 'users' && (
-                <UserManagement currentUser={currentUser} />
-              )}
+                  {activeTab === 'deleted' && (
+                    <div className="bg-white border border-slate-200/55 rounded-2xl p-5 md:p-6 shadow-xs text-left space-y-5" id="deleted-list-tab-module">
+                      <div className="space-y-0.5">
+                        <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-1.5 text-slate-800">
+                          <History className="h-5 w-5 text-slate-700" /> Operational Activity Logs
+                        </h3>
+                        <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Audit trail of ticket creations, completions, cancellations, and deletions</p>
+                      </div>
+
+                      <div className="border border-slate-200 rounded-xl overflow-x-auto" id="deleted-jobs-register">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 select-none">
+                            <tr>
+                              <th className="p-4">Timestamp</th>
+                              <th className="p-4">Ticket Ref</th>
+                              <th className="p-4">Operator</th>
+                              <th className="p-4">Event Action</th>
+                              <th className="p-4">Customer Details</th>
+                              <th className="p-4">Activity Log Details</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 font-sans">
+                            {activityLogs.map((log) => {
+                              const dateText = log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                              }) : '-';
+
+                              let badgeBg = 'bg-slate-100 text-slate-700 border-slate-200';
+                              if (log.actionType === 'Created') badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                              if (log.actionType === 'Completed') badgeBg = 'bg-purple-50 text-purple-700 border-purple-100';
+                              if (log.actionType === 'Canceled' || log.actionType === 'Cancelled') badgeBg = 'bg-amber-50 text-amber-700 border-amber-100';
+                              if (log.actionType === 'Deleted') badgeBg = 'bg-rose-50 text-rose-700 border-rose-100';
+                              if (log.actionType === 'Updated' || log.actionType === 'Updated Status') badgeBg = 'bg-sky-50 text-sky-700 border-sky-100';
+
+                              return (
+                                <tr key={log.id || ('log-' + Math.random())} className="hover:bg-slate-50/50">
+                                  <td className="p-4 font-semibold text-slate-500 font-mono whitespace-nowrap">{dateText}</td>
+                                  <td className="p-4 font-mono font-bold text-slate-700">{log.jobId}</td>
+                                  <td className="p-4 font-bold text-slate-800 whitespace-nowrap">
+                                    <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200/60 lowercase">@{log.username || 'system'}</span>
+                                  </td>
+                                  <td className="p-4 whitespace-nowrap">
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badgeBg}`}>
+                                      {log.actionType}
+                                    </span>
+                                  </td>
+                                  <td className="p-4">
+                                    <p className="font-bold text-slate-900">{log.customerName || 'N/A'}</p>
+                                    <p className="text-[10px] text-slate-400 font-mono italic">{log.deviceType || 'Unknown Device'}</p>
+                                  </td>
+                                  <td className="p-4">
+                                    <p className="text-slate-600 leading-relaxed max-w-sm select-text font-normal">
+                                      {log.details || 'No additional activity notes provided.'}
+                                    </p>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {activityLogs.length === 0 && (
+                              <tr>
+                                <td colSpan={6} className="py-12 text-center text-slate-400 italic font-medium">
+                                  No recorded activity logs found. Try performing actions such as creating, updating, or deleting tickets.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'users' && (
+                    <UserManagement currentUser={currentUser} />
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
           )}
         </main>
