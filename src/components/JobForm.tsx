@@ -3,6 +3,22 @@ import { Calendar, User, Phone, Laptop, AlertTriangle, MapPin, AlignLeft, Send, 
 import { ServiceJob, DeviceType, UrgencyLevel, LocationCoords } from '../types.ts';
 import { MAP_CENTER_YANGON } from '../utils.ts';
 
+const GeminiIcon = ({ className = "h-5 w-5", flat = false }: { className?: string; flat?: boolean }) => (
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M12 2C12 2 12.5 7.5 14 9C15.5 10.5 21 11 21 11C21 11 15.5 11.5 14 13C12.5 14.5 12 20 12 20C12 20 11.5 14.5 10 13C8.5 11.5 3 11 3 11C3 11 8.5 10.5 10 9C11.5 7.5 12 2 12 2Z" fill={flat ? "currentColor" : "url(#gemini-gradient-form)"} />
+    <path d="M19 16C19 16 19.25 18.75 20 19.5C20.75 20.25 23.5 20.5 23.5 20.5C23.5 20.5 20.75 20.75 20 21.5C19.25 22.25 19 25 19 25C19 25 18.75 22.25 18 21.5C17.25 20.75 14.5 20.5 14.5 20.5C14.5 20.5 17.25 20.75 18 19.5C18.75 18.75 19 16 19 16Z" fill={flat ? "currentColor" : "url(#gemini-gradient-form)"} />
+    {!flat && (
+      <defs>
+        <linearGradient id="gemini-gradient-form" x1="3" y1="2" x2="23.5" y2="25" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#4e70e6" />
+          <stop offset="0.5" stopColor="#9452e6" />
+          <stop offset="1" stopColor="#e252a1" />
+        </linearGradient>
+      </defs>
+    )}
+  </svg>
+);
+
 interface JobFormProps {
   onSubmit: (job: Omit<ServiceJob, 'id' | 'status' | 'createdAt' | 'updatedAt'> & { editReason?: string; deviceModel?: string }) => void;
   onCancel?: () => void;
@@ -68,7 +84,7 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
   // Auto-extract using Gemini
   const handleAiAutofill = async () => {
     if (!rawText.trim()) {
-      setAiError('ဖြည့်စွက်ရန် စာသားတစုံတရာ ရေးသားထည့်သွင်းပေးပါ...');
+      setAiError('Please enter some text for AI to fill the fields...');
       return;
     }
 
@@ -127,7 +143,7 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
       setRawText('');
     } catch (err: any) {
       console.error(err);
-      setAiError(err.message || 'AI အလိုအလျောက်ဖြည့်သွင်းမှု မအောင်မြင်ပါ။ မူရင်းစာသားကို ထပ်မံစစ်ဆေးပေးပါ။');
+      setAiError(err.message || 'AI auto-fill failed. Please verify the prompt and try again.');
     } finally {
       setIsAiParsing(false);
     }
@@ -182,89 +198,62 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
         </div>
 
         {/* Gemini AI Auto-fill Panel */}
-        <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-100 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="bg-blue-600 text-white p-1 rounded-lg">
-                <Sparkles className="h-3.5 w-3.5" />
-              </div>
-              <div>
-                <span className="text-xs font-bold text-gray-800">AI Auto-fill (Gemini-Powered)</span>
-                <p className="text-[10px] text-gray-500">ရိုက်ထားတဲ့ စာသားတွေအတိုင်း AI နဲ့ auto ဖြည့်သွင်းပါ</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsAiCollatorOpen(!isAiCollatorOpen)}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded-lg bg-white border border-blue-200 shadow-xs transition-all cursor-pointer"
-            >
-              {isAiCollatorOpen ? 'ဝှက်ထားရန်' : 'စာသားထည့်သွင်းရန်'}
-            </button>
+        <div className="bg-gradient-to-r from-blue-50/40 via-indigo-50/40 to-purple-50/40 border border-blue-100 rounded-xl p-4 space-y-3.5">
+          <div className="flex items-center justify-between pb-1 border-b border-indigo-100/30">
+            <span className="text-xs font-bold text-gray-800 tracking-wide uppercase">AI auto fill</span>
+            <GeminiIcon className="h-5 w-5" />
           </div>
 
-          {isAiCollatorOpen && (
-            <div className="space-y-3 pt-1 animate-fade-in">
-              <label className="text-[10px] font-semibold text-gray-600 block">
-                လူကြီးမင်း၏ Viber သို့မဟုတ် Messenger ရှိ Customer ရေးသားထားသော စာသားကို ကူးယူထည့်သွင်းပါ (နာမည်၊ ဖုန်း၊ လိပ်စာ၊ ပြဿနာ၊ နေ့ရက်စသည်) -
-              </label>
-              <textarea
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                placeholder={`BMN
-Shwe Hinthar Condo B
-6 မိုင်ခွဲ
-လောလောဆယ် Traveling 10000
-Service 30000 1 Pc ပြောထားပါတယ်။ BMN ကုမ္ပဏီ
+          <div className="space-y-3 pt-1 animate-fade-in">
+            <textarea
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="Paste customer message or ticket details here..."
+              rows={4}
+              className="w-full bg-white border border-blue-150 text-xs rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans leading-relaxed text-gray-800"
+              disabled={isAiParsing}
+            />
+            
+            {aiError && (
+              <p className="text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg p-2">
+                ⚠️ {aiError}
+              </p>
+            )}
 
-Pc update လုပ်ချင်တာပါ
-09 767069833
-
-Monday`}
-                rows={6}
-                className="w-full bg-white border border-blue-150 text-xs rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans leading-relaxed text-gray-800"
-                disabled={isAiParsing}
-              />
-              
-              {aiError && (
-                <p className="text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg p-2">
-                  ⚠️ {aiError}
-                </p>
-              )}
-
-              <div className="flex items-center justify-end gap-2 text-right">
+            <div className="flex items-center justify-end gap-2 text-right">
+              {rawText && (
                 <button
                   type="button"
                   onClick={() => {
                     setRawText('');
-                    setIsAiCollatorOpen(false);
                     setAiError('');
                   }}
-                  className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 px-3 py-1.5 bg-gray-100 rounded-lg cursor-pointer"
+                  className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-lg cursor-pointer"
                   disabled={isAiParsing}
                 >
-                  ပိတ်မည်
+                  Clear
                 </button>
-                <button
-                  type="button"
-                  onClick={handleAiAutofill}
-                  disabled={isAiParsing}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg cursor-pointer disabled:opacity-50 transition-all font-sans shadow-xs"
-                >
-                  {isAiParsing ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                      ခေတ္တစောင့်ဆိုင်းပါ...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3 w-3" />
-                      AI ဖြင့် အလိုအလျောက်ဖြည့်မည်
-                    </>
-                  )}
-                </button>
-              </div>
+              )}
+              <button
+                type="button"
+                onClick={handleAiAutofill}
+                disabled={isAiParsing}
+                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg cursor-pointer disabled:opacity-50 transition-all font-sans shadow-xs"
+              >
+                {isAiParsing ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                    Analyzing message...
+                  </>
+                ) : (
+                  <>
+                    <GeminiIcon className="h-3.5 w-3.5 text-white" flat={true} />
+                    Auto Fill Form
+                  </>
+                )}
+              </button>
             </div>
-          )}
+          </div>
         </div>
 
           {/* Customer Name */}
