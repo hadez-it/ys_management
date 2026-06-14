@@ -4,11 +4,22 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { GoogleGenAI, Type } from "@google/genai";
 
 // Load configuration
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "jwt-fallback-secret-key-12345";
+
+// Initialize Gemini Client
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
 
 // SHA256 Password Hashing Helper
 function hashPassword(password: string): string {
@@ -785,6 +796,261 @@ app.delete("/api/users/:id", async (req, res) => {
     res.json({ success: true, message: "User deleted successfully" });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to delete user: " + err.message });
+  }
+});
+
+// Helper for calculating relative dates (e.g. Monday, tomorrow) from a reference date
+function calculateRelativeDate(referenceDateStr: string, text: string): string {
+  try {
+    const refDate = new Date(referenceDateStr + "T12:00:00");
+    if (isNaN(refDate.getTime())) {
+      return referenceDateStr;
+    }
+    
+    const lowerText = text.toLowerCase();
+    
+    if (lowerText.includes("today") || lowerText.includes("ယနေ့")) {
+      return referenceDateStr;
+    }
+    
+    if (lowerText.includes("tomorrow") || lowerText.includes("မနက်ဖြန်")) {
+      const tomorrow = new Date(refDate);
+      tomorrow.setDate(refDate.getDate() + 1);
+      return tomorrow.toISOString().split("T")[0];
+    }
+    
+    const daysOfWeek = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    for (let i = 0; i < 7; i++) {
+      if (lowerText.includes(daysOfWeek[i])) {
+        const targetDay = i;
+        const currentDay = refDate.getDay();
+        let daysToAdd = targetDay - currentDay;
+        if (daysToAdd <= 0) {
+          daysToAdd += 7; // Next week's day
+        }
+        const targetDate = new Date(refDate);
+        targetDate.setDate(refDate.getDate() + daysToAdd);
+        return targetDate.toISOString().split("T")[0];
+      }
+    }
+  } catch (e) {
+    console.error("Error calculating relative date:", e);
+  }
+  return referenceDateStr;
+}
+
+// Fallback regex/heuristic ticket parser for Myanmar and English inputs when Gemini is offline
+function fallbackParseTicket(rawText: string, referenceDate: string) {
+  const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  
+  let customerName = "Unknown Customer";
+  let customerPhone = "none";
+  let deviceType = "PC";
+  let deviceIssue = "";
+  let locationText = "Yangon";
+  let urgency = "Medium";
+  let selectedDate = referenceDate;
+  let selectedTime = "none";
+  
+  // Find Phone Number
+  const phoneRegex = /(09\s?\d{7,10}|\+?959\s?\d{7,10}|09-\d{7,10})/i;
+  for (const line of lines) {
+    const match = line.match(phoneRegex);
+    if (match) {
+      customerPhone = match[0];
+      break;
+    }
+  }
+  
+  // Name selection
+  // Usually first line is Customer Name or Company Name if it's brief
+  if (lines.length > 0) {
+    const firstLine = lines[0];
+    if (firstLine.length < 30 && !firstLine.match(phoneRegex)) {
+      customerName = firstLine;
+    }
+  }
+  
+  // Device Type detection
+  const lowerRaw = rawText.toLowerCase();
+  if (lowerRaw.includes("laptop") || lowerRaw.includes("လက်ပ်တော့")) {
+    deviceType = "Laptop";
+  } else if (lowerRaw.includes("printer") || lowerRaw.includes("ပရင်တာ")) {
+    deviceType = "Printer";
+  } else if (lowerRaw.includes("cctv")) {
+    deviceType = "CCTV";
+  } else if (lowerRaw.includes("ac") || lowerRaw.includes("aircon")) {
+    deviceType = "AC";
+  } else if (lowerRaw.includes("pc") || lowerRaw.includes("computer") || lowerRaw.includes("ကွန်ပြူတာ")) {
+    deviceType = "PC";
+  }
+  
+  // Relative Date detection
+  selectedDate = calculateRelativeDate(referenceDate, rawText);
+  
+  // Set default timeslot matching
+  const timeMatches = [
+    { key: "10:00", patterns: ["10 am", "10am", "10:00"] },
+    { key: "11:00", patterns: ["11 am", "11am", "11:00"] },
+    { key: "12:00", patterns: ["12 pm", "12pm", "12:00", "noon"] },
+    { key: "13:00", patterns: ["1 pm", "1pm", "13:00"] },
+    { key: "14:00", patterns: ["2 pm", "2pm", "14:00"] },
+    { key: "15:00", patterns: ["3 pm", "3pm", "15:00"] },
+    { key: "16:00", patterns: ["4 pm", "4pm", "16:00"] }
+  ];
+  for (const tm of timeMatches) {
+    for (const p of tm.patterns) {
+      if (lowerRaw.includes(p)) {
+        selectedTime = tm.key;
+        break;
+      }
+    }
+    if (selectedTime !== "none") break;
+  }
+  
+  // Identify Location lines vs Issue lines
+  const locationKeywords = [
+    "condo", "street", "road", "ts", "township", "မိုင်ခွဲ", "တိုက်", "လမ်း", "ရပ်ကွက်", 
+    "ဘလောက်", "အဆောင်", "စု", "ထောင့်", "နံပါတ်", "floor", "ထပ်"
+  ];
+  const issueKeywords = [
+    "update", "repair", "service", "ပျက်", "မရလို့", "လုပ်ချင်တာ", "traveling", "ကျပ်", "ပြောထား",
+    "error", "slow", "windows", "install"
+  ];
+  
+  const locationParts: string[] = [];
+  const issueParts: string[] = [];
+  
+  // Skip first helper line if used for name
+  const remainingLines = lines.slice(1);
+  for (const line of remainingLines) {
+    const lowerLine = line.toLowerCase();
+    
+    // Skip phone and relative day line
+    if (line.match(phoneRegex)) continue;
+    if (["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "today", "tomorrow"].some(d => lowerLine === d)) {
+      continue;
+    }
+    
+    const isLocation = locationKeywords.some(k => lowerLine.includes(k));
+    const isIssue = issueKeywords.some(k => lowerLine.includes(k));
+    
+    if (isLocation && !isIssue) {
+      locationParts.push(line);
+    } else if (isIssue) {
+      issueParts.push(line);
+    } else {
+      // General heuristic
+      if (lowerLine.includes("condo") || lowerLine.match(/\d+\s*မိုင်/)) {
+        locationParts.push(line);
+      } else {
+        issueParts.push(line);
+      }
+    }
+  }
+  
+  if (locationParts.length > 0) {
+    locationText = locationParts.join(", ");
+  }
+  if (issueParts.length > 0) {
+    deviceIssue = issueParts.join("\n");
+  } else {
+    deviceIssue = rawText; // Fallback to raw
+  }
+  
+  // Urgency detection
+  if (lowerRaw.includes("urgent") || lowerRaw.includes("အရေးကြီး") || lowerRaw.includes("now") || lowerRaw.includes("critical")) {
+    urgency = "High";
+  }
+  
+  return {
+    customerName,
+    customerPhone,
+    deviceType,
+    deviceIssue,
+    locationText,
+    urgency,
+    selectedDate,
+    selectedTime
+  };
+}
+
+// AI TICKET AUTOFILL ENDPOINT WITH GEMINI
+app.post("/api/parse-ticket", async (req, res) => {
+  try {
+    const { rawText, referenceDate } = req.body;
+    if (!rawText || !rawText.trim()) {
+      res.status(400).json({ error: "Raw text description is required" });
+      return;
+    }
+
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.includes("YourGeminiApiKeyHere")) {
+      // Fallback to offline regex extraction if key is not configured or is placeholder
+      const fallbackResult = fallbackParseTicket(rawText, referenceDate);
+      res.json(fallbackResult);
+      return;
+    }
+
+    const systemInstruction = 
+      "You are an expert bilingual administrative dispatcher assistant for 'YS SVC', " +
+      "a top-tier computer repair and support service center in Yangon, Myanmar.\n" +
+      "Your objective is to carefully extract structured information from raw, messy text requests, " +
+      "which are often written in English, Burmese, or a hybrid of both, and return it in a clean " +
+      "structured JSON schema.\n\n" +
+      "Guidelines for extraction:\n" +
+      "1. Customer Name (customerName): Cleanly extract the name. If a company and a person name are both mentioned, extract both or prioritize the name/company (e.g. 'BMN' or 'BMN Co').\n" +
+      "2. Customer Phone (customerPhone): Extract physical phone numbers cleanly (e.g. '09 767069833' or '09767069833'). Replace spaces/hyphens with a clean sequence or keep standard format.\n" +
+      "3. Device Type (deviceType): Categorize general device type (e.g. 'PC', 'Laptop', 'Printer', 'CCTV', 'AC'). Be concise. If it says 'Pc update', output 'PC' or 'Laptop'.\n" +
+      "4. Device Issue (deviceIssue): Extract description, including requests like upgrading programs, SSD, hardware installations, pricing mentioned (e.g., 'Traveling 10000, Service 30000 1 Pc ပြောထားပါတယ်။ Pc update လုပ်ချင်တာပါ'). Include any specific remarks or notes in Burmese/English if relevant so technician has full context. Keep it highly detailed and comprehensive.\n" +
+      "5. Location / Address (locationText): Combine building numbers, condo name, streets, township, e.g. 'Shwe Hinthar Condo B, 6 မိုင်ခွဲ, Yangon' or standard descriptive Yangon addresses.\n" +
+      "6. Date (selectedDate): Look at date indicators like relative expressions ('Monday', 'tomorrow', 'today', 'Sunday'). Utilize the referenceDate: " + (referenceDate || new Date().toISOString().split('T')[0]) + " to accurately calculate the correct date target as YYYY-MM-DD. For example, if referenceDate is 2026-06-14 (Sunday), 'Monday' corresponds to 2026-06-15. If no date is found, default to referenceDate.\n" +
+      "7. Time Slot (selectedTime): Must be strictly matched to one of: '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', or 'none'. Match based on hour preferences if mentioned (e.g. '1 PM' -> '13:00', '10 AM' -> '10:00'). If unspecified, return 'none'.\n" +
+      "8. Urgency (urgency): Set urgency based on keywords or high priority. Must be strictly one of: 'Low', 'Medium', 'High', 'Critical'. Default to 'Medium'.";
+
+    const prompt = `Please extract the service ticket specifications from the following raw text:\n---\n${rawText}\n---`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            customerName: { type: Type.STRING },
+            customerPhone: { type: Type.STRING },
+            deviceType: { type: Type.STRING },
+            deviceIssue: { type: Type.STRING },
+            locationText: { type: Type.STRING },
+            urgency: { type: Type.STRING },
+            selectedDate: { type: Type.STRING },
+            selectedTime: { type: Type.STRING }
+          },
+          required: [
+            "customerName",
+            "customerPhone",
+            "deviceType",
+            "deviceIssue",
+            "locationText",
+            "urgency",
+            "selectedDate",
+            "selectedTime"
+          ]
+        }
+      }
+    });
+
+    const resultText = response.text;
+    if (!resultText) {
+      throw new Error("No response generated by Gemini model.");
+    }
+
+    const parsedData = JSON.parse(resultText.trim());
+    res.json(parsedData);
+  } catch (err: any) {
+    console.error("Gemini Parse Ticket Error:", err);
+    res.status(500).json({ error: "AI Parsing Failed: " + (err.message || String(err)) });
   }
 });
 

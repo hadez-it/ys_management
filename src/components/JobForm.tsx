@@ -59,6 +59,80 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
   const [editReason, setEditReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // AI Autofill states
+  const [rawText, setRawText] = useState('');
+  const [isAiCollatorOpen, setIsAiCollatorOpen] = useState(false);
+  const [isAiParsing, setIsAiParsing] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  // Auto-extract using Gemini
+  const handleAiAutofill = async () => {
+    if (!rawText.trim()) {
+      setAiError('ဖြည့်စွက်ရန် စာသားတစုံတရာ ရေးသားထည့်သွင်းပေးပါ...');
+      return;
+    }
+
+    setIsAiParsing(true);
+    setAiError('');
+
+    try {
+      let token = '';
+      let username = 'system';
+      try {
+        const cached = sessionStorage.getItem('smartfix_current_user');
+        if (cached) {
+          const userObj = JSON.parse(cached);
+          token = userObj?.token || '';
+          username = userObj?.username || 'system';
+        }
+      } catch (e) {
+        console.error('Error fetching user from session storage:', e);
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      if (username) {
+        headers['X-Operator-Username'] = username;
+      }
+
+      const referenceDate = selectedDate || new Date().toISOString().split('T')[0];
+
+      const res = await fetch('/api/parse-ticket', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ rawText, referenceDate }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'AI Auto-extraction failed');
+      }
+
+      const data = await res.json();
+      
+      if (data.customerName) setCustomerName(data.customerName);
+      if (data.customerPhone) setCustomerPhone(data.customerPhone);
+      if (data.deviceType) setDeviceType(data.deviceType);
+      if (data.deviceIssue) setDeviceIssue(data.deviceIssue);
+      if (data.locationText) setLocationText(data.locationText);
+      if (data.urgency) setUrgency(data.urgency);
+      if (data.selectedDate) setSelectedDate(data.selectedDate);
+      if (data.selectedTime) setSelectedTime(data.selectedTime);
+
+      setIsAiCollatorOpen(false);
+      setRawText('');
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err.message || 'AI အလိုအလျောက်ဖြည့်သွင်းမှု မအောင်မြင်ပါ။ မူရင်းစာသားကို ထပ်မံစစ်ဆေးပေးပါ။');
+    } finally {
+      setIsAiParsing(false);
+    }
+  };
+
   // Triggered when clicking a preset to auto-populate fields for speed-testing
   const handleApplyPreset = (preset: typeof ISSUE_PRESETS[0]) => {
     setDeviceType(preset.type);
@@ -105,8 +179,92 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
             <h3 className="font-semibold text-gray-900 text-sm">Service Ticket Details</h3>
             <p className="text-xs text-gray-400">Please provide precise customer & device details.</p>
           </div>
-          
+        </div>
 
+        {/* Gemini AI Auto-fill Panel */}
+        <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-100 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-600 text-white p-1 rounded-lg">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-gray-800">AI Auto-fill (Gemini-Powered)</span>
+                <p className="text-[10px] text-gray-500">ရိုက်ထားတဲ့ စာသားတွေအတိုင်း AI နဲ့ auto ဖြည့်သွင်းပါ</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAiCollatorOpen(!isAiCollatorOpen)}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded-lg bg-white border border-blue-200 shadow-xs transition-all cursor-pointer"
+            >
+              {isAiCollatorOpen ? 'ဝှက်ထားရန်' : 'စာသားထည့်သွင်းရန်'}
+            </button>
+          </div>
+
+          {isAiCollatorOpen && (
+            <div className="space-y-3 pt-1 animate-fade-in">
+              <label className="text-[10px] font-semibold text-gray-600 block">
+                လူကြီးမင်း၏ Viber သို့မဟုတ် Messenger ရှိ Customer ရေးသားထားသော စာသားကို ကူးယူထည့်သွင်းပါ (နာမည်၊ ဖုန်း၊ လိပ်စာ၊ ပြဿနာ၊ နေ့ရက်စသည်) -
+              </label>
+              <textarea
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                placeholder={`BMN
+Shwe Hinthar Condo B
+6 မိုင်ခွဲ
+လောလောဆယ် Traveling 10000
+Service 30000 1 Pc ပြောထားပါတယ်။ BMN ကုမ္ပဏီ
+
+Pc update လုပ်ချင်တာပါ
+09 767069833
+
+Monday`}
+                rows={6}
+                className="w-full bg-white border border-blue-150 text-xs rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans leading-relaxed text-gray-800"
+                disabled={isAiParsing}
+              />
+              
+              {aiError && (
+                <p className="text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg p-2">
+                  ⚠️ {aiError}
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-2 text-right">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRawText('');
+                    setIsAiCollatorOpen(false);
+                    setAiError('');
+                  }}
+                  className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 px-3 py-1.5 bg-gray-100 rounded-lg cursor-pointer"
+                  disabled={isAiParsing}
+                >
+                  ပိတ်မည်
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAiAutofill}
+                  disabled={isAiParsing}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg cursor-pointer disabled:opacity-50 transition-all font-sans shadow-xs"
+                >
+                  {isAiParsing ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      ခေတ္တစောင့်ဆိုင်းပါ...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3 w-3" />
+                      AI ဖြင့် အလိုအလျောက်ဖြည့်မည်
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
           {/* Customer Name */}
