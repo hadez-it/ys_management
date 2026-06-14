@@ -44,7 +44,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [hideCompleted, setHideCompleted] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'repairing' | 'completed'>('upcoming');
   const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
   
   const [tempRemark, setTempRemark] = useState('');
@@ -176,17 +176,34 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
 
   // Filters logic
   const filteredJobs = jobs.filter(job => {
-    const matchesSearch =
+    return (
       job.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.customerPhone.includes(searchQuery) ||
       (job.deviceModel || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.id.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    if (hideCompleted && job.status === 'Completed') {
-      return false;
+      job.id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+
+  const upcomingCount = filteredJobs.filter(
+    j => j.status === 'Created' || j.status === 'Assigned' || j.status === 'Dispatched'
+  ).length;
+
+  const repairingCount = filteredJobs.filter(
+    j => j.status === 'Repairing' || j.status === 'ServiceInProgress'
+  ).length;
+
+  const completedCount = filteredJobs.filter(
+    j => j.status === 'Completed' || j.status === 'Cancelled'
+  ).length;
+
+  const tabFilteredJobs = filteredJobs.filter(job => {
+    if (activeTab === 'upcoming') {
+      return job.status === 'Created' || job.status === 'Assigned' || job.status === 'Dispatched';
+    } else if (activeTab === 'repairing') {
+      return job.status === 'Repairing' || job.status === 'ServiceInProgress';
+    } else {
+      return job.status === 'Completed' || job.status === 'Cancelled';
     }
-    
-    return matchesSearch;
   });
 
   const getStatusBadge = (status: JobStatus) => {
@@ -261,11 +278,11 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
   }, [selectedJobId, isModalOpen]);
 
   // Grouped filtered jobs
-  const overdueJobs = filteredJobs.filter(j => getJobCategory(j) === 'Overdue').sort(sortJobsInQueue);
-  const todayJobs = filteredJobs.filter(j => getJobCategory(j) === 'Today').sort(sortJobsInQueue);
-  const tomorrowJobs = filteredJobs.filter(j => getJobCategory(j) === 'Tomorrow').sort(sortJobsInQueue);
-  const upcomingJobs = filteredJobs.filter(j => getJobCategory(j) === 'Upcoming').sort(sortJobsInQueue);
-  const archiveJobs = filteredJobs.filter(j => getJobCategory(j) === 'Archive').sort(sortJobsInQueue);
+  const overdueJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Overdue').sort(sortJobsInQueue);
+  const todayJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Today').sort(sortJobsInQueue);
+  const tomorrowJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Tomorrow').sort(sortJobsInQueue);
+  const upcomingJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Upcoming').sort(sortJobsInQueue);
+  const archiveJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Archive').sort(sortJobsInQueue);
 
   const groupJobsByDateString = (jobsList: ServiceJob[]) => {
     const groups: { [key: string]: ServiceJob[] } = {};
@@ -397,20 +414,60 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
               className="w-full bg-gray-50 border border-gray-100 pl-9 pr-3 py-2.5 rounded-xl text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 transition-all font-sans"
             />
           </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl select-none shrink-0">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                id="toggle-hide-completed"
-                checked={hideCompleted}
-                onChange={(e) => setHideCompleted(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
-              />
-              <span className="text-xs text-gray-600 font-medium cursor-pointer">
-                Hide Completed Tickets
-              </span>
-            </label>
-          </div>
+        </div>
+
+        {/* Tab Selection Row */}
+        <div className="flex border-b border-gray-100 -mx-5 px-5 select-none overflow-x-auto scrollbar-none gap-6 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab('upcoming')}
+            className={`flex items-center gap-2 pb-3 pt-1 text-xs font-bold tracking-wide uppercase border-b-2 transition-all cursor-pointer whitespace-nowrap focus:outline-none ${
+              activeTab === 'upcoming'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Upcoming Ticket
+            <span className={`text-[9px] px-2 py-0.5 rounded-full font-sans font-extrabold ${
+              activeTab === 'upcoming' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {upcomingCount}
+            </span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => setActiveTab('repairing')}
+            className={`flex items-center gap-2 pb-3 pt-1 text-xs font-bold tracking-wide uppercase border-b-2 transition-all cursor-pointer whitespace-nowrap focus:outline-none ${
+              activeTab === 'repairing'
+                ? 'border-amber-600 text-amber-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Repairing
+            <span className={`text-[9px] px-2 py-0.5 rounded-full font-sans font-extrabold ${
+              activeTab === 'repairing' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {repairingCount}
+            </span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => setActiveTab('completed')}
+            className={`flex items-center gap-2 pb-3 pt-1 text-xs font-bold tracking-wide uppercase border-b-2 transition-all cursor-pointer whitespace-nowrap focus:outline-none ${
+              activeTab === 'completed'
+                ? 'border-emerald-600 text-emerald-600'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Completed
+            <span className={`text-[9px] px-2 py-0.5 rounded-full font-sans font-extrabold ${
+              activeTab === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {completedCount}
+            </span>
+          </button>
         </div>
       </div>
 
