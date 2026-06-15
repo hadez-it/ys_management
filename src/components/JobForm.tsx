@@ -197,63 +197,29 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
           </div>
         </div>
 
-        {/* Gemini AI Auto-fill Panel */}
-        <div className="bg-gradient-to-r from-blue-50/40 via-indigo-50/40 to-purple-50/40 border border-blue-100 rounded-xl p-4 space-y-3.5">
-          <div className="flex items-center justify-between pb-1 border-b border-indigo-100/30">
-            <span className="text-xs font-bold text-gray-800 tracking-wide uppercase">AI auto fill</span>
-            <GeminiIcon className="h-5 w-5" />
-          </div>
-
-          <div className="space-y-3 pt-1 animate-fade-in">
-            <textarea
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder="Paste customer message or ticket details here..."
-              rows={4}
-              className="w-full bg-white border border-blue-150 text-xs rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans leading-relaxed text-gray-800"
-              disabled={isAiParsing}
-            />
-            
-            {aiError && (
-              <p className="text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-100 rounded-lg p-2">
-                ⚠️ {aiError}
-              </p>
-            )}
-
-            <div className="flex items-center justify-end gap-2 text-right">
-              {rawText && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRawText('');
-                    setAiError('');
-                  }}
-                  className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 px-3 py-1.5 hover:bg-gray-100 rounded-lg cursor-pointer"
-                  disabled={isAiParsing}
-                >
-                  Clear
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={handleAiAutofill}
-                disabled={isAiParsing}
-                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg cursor-pointer disabled:opacity-50 transition-all font-sans shadow-xs"
-              >
-                {isAiParsing ? (
-                  <>
-                    <RefreshCw className="h-3 w-3 animate-spin" />
-                    Analyzing message...
-                  </>
-                ) : (
-                  <>
-                    <GeminiIcon className="h-3.5 w-3.5 text-white" flat={true} />
-                    Auto Fill Form
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+        {/* Gemini AI Auto-fill Modal Trigger */}
+        <div className="bg-gradient-to-r from-blue-50/30 via-indigo-50/30 to-purple-50/30 border border-indigo-50 rounded-xl p-3.5 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => {
+              setIsAiCollatorOpen(true);
+              setAiError('');
+            }}
+            className="flex items-center gap-2 group cursor-pointer focus:outline-none text-left"
+          >
+            <GeminiIcon className="h-5 w-5 group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-bold text-indigo-950 uppercase tracking-wide group-hover:text-indigo-700 transition-colors">AI auto fill</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsAiCollatorOpen(true);
+              setAiError('');
+            }}
+            className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-white border border-indigo-100 hover:border-indigo-200 px-3 py-1.5 rounded-lg transition-all shadow-xs cursor-pointer"
+          >
+            Click to Open
+          </button>
         </div>
 
           {/* Customer Name */}
@@ -497,6 +463,103 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
             )}
           </button>
         </div>
+
+      {/* Gemini AI Auto-fill Pop-up Modal */}
+      {isAiCollatorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          {/* Backdrop Click */}
+          <div className="absolute inset-0" onClick={() => !isAiParsing && setIsAiCollatorOpen(false)} />
+          
+          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-xl border border-gray-100 overflow-hidden transform scale-100 transition-all max-h-[90vh] flex flex-col z-10">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50/20 via-indigo-50/20 to-purple-50/20">
+              <div className="flex items-center gap-2">
+                <GeminiIcon className="h-5 w-5" />
+                <span className="text-xs font-bold text-indigo-950 uppercase tracking-wide">AI auto fill</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isAiParsing && setIsAiCollatorOpen(false)}
+                className="text-gray-400 hover:text-gray-650 p-1.5 rounded-lg hover:bg-gray-100 transition-all cursor-pointer"
+                disabled={isAiParsing}
+              >
+                <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Paste any unstructured customer message or ticket details below. Gemini will analyze the text to automatically extract and populate the name, phone number, device details, urgency, date, and address.
+              </p>
+
+              <textarea
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                placeholder="Paste customer message or ticket details here..."
+                rows={6}
+                className="w-full bg-gray-50 border border-gray-200 text-xs rounded-xl p-3.5 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 font-sans leading-relaxed text-gray-801"
+                disabled={isAiParsing}
+              />
+              
+              {aiError && (
+                <p className="text-[10px] font-semibold text-rose-650 bg-rose-50 border border-rose-100 rounded-xl p-3 flex items-start gap-1.5 leading-relaxed">
+                  <span className="text-xs">⚠️</span> {aiError}
+                </p>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/60 flex items-center justify-end gap-2 text-right">
+              <button
+                type="button"
+                onClick={() => {
+                  setRawText('');
+                  setAiError('');
+                  setIsAiCollatorOpen(false);
+                }}
+                className="text-xs font-semibold text-gray-505 hover:text-gray-700 px-4 py-2 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors"
+                disabled={isAiParsing}
+              >
+                Cancel
+              </button>
+              {rawText && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRawText('');
+                    setAiError('');
+                  }}
+                  className="text-xs font-semibold text-rose-655 hover:text-rose-700 px-4 py-2 hover:bg-rose-50/50 rounded-xl cursor-pointer transition-colors"
+                  disabled={isAiParsing}
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleAiAutofill}
+                disabled={isAiParsing}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl cursor-pointer disabled:opacity-50 transition-all font-sans shadow-xs"
+              >
+                {isAiParsing ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <GeminiIcon className="h-4 w-4 text-white" flat={true} />
+                    Auto Fill Form
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
