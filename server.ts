@@ -22,7 +22,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Local/sandbox development server running on http://localhost:${PORT}`);
+    console.log(`Local development server running on http://localhost:${PORT}`);
   });
 }
 

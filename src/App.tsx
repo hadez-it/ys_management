@@ -111,7 +111,7 @@ export default function App() {
         localStorage.setItem('smartfix_activity_logs', JSON.stringify(data || []));
       })
       .catch((err) => {
-        console.warn('Sandbox mode fallback: fetching activity logs.', err.message || err);
+        console.warn('Fallback: fetching activity logs offline.', err.message || err);
         const localActVal = localStorage.getItem('smartfix_activity_logs');
         if (localActVal) {
           setActivityLogs(JSON.parse(localActVal));
@@ -184,19 +184,37 @@ export default function App() {
           if (!res.ok) throw new Error();
           return res.json();
         })
-        .then((data) => {
-          setJobs(data || []);
-          localStorage.setItem('smartfix_jobs', JSON.stringify(data || []));
+        .then((data: ServiceJob[]) => {
+          const now = new Date();
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
+          const filtered = (data || []).filter((job) => {
+            if (!job.createdAt) return true;
+            const jobDate = new Date(job.createdAt);
+            return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
+          });
+          setJobs(filtered);
+          localStorage.setItem('smartfix_jobs', JSON.stringify(filtered));
         })
         .catch((err) => {
-          console.warn('Sandbox mode fallback: fetching jobs.', err.message || err);
+          console.warn('Fallback: fetching jobs offline.', err.message || err);
           const localJobsVal = localStorage.getItem('smartfix_jobs');
+          let loadedJobs: ServiceJob[] = [];
           if (localJobsVal) {
-            setJobs(JSON.parse(localJobsVal));
+            loadedJobs = JSON.parse(localJobsVal);
           } else {
-            setJobs(INITIAL_JOBS_FALLBACK);
-            localStorage.setItem('smartfix_jobs', JSON.stringify(INITIAL_JOBS_FALLBACK));
+            loadedJobs = INITIAL_JOBS_FALLBACK;
           }
+          const now = new Date();
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
+          const filtered = loadedJobs.filter((job) => {
+            if (!job.createdAt) return true;
+            const jobDate = new Date(job.createdAt);
+            return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
+          });
+          setJobs(filtered);
+          localStorage.setItem('smartfix_jobs', JSON.stringify(filtered));
         });
     };
 
@@ -212,7 +230,7 @@ export default function App() {
         localStorage.setItem('smartfix_invoices', JSON.stringify(data || []));
       })
       .catch((err) => {
-        console.warn('Sandbox mode fallback: fetching invoices.', err.message || err);
+        console.warn('Fallback: fetching invoices offline.', err.message || err);
         const localInvsVal = localStorage.getItem('smartfix_invoices');
         if (localInvsVal) {
           setInvoices(JSON.parse(localInvsVal));
@@ -234,7 +252,7 @@ export default function App() {
           localStorage.setItem('smartfix_activity_logs', JSON.stringify(data || []));
         })
         .catch((err) => {
-          console.warn('Sandbox mode fallback: fetching activity logs.', err.message || err);
+          console.warn('Fallback: fetching activity logs offline.', err.message || err);
           const localActVal = localStorage.getItem('smartfix_activity_logs');
           if (localActVal) {
             setActivityLogs(JSON.parse(localActVal));
@@ -793,7 +811,7 @@ export default function App() {
                 className={`flex items-center justify-center h-8 w-8 rounded-lg border shrink-0 cursor-pointer hover:opacity-80 active:scale-95 transition-all outline-none ${
                   dbStatus.connected ? 'border-emerald-900 bg-emerald-950/25 focus:ring-1 focus:ring-emerald-500' : 'border-amber-900 bg-amber-950/25 focus:ring-1 focus:ring-amber-500'
                 }`}
-                title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed} (Click for details)` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error} (Click for details)` : `${dbStatus.modeMessage || "Sandbox Local Mode"} (Click for details)`)}
+                title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed} (Click for details)` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error} (Click for details)` : `${dbStatus.modeMessage || "Local Offline Mode"} (Click for details)`)}
               >
                 <span className={`h-2.5 w-2.5 rounded-full ${
                   dbStatus.connected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-amber-500'
@@ -865,7 +883,7 @@ export default function App() {
                     className={`flex items-center justify-center h-9 w-9 rounded-xl border cursor-pointer hover:opacity-80 active:scale-95 transition-all outline-none ${
                       dbStatus.connected ? 'border-emerald-100 bg-emerald-50/40 text-emerald-600 focus:ring-1 focus:ring-emerald-500' : 'border-amber-100 bg-amber-50/40 text-amber-600 focus:ring-1 focus:ring-amber-500'
                     }`}
-                    title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed} (Click for details)` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error} (Click for details)` : `${dbStatus.modeMessage || "Sandbox Local Mode"} (Click for details)`)}
+                    title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed} (Click for details)` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error} (Click for details)` : `${dbStatus.modeMessage || "Local Offline Mode"} (Click for details)`)}
                   >
                     <span className={`h-2 w-2 rounded-full ${
                       dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'

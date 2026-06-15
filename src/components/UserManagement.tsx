@@ -83,7 +83,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
         setErrorMsg('');
       })
       .catch((err) => {
-        console.warn('Sandbox mode / Database offline: fetching users fallback to local storage.', err.message || err);
+        console.warn('Database offline: fetching users fallback to local storage.', err.message || err);
         const localUsers = localStorage.getItem('smartfix_users');
         if (localUsers) {
           setUsers(JSON.parse(localUsers));
@@ -189,7 +189,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
           localUsersList = localUsersList.map((u) => 
             u.id === editingUser.id ? { ...u, name: name.trim(), role, phone: phone.trim() } : u
           );
-          setSuccessMsg('User profile updated successfully (Local sandbox state updated)!');
+          setSuccessMsg('User profile updated successfully (Local storage backup updated)!');
         } else {
           const nextUser: User = {
             id: `usr-${localUsersList.length + 101 + Math.floor(Math.random()*900)}`,
@@ -199,7 +199,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
             phone: phone.trim()
           };
           localUsersList.push(nextUser);
-          setSuccessMsg('New user account created successfully (Local sandbox state updated)!');
+          setSuccessMsg('New user account created successfully (Local storage backup updated)!');
         }
 
         localStorage.setItem('smartfix_users', JSON.stringify(localUsersList));
@@ -240,7 +240,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
           localStorage.setItem('smartfix_users', JSON.stringify(updated));
           setUsers(updated);
         }
-        setSuccessMsg('User account successfully removed (Local sandbox state updated).');
+        setSuccessMsg('User account successfully removed (Local storage backup updated).');
         setConfirmDeleteUser(null);
         setTimeout(() => setSuccessMsg(''), 4000);
       });

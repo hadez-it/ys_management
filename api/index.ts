@@ -405,7 +405,23 @@ app.get("/api/jobs", async (req, res) => {
       res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
       return;
     }
-    const dbJobs = await JobModel.find().lean();
+    const now = new Date();
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
+    const minDateString = startOfLastMonth.toISOString();
+    const maxDateString = endOfNextMonth.toISOString();
+
+    const dbJobs = await JobModel.find({
+      $or: [
+        {
+          createdAt: {
+            $gte: minDateString,
+            $lte: maxDateString
+          }
+        },
+        { createdAt: { $exists: false } }
+      ]
+    } as any).lean();
     res.json(dbJobs);
   } catch (err: any) {
     res.status(500).json({ error: err.message });

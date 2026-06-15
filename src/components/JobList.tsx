@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Search,
   Wrench,
@@ -45,9 +46,72 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'upcoming' | 'repairing' | 'completed'>('upcoming');
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
   const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
   
   const [tempRemark, setTempRemark] = useState('');
+
+  const tabIndexMap = {
+    upcoming: 0,
+    repairing: 1,
+    completed: 2
+  };
+
+  const handleTabChange = (newTab: 'upcoming' | 'repairing' | 'completed') => {
+    if (newTab === activeTab) return;
+    const currentIdx = tabIndexMap[activeTab];
+    const newIdx = tabIndexMap[newTab];
+    setSlideDirection(newIdx > currentIdx ? 'right' : 'left');
+    setActiveTab(newTab);
+  };
+
+  // Mobile Swipe Gesture Event Handlers
+  const touchStartXRef = React.useRef<number | null>(null);
+  const touchStartYRef = React.useRef<number | null>(null);
+
+  const handleSwipeTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartXRef.current = touch.clientX;
+    touchStartYRef.current = touch.clientY;
+  };
+
+  const handleSwipeTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
+
+    const touch = e.changedTouches[0];
+    const diffX = touch.clientX - touchStartXRef.current;
+    const diffY = touch.clientY - touchStartYRef.current;
+
+    // Reset touch trackers
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+
+    // Minimum distance required for registering a swipe gesture (in pixels)
+    const minSwipeDistance = 65;
+
+    // Verify horizontal movement was dominant (avoid trigger on simple vertical scroll operations)
+    if (Math.abs(diffX) > minSwipeDistance && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+      if (diffX > 0) {
+        // Swiped Right -> Navigates to previous tab (direction is leftwards transition)
+        if (activeTab === 'completed') {
+          setSlideDirection('left');
+          setActiveTab('repairing');
+        } else if (activeTab === 'repairing') {
+          setSlideDirection('left');
+          setActiveTab('upcoming');
+        }
+      } else {
+        // Swiped Left -> Navigates to next tab (direction is rightwards transition)
+        if (activeTab === 'upcoming') {
+          setSlideDirection('right');
+          setActiveTab('repairing');
+        } else if (activeTab === 'repairing') {
+          setSlideDirection('right');
+          setActiveTab('completed');
+        }
+      }
+    }
+  };
 
   // Technician inputs during repair
   const [diagnosedProblem, setDiagnosedProblem] = useState('');
@@ -433,14 +497,14 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
         <div className="flex border-b border-gray-100 -mx-5 px-5 select-none overflow-x-auto scrollbar-none gap-6 shrink-0">
           <button
             type="button"
-            onClick={() => setActiveTab('upcoming')}
+            onClick={() => handleTabChange('upcoming')}
             className={`flex items-center gap-2 pb-3 pt-1 text-xs font-bold tracking-wide uppercase border-b-2 transition-all cursor-pointer whitespace-nowrap focus:outline-none ${
               activeTab === 'upcoming'
                 ? 'border-indigo-600 text-indigo-600'
                 : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
-            Upcoming Ticket
+            Upcoming
             <span className={`text-[9px] px-2 py-0.5 rounded-full font-sans font-extrabold ${
               activeTab === 'upcoming' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
             }`}>
@@ -450,7 +514,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
           
           <button
             type="button"
-            onClick={() => setActiveTab('repairing')}
+            onClick={() => handleTabChange('repairing')}
             className={`flex items-center gap-2 pb-3 pt-1 text-xs font-bold tracking-wide uppercase border-b-2 transition-all cursor-pointer whitespace-nowrap focus:outline-none ${
               activeTab === 'repairing'
                 ? 'border-amber-600 text-amber-600'
@@ -467,7 +531,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
           
           <button
             type="button"
-            onClick={() => setActiveTab('completed')}
+            onClick={() => handleTabChange('completed')}
             className={`flex items-center gap-2 pb-3 pt-1 text-xs font-bold tracking-wide uppercase border-b-2 transition-all cursor-pointer whitespace-nowrap focus:outline-none ${
               activeTab === 'completed'
                 ? 'border-emerald-600 text-emerald-600'
@@ -485,163 +549,195 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
       </div>
 
       {/* Categories divided full-width list */}
-      <div className="space-y-6" id="job-cards-list">
-        {filteredJobs.length === 0 ? (
-          <div className="bg-white border border-gray-100 p-16 text-center rounded-2xl shadow-xs" id="no-jobs-visual">
-            <Clock className="h-10 w-10 text-gray-300 mx-auto" />
-            <p className="text-xs font-bold text-gray-500 mt-3.5">No Service Jobs Found</p>
-            <p className="text-[11px] text-gray-400 mt-1 max-w-xs mx-auto">
-              We couldn't find any queues matching your search. Try adjusting your search keywords.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* 1. Overdue Section */}
-            {overdueJobs.length > 0 && (
-              <div className="bg-rose-50/10 border border-rose-200 p-5 rounded-3xl space-y-4">
-                <div className="flex items-center justify-between select-none pb-2.5 border-b border-rose-100/50">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-                    <span className="text-xs font-bold text-rose-800 uppercase tracking-wider font-sans">Overdue</span>
-                  </div>
-                  <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2.5 py-0.5 rounded-lg">
-                    {overdueJobs.length} ticket{overdueJobs.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="space-y-5 divide-y divide-rose-200/50">
-                  {getSortedDateGroups(groupJobsByDateString(overdueJobs)).map(([dateKey, jobsForDate], idx) => (
-                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
-                      <div className="flex items-center gap-1.5 px-0.5">
-                        <span className="text-[10px] font-extrabold text-rose-800 bg-rose-100/60 px-2.5 py-0.5 rounded-lg border border-rose-200/50 font-mono tracking-wide">
-                          📅 {dateKey}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {jobsForDate.map((job) => renderJobCard(job))}
-                      </div>
-                    </div>
-                  ))}
+      <div className="relative overflow-hidden w-full min-h-[450px]" id="job-cards-list-animation-viewport">
+        <AnimatePresence mode="wait" custom={slideDirection}>
+          <motion.div
+            key={activeTab}
+            custom={slideDirection}
+            variants={{
+              enter: (direction: 'left' | 'right') => ({
+                x: direction === 'right' ? 120 : -120,
+                opacity: 0,
+              }),
+              center: {
+                x: 0,
+                opacity: 1,
+              },
+              exit: (direction: 'left' | 'right') => ({
+                x: direction === 'right' ? -120 : 120,
+                opacity: 0,
+              }),
+            }}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            onTouchStart={handleSwipeTouchStart}
+            onTouchEnd={handleSwipeTouchEnd}
+            className="w-full space-y-6 min-h-[450px] select-none"
+            id="job-cards-list"
+          >
+            {tabFilteredJobs.length === 0 ? (
+              <div className="bg-white border border-gray-100 p-16 text-center rounded-2xl shadow-xs min-h-[350px] flex flex-col items-center justify-center select-none" id="no-jobs-visual">
+                <Clock className="h-10 w-10 text-gray-300 mx-auto animate-pulse" />
+                <p className="text-xs font-bold text-gray-500 mt-3.5 uppercase tracking-wider">No Tickets in this tab</p>
+                <p className="text-[11px] text-gray-400 mt-1 max-w-xs mx-auto leading-relaxed">
+                  {searchQuery ? "No queues match your search query." : "There are currently no tickets assigned under this tab."}
+                </p>
+                <div className="mt-4 flex gap-2 text-[10px] bg-indigo-50 border border-indigo-100/50 rounded-xl px-3 py-1.5 text-indigo-700 font-bold font-sans">
+                  <span>👉 Swipe left or right to switch tabs</span>
                 </div>
               </div>
-            )}
+            ) : (
+              <div className="space-y-6">
+                {/* 1. Overdue Section */}
+                {overdueJobs.length > 0 && (
+                  <div className="bg-rose-50/10 border border-rose-200 p-5 rounded-3xl space-y-4">
+                    <div className="flex items-center justify-between select-none pb-2.5 border-b border-rose-100/50">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                        <span className="text-xs font-bold text-rose-800 uppercase tracking-wider font-sans">Overdue</span>
+                      </div>
+                      <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2.5 py-0.5 rounded-lg">
+                        {overdueJobs.length} ticket{overdueJobs.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="space-y-5 divide-y divide-rose-200/50">
+                      {getSortedDateGroups(groupJobsByDateString(overdueJobs)).map(([dateKey, jobsForDate], idx) => (
+                        <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                          <div className="flex items-center gap-1.5 px-0.5">
+                            <span className="text-[10px] font-extrabold text-rose-800 bg-rose-100/60 px-2.5 py-0.5 rounded-lg border border-rose-200/50 font-mono tracking-wide">
+                              📅 {dateKey}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {jobsForDate.map((job) => renderJobCard(job))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* 2. Today Section */}
-            {todayJobs.length > 0 && (
-              <div className="bg-blue-50/5 border border-blue-100/80 p-4 rounded-3xl space-y-4">
-                <div className="flex items-center justify-between select-none pb-2.5 border-b border-blue-100/40">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-                    <span className="text-xs font-bold text-blue-800 uppercase tracking-wider font-sans">Today</span>
-                  </div>
-                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2.5 py-0.5 rounded-lg">
-                    {todayJobs.length} ticket{todayJobs.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="space-y-5 divide-y divide-blue-200/50">
-                  {getSortedDateGroups(groupJobsByDateString(todayJobs)).map(([dateKey, jobsForDate], idx) => (
-                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
-                      <div className="flex items-center gap-1.5 px-0.5">
-                        <span className="text-[10px] font-extrabold text-blue-800 bg-blue-100/60 px-2.5 py-0.5 rounded-lg border border-blue-200/50 font-mono tracking-wide">
-                          📅 {dateKey}
-                        </span>
+                {/* 2. Today Section */}
+                {todayJobs.length > 0 && (
+                  <div className="bg-blue-50/5 border border-blue-100/80 p-4 rounded-3xl space-y-4">
+                    <div className="flex items-center justify-between select-none pb-2.5 border-b border-blue-100/40">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                        <span className="text-xs font-bold text-blue-800 uppercase tracking-wider font-sans">Today</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {jobsForDate.map((job) => renderJobCard(job))}
-                      </div>
+                      <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2.5 py-0.5 rounded-lg">
+                        {todayJobs.length} ticket{todayJobs.length > 1 ? 's' : ''}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    <div className="space-y-5 divide-y divide-blue-200/50">
+                      {getSortedDateGroups(groupJobsByDateString(todayJobs)).map(([dateKey, jobsForDate], idx) => (
+                        <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                          <div className="flex items-center gap-1.5 px-0.5">
+                            <span className="text-[10px] font-extrabold text-blue-800 bg-blue-100/60 px-2.5 py-0.5 rounded-lg border border-blue-200/50 font-mono tracking-wide">
+                              📅 {dateKey}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {jobsForDate.map((job) => renderJobCard(job))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* 3. Tomorrow Section */}
-            {tomorrowJobs.length > 0 && (
-              <div className="bg-amber-50/5 border border-amber-100/70 p-4 rounded-3xl space-y-4">
-                <div className="flex items-center justify-between select-none pb-2.5 border-b border-amber-100/40">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider font-sans">Tomorrow</span>
-                  </div>
-                  <span className="text-[10px] bg-amber-150-adjusted-bg bg-amber-100 text-amber-900 font-bold px-2.5 py-0.5 rounded-lg">
-                    {tomorrowJobs.length} ticket{tomorrowJobs.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="space-y-5 divide-y divide-amber-200/50">
-                  {getSortedDateGroups(groupJobsByDateString(tomorrowJobs)).map(([dateKey, jobsForDate], idx) => (
-                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
-                      <div className="flex items-center gap-1.5 px-0.5">
-                        <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100/60 px-2.5 py-0.5 rounded-lg border border-amber-200/50 font-mono tracking-wide">
-                          📅 {dateKey}
-                        </span>
+                {/* 3. Tomorrow Section */}
+                {tomorrowJobs.length > 0 && (
+                  <div className="bg-amber-50/5 border border-amber-100/70 p-4 rounded-3xl space-y-4">
+                    <div className="flex items-center justify-between select-none pb-2.5 border-b border-amber-100/40">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                        <span className="text-xs font-bold text-amber-800 uppercase tracking-wider font-sans">Tomorrow</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {jobsForDate.map((job) => renderJobCard(job))}
-                      </div>
+                      <span className="text-[10px] bg-amber-150-adjusted-bg bg-amber-100 text-amber-900 font-bold px-2.5 py-0.5 rounded-lg">
+                        {tomorrowJobs.length} ticket{tomorrowJobs.length > 1 ? 's' : ''}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    <div className="space-y-5 divide-y divide-amber-200/50">
+                      {getSortedDateGroups(groupJobsByDateString(tomorrowJobs)).map(([dateKey, jobsForDate], idx) => (
+                        <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                          <div className="flex items-center gap-1.5 px-0.5">
+                            <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100/60 px-2.5 py-0.5 rounded-lg border border-amber-200/50 font-mono tracking-wide">
+                              📅 {dateKey}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {jobsForDate.map((job) => renderJobCard(job))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* 4. Upcoming / Later Section */}
-            {upcomingJobs.length > 0 && (
-              <div className="bg-slate-50/5 border border-slate-200 p-4 rounded-3xl space-y-4">
-                <div className="flex items-center justify-between select-none pb-2.5 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider font-sans">Upcoming Tasks</span>
-                  </div>
-                  <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded-lg">
-                    {upcomingJobs.length} ticket{upcomingJobs.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="space-y-5 divide-y divide-slate-200/50">
-                  {getSortedDateGroups(groupJobsByDateString(upcomingJobs)).map(([dateKey, jobsForDate], idx) => (
-                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
-                      <div className="flex items-center gap-1.5 px-0.5">
-                        <span className="text-[10px] font-extrabold text-slate-700 bg-slate-100/80 px-2.5 py-0.5 rounded-lg border border-slate-200/60 font-mono tracking-wide">
-                          📅 {dateKey}
-                        </span>
+                {/* 4. Upcoming / Later Section */}
+                {upcomingJobs.length > 0 && (
+                  <div className="bg-slate-50/5 border border-slate-200 p-4 rounded-3xl space-y-4">
+                    <div className="flex items-center justify-between select-none pb-2.5 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider font-sans">Upcoming</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {jobsForDate.map((job) => renderJobCard(job))}
-                      </div>
+                      <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded-lg">
+                        {upcomingJobs.length} ticket{upcomingJobs.length > 1 ? 's' : ''}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    <div className="space-y-5 divide-y divide-slate-200/50">
+                      {getSortedDateGroups(groupJobsByDateString(upcomingJobs)).map(([dateKey, jobsForDate], idx) => (
+                        <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                          <div className="flex items-center gap-1.5 px-0.5">
+                            <span className="text-[10px] font-extrabold text-slate-700 bg-slate-100/80 px-2.5 py-0.5 rounded-lg border border-slate-200/60 font-mono tracking-wide">
+                              📅 {dateKey}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {jobsForDate.map((job) => renderJobCard(job))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* 5. Closed Archive Section */}
-            {archiveJobs.length > 0 && (
-              <div className="bg-gray-50/10 border border-gray-200/80 p-4 rounded-3xl space-y-4">
-                <div className="flex items-center justify-between select-none pb-2.5 border-b border-gray-200/50">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
-                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider font-sans">Completed / Closed Archive</span>
-                  </div>
-                  <span className="text-[10px] bg-gray-100 text-gray-600 font-medium px-2.5 py-0.5 rounded-lg">
-                    {archiveJobs.length} ticket{archiveJobs.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="space-y-5 divide-y divide-gray-200">
-                  {getSortedDateGroups(groupJobsByDateString(archiveJobs)).map(([dateKey, jobsForDate], idx) => (
-                    <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
-                      <div className="flex items-center gap-1.5 px-0.5">
-                        <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-lg border border-gray-200/60 font-mono tracking-wide">
-                          📅 {dateKey}
-                        </span>
+                {/* 5. Closed Archive Section */}
+                {archiveJobs.length > 0 && (
+                  <div className="bg-gray-50/10 border border-gray-200/80 p-4 rounded-3xl space-y-4">
+                    <div className="flex items-center justify-between select-none pb-2.5 border-b border-gray-200/50">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+                        <span className="text-xs font-bold text-gray-600 uppercase tracking-wider font-sans">Completed / Closed Archive</span>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {jobsForDate.map((job) => renderJobCard(job))}
-                      </div>
+                      <span className="text-[10px] bg-gray-100 text-gray-650 font-medium px-2.5 py-0.5 rounded-lg">
+                        {archiveJobs.length} ticket{archiveJobs.length > 1 ? 's' : ''}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                    <div className="space-y-5 divide-y divide-gray-200">
+                      {getSortedDateGroups(groupJobsByDateString(archiveJobs)).map(([dateKey, jobsForDate], idx) => (
+                        <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
+                          <div className="flex items-center gap-1.5 px-0.5">
+                            <span className="text-[10px] font-bold text-gray-655 bg-gray-100 px-2.5 py-0.5 rounded-lg border border-gray-200/60 font-mono tracking-wide">
+                              📅 {dateKey}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {jobsForDate.map((job) => renderJobCard(job))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* JOBS DETAILS MODAL OVERLAY (POPUP) */}
