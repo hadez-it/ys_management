@@ -323,6 +323,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
 
   const renderJobCard = (job: ServiceJob) => {
     const isSelected = job.id === selectedJobId && isModalOpen;
+    const isOverdueAndUpcoming = activeTab === 'upcoming' && getJobCategory(job) === 'Overdue';
+    
     return (
       <div
         key={job.id}
@@ -346,6 +348,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
         className={`p-4 border rounded-xl cursor-pointer text-left transition-all duration-200 relative overflow-hidden group select-none ${
           isSelected
             ? 'border-blue-500 bg-blue-50/20 shadow-xs'
+            : isOverdueAndUpcoming
+            ? 'border-rose-300 bg-rose-50/25 hover:border-rose-400 hover:shadow-md hover:shadow-rose-100/40'
             : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-md'
         }`}
       >
@@ -353,12 +357,21 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
         {isSelected && (
           <div className="absolute top-0 bottom-0 left-0 w-1 bg-blue-600" />
         )}
+        {/* Overdue marker left border when not selected */}
+        {!isSelected && isOverdueAndUpcoming && (
+          <div className="absolute top-0 bottom-0 left-0 w-1 bg-rose-500" />
+        )}
 
         <div className="flex items-start justify-between gap-2.5">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] font-black font-mono tracking-wider text-slate-900">
               {job.id}
             </span>
+            {isOverdueAndUpcoming && (
+              <span className="text-[9px] font-black uppercase tracking-wider bg-rose-600 text-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border border-rose-700 animate-pulse">
+                ⏰ OVERDUE
+              </span>
+            )}
             {job.status === 'Completed' ? (
               <span className="text-[10px] font-bold font-sans bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200/60 select-none">
                 Priority: None
@@ -375,7 +388,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
         </div>
 
         <div className="mt-1.5">
-          <h4 className="text-xs font-bold text-gray-955 tracking-tight group-hover:text-blue-700 transition-colors">
+          <h4 className={`text-xs font-bold tracking-tight transition-colors ${isOverdueAndUpcoming ? 'text-rose-950 group-hover:text-rose-700 font-extrabold' : 'text-gray-955 group-hover:text-blue-700'}`}>
             {job.customerName}
           </h4>
           <p className="text-[11px] text-gray-500 font-sans mt-0.5 flex items-center gap-1">
@@ -383,14 +396,14 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
           </p>
         </div>
 
-        <div className="mt-2 text-xs bg-gray-50 p-2 rounded-lg text-gray-600 line-clamp-2 leading-relaxed flex items-start gap-1.5">
+        <div className="mt-2 text-xs bg-gray-50 p-2 rounded-lg text-gray-650 line-clamp-2 leading-relaxed flex items-start gap-1.5">
           <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400 mt-0.5" />
           <span>{job.locationText}</span>
         </div>
 
         <div className="mt-3 flex items-center justify-between border-t border-gray-100/50 pt-2 text-[10px] text-gray-400">
-          <div className="flex items-center gap-1 font-medium text-gray-500">
-            <Calendar className="h-3.5 w-3.5 shrink-0 text-blue-500" /> {formatDateTime(job.dateTime)}
+          <div className={`flex items-center gap-1 font-medium ${isOverdueAndUpcoming ? 'text-rose-650 font-extrabold bg-rose-50 border border-rose-100 rounded px-1.5 py-0.5' : 'text-gray-500'}`}>
+            <Calendar className={`h-3.5 w-3.5 shrink-0 ${isOverdueAndUpcoming ? 'text-rose-500 animate-pulse' : 'text-blue-500'}`} /> {formatDateTime(job.dateTime)}
           </div>
           {getStatusBadge(job.status)}
         </div>
