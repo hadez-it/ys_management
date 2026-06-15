@@ -296,9 +296,6 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
               <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5" htmlFor="appointment-time-select">
                 <Calendar className="h-3.5 w-3.5 text-gray-400" /> Time Slot <span className="text-gray-400 text-[10px] font-normal font-sans ml-1">(Optional)</span>
               </label>
-              <span className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full border border-blue-100 font-mono">
-                10:00 AM - 4:00 PM Only
-              </span>
             </div>
             
             <div className="relative">
