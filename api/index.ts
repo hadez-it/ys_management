@@ -847,37 +847,57 @@ app.post("/api/parse-ticket", async (req, res) => {
 
     const prompt = `Please extract the service ticket specifications from the following raw text:\n---\n${rawText}\n---`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            customerName: { type: Type.STRING },
-            customerPhone: { type: Type.STRING },
-            deviceType: { type: Type.STRING },
-            deviceIssue: { type: Type.STRING },
-            locationText: { type: Type.STRING },
-            urgency: { type: Type.STRING },
-            selectedDate: { type: Type.STRING },
-            selectedTime: { type: Type.STRING }
-          },
-          required: [
-            "customerName",
-            "customerPhone",
-            "deviceType",
-            "deviceIssue",
-            "locationText",
-            "urgency",
-            "selectedDate",
-            "selectedTime"
-          ]
+    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+    let response: any = null;
+    let lastError: any = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Attempting ticket parse using GenAI model: ${modelName}`);
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                customerName: { type: Type.STRING },
+                customerPhone: { type: Type.STRING },
+                deviceType: { type: Type.STRING },
+                deviceIssue: { type: Type.STRING },
+                locationText: { type: Type.STRING },
+                urgency: { type: Type.STRING },
+                selectedDate: { type: Type.STRING },
+                selectedTime: { type: Type.STRING }
+              },
+              required: [
+                "customerName",
+                "customerPhone",
+                "deviceType",
+                "deviceIssue",
+                "locationText",
+                "urgency",
+                "selectedDate",
+                "selectedTime"
+              ]
+            }
+          }
+        });
+        if (response && response.text) {
+          console.log(`Successfully parsed ticket info using GenAI model: ${modelName}`);
+          break;
         }
+      } catch (err: any) {
+        console.warn(`GenAI model ${modelName} failed or encountered high demand. Error: ${err.message || err}`);
+        lastError = err;
       }
-    });
+    }
+
+    if (!response) {
+      throw new Error(`AI Parsing Failed on all attempted models. Last error: ${lastError?.message || lastError}`);
+    }
 
     const resultText = response.text;
     if (!resultText) {
