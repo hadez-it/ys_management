@@ -244,7 +244,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
       job.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.customerPhone.includes(searchQuery) ||
       (job.deviceModel || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.id.toLowerCase().includes(searchQuery.toLowerCase())
+      job.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (job.locationText || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
@@ -512,7 +513,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
               id="job-list-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, phone, or ticket..."
+              placeholder="Search by name, phone, ticket, or location..."
               className="w-full bg-gray-50 border border-gray-100 pl-9 pr-3 py-2.5 rounded-xl text-xs focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-500 transition-all font-sans"
             />
           </div>
