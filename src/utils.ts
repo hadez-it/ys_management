@@ -22,6 +22,7 @@ export function formatDateTime(dateString: string): string {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
+        timeZone: 'Asia/Yangon',
       }) + ' (No specific time)';
     }
   }
@@ -35,6 +36,7 @@ export function formatDateTime(dateString: string): string {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
+        timeZone: 'Asia/Yangon',
       }) + ' (No specific time)';
     }
     return dateString;
@@ -47,6 +49,7 @@ export function formatDateTime(dateString: string): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
+    timeZone: 'Asia/Yangon',
   });
 }
 

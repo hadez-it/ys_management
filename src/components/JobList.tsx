@@ -309,20 +309,28 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
     try {
       const now = new Date();
       const jobDate = new Date(job.dateTime);
+      if (isNaN(jobDate.getTime())) {
+        return 'Upcoming';
+      }
       
-      const todayYear = now.getFullYear();
-      const todayMonth = now.getMonth();
-      const todayDate = now.getDate();
+      // Permanent timezone shift for Asia/Yangon (+06:30)
+      const yangonOffsetMs = 6.5 * 60 * 60 * 1000;
+      const tNow = now.getTime() + yangonOffsetMs;
+      const tJob = jobDate.getTime() + yangonOffsetMs;
+
+      const dNow = new Date(tNow);
+      const dJob = new Date(tJob);
+
+      const nowMidnightYangon = Date.UTC(dNow.getUTCFullYear(), dNow.getUTCMonth(), dNow.getUTCDate());
+      const jobMidnightYangon = Date.UTC(dJob.getUTCFullYear(), dJob.getUTCMonth(), dJob.getUTCDate());
+
+      const diffDays = Math.round((jobMidnightYangon - nowMidnightYangon) / (24 * 60 * 60 * 1000));
       
-      const midnightToday = new Date(todayYear, todayMonth, todayDate);
-      const midnightTomorrow = new Date(todayYear, todayMonth, todayDate + 1);
-      const midnightDayAfterTomorrow = new Date(todayYear, todayMonth, todayDate + 2);
-      
-      if (jobDate < midnightToday) {
+      if (diffDays < 0) {
         return 'Overdue';
-      } else if (jobDate >= midnightToday && jobDate < midnightTomorrow) {
+      } else if (diffDays === 0) {
         return 'Today';
-      } else if (jobDate >= midnightTomorrow && jobDate < midnightDayAfterTomorrow) {
+      } else if (diffDays === 1) {
         return 'Tomorrow';
       } else {
         return 'Upcoming';
@@ -359,7 +367,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
               weekday: 'long',
               year: 'numeric',
               month: 'long',
-              day: 'numeric'
+              day: 'numeric',
+              timeZone: 'Asia/Yangon'
             })
           : 'Other Date';
         if (!groups[dateKey]) {
@@ -911,7 +920,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                         month: 'short',
                         day: 'numeric',
                         hour: '2-digit',
-                        minute: '2-digit'
+                        minute: '2-digit',
+                        timeZone: 'Asia/Yangon'
                       }) : '-';
                       return (
                         <div key={idx} className="bg-white p-2.5 rounded-lg border border-gray-100 space-y-1">
@@ -1066,8 +1076,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                       <button
                         type="button"
                         onClick={() => {
-                          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                          const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+                          const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Yangon' });
+                          const datePrefix = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Yangon' });
                           const text = `[${datePrefix} ${timestamp}] Unreachable: Busy / No Answer`;
                           const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
                           onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
@@ -1080,8 +1090,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                       <button
                         type="button"
                         onClick={() => {
-                          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                          const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+                          const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Yangon' });
+                          const datePrefix = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Yangon' });
                           const text = `[${datePrefix} ${timestamp}] Unreachable: Switched Off`;
                           const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
                           onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
@@ -1094,8 +1104,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                       <button
                         type="button"
                         onClick={() => {
-                          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                          const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+                          const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Yangon' });
+                          const datePrefix = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Yangon' });
                           const text = `[${datePrefix} ${timestamp}] Site Unreachable: Customer Closed / Away`;
                           const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
                           onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
@@ -1120,8 +1130,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                         type="button"
                         onClick={() => {
                           if (!tempRemark.trim()) return;
-                          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                          const datePrefix = new Date().toLocaleDateString([], { month: 'short', day: 'numeric' });
+                          const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Yangon' });
+                          const datePrefix = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Yangon' });
                           const text = `[${datePrefix} ${timestamp}] ${tempRemark.trim()}`;
                           const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
                           onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);

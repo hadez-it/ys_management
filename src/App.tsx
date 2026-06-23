@@ -1038,7 +1038,8 @@ export default function App() {
                                 day: 'numeric',
                                 hour: '2-digit',
                                 minute: '2-digit',
-                                second: '2-digit'
+                                second: '2-digit',
+                                timeZone: 'Asia/Yangon'
                               }) : '-';
 
                               let badgeBg = 'bg-slate-100 text-slate-700 border-slate-200';

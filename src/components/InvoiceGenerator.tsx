@@ -428,7 +428,7 @@ export default function InvoiceGenerator({ job, onSaveInvoice, onCancel }: Invoi
             <div className="text-right space-y-1">
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Receipt No.</p>
               <p className="font-bold text-gray-800 font-mono leading-none">INV-(DRAFT)</p>
-              <p className="text-gray-400 text-[10px] pr-0.5 mt-1">{new Date().toLocaleDateString()}</p>
+              <p className="text-gray-400 text-[10px] pr-0.5 mt-1">{new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Yangon' })}</p>
             </div>
           </div>
 
