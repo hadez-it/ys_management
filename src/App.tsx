@@ -42,7 +42,7 @@ export default function App() {
   // User Session Management
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
-      const cached = sessionStorage.getItem('smartfix_current_user');
+      const cached = localStorage.getItem('smartfix_current_user');
       return cached ? JSON.parse(cached) : null;
     } catch (_) {
       return null;
@@ -52,14 +52,14 @@ export default function App() {
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
     try {
-      sessionStorage.setItem('smartfix_current_user', JSON.stringify(user));
+      localStorage.setItem('smartfix_current_user', JSON.stringify(user));
     } catch (_) {}
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     try {
-      sessionStorage.removeItem('smartfix_current_user');
+      localStorage.removeItem('smartfix_current_user');
     } catch (_) {}
   };
 

@@ -95,14 +95,14 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
       let token = '';
       let username = 'system';
       try {
-        const cached = sessionStorage.getItem('smartfix_current_user');
+        const cached = localStorage.getItem('smartfix_current_user');
         if (cached) {
           const userObj = JSON.parse(cached);
           token = userObj?.token || '';
           username = userObj?.username || 'system';
         }
       } catch (e) {
-        console.error('Error fetching user from session storage:', e);
+        console.error('Error fetching user from local storage:', e);
       }
 
       const headers: Record<string, string> = {
