@@ -308,21 +308,37 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
 
     try {
       const now = new Date();
-      const jobDate = new Date(job.dateTime);
+      
+      let cleanJobDateTime = job.dateTime || '';
+      if (cleanJobDateTime.includes('none') || cleanJobDateTime.endsWith('T') || cleanJobDateTime.includes('Tnone')) {
+        cleanJobDateTime = cleanJobDateTime.split('T')[0];
+      }
+      
+      let jobDate = new Date(cleanJobDateTime);
+      if (isNaN(jobDate.getTime())) {
+        const datePart = cleanJobDateTime.split('T')[0];
+        jobDate = new Date(datePart);
+      }
+
       if (isNaN(jobDate.getTime())) {
         return 'Upcoming';
       }
-      
-      // Permanent timezone shift for Asia/Yangon (+06:30)
-      const yangonOffsetMs = 6.5 * 60 * 60 * 1000;
-      const tNow = now.getTime() + yangonOffsetMs;
-      const tJob = jobDate.getTime() + yangonOffsetMs;
 
-      const dNow = new Date(tNow);
-      const dJob = new Date(tJob);
+      // Format both 'now' and 'jobDate' in Asia/Yangon region
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Yangon',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+      });
 
-      const nowMidnightYangon = Date.UTC(dNow.getUTCFullYear(), dNow.getUTCMonth(), dNow.getUTCDate());
-      const jobMidnightYangon = Date.UTC(dJob.getUTCFullYear(), dJob.getUTCMonth(), dJob.getUTCDate());
+      const nowYangonStr = formatter.format(now);
+      const [nowM, nowD, nowY] = nowYangonStr.split('/').map(Number);
+      const nowMidnightYangon = Date.UTC(nowY, nowM - 1, nowD);
+
+      const jobYangonStr = formatter.format(jobDate);
+      const [jobM, jobD, jobY] = jobYangonStr.split('/').map(Number);
+      const jobMidnightYangon = Date.UTC(jobY, jobM - 1, jobD);
 
       const diffDays = Math.round((jobMidnightYangon - nowMidnightYangon) / (24 * 60 * 60 * 1000));
       
