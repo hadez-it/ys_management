@@ -1019,69 +1019,76 @@ export default function App() {
                         <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Audit trail of ticket creations, completions, cancellations, and deletions</p>
                       </div>
 
-                      <div className="border border-slate-200 rounded-xl overflow-x-auto" id="deleted-jobs-register">
-                        <table className="w-full text-xs text-left">
-                          <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 select-none">
-                            <tr>
-                              <th className="p-4">Timestamp</th>
-                              <th className="p-4">Ticket Ref</th>
-                              <th className="p-4">Operator</th>
-                              <th className="p-4">Event Action</th>
-                              <th className="p-4">Customer Details</th>
-                              <th className="p-4">Activity Log Details</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 font-sans">
-                            {activityLogs.map((log) => {
-                              const dateText = log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit',
-                                timeZone: 'Asia/Yangon'
-                              }) : '-';
+                      {/* Developer-style Console / Terminal container */}
+                      <div className="rounded-xl overflow-hidden border border-slate-950 shadow-lg text-slate-200 font-mono text-[11px] md:text-xs">
+                        {/* Terminal Header */}
+                        <div className="bg-slate-900 px-4 py-2.5 flex items-center justify-between select-none border-b border-slate-950">
+                          <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full bg-[#ff5f56] inline-block shadow-inner" />
+                            <span className="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block shadow-inner" />
+                            <span className="w-3 h-3 rounded-full bg-[#27c93f] inline-block shadow-inner" />
+                            <span className="text-slate-400 text-[11px] font-semibold pl-2 tracking-wide font-mono">system.log — bash</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Asia/Yangon Timezone</span>
+                        </div>
 
-                              let badgeBg = 'bg-slate-100 text-slate-700 border-slate-200';
-                              if (log.actionType === 'Created') badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-                              if (log.actionType === 'Completed') badgeBg = 'bg-purple-50 text-purple-700 border-purple-100';
-                              if (log.actionType === 'Canceled' || log.actionType === 'Cancelled') badgeBg = 'bg-amber-50 text-amber-700 border-amber-100';
-                              if (log.actionType === 'Deleted') badgeBg = 'bg-rose-50 text-rose-700 border-rose-100';
-                              if (log.actionType === 'Updated' || log.actionType === 'Updated Status') badgeBg = 'bg-sky-50 text-sky-700 border-sky-100';
+                        {/* Terminal Log Output Body */}
+                        <div className="bg-slate-950 p-4 min-h-[350px] max-h-[550px] overflow-y-auto space-y-2 select-text custom-scrollbar">
+                          {activityLogs.map((log) => {
+                            const dateText = log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                              hour12: false,
+                              timeZone: 'Asia/Yangon',
+                            }) : '-';
+                            
+                            let level = 'INFO';
+                            let levelColor = 'text-sky-400 font-bold';
+                            if (log.actionType === 'Deleted') {
+                              level = 'FATAL';
+                              levelColor = 'text-rose-500 font-semibold';
+                            } else if (log.actionType === 'Canceled' || log.actionType === 'Cancelled') {
+                              level = 'WARN ';
+                              levelColor = 'text-amber-500 font-semibold';
+                            } else if (log.actionType === 'Completed') {
+                              level = 'DONE ';
+                              levelColor = 'text-emerald-400 font-semibold';
+                            } else if (log.actionType === 'Created') {
+                              level = 'NEW  ';
+                              levelColor = 'text-lime-400 font-semibold';
+                            }
 
-                              return (
-                                <tr key={log.id || ('log-' + Math.random())} className="hover:bg-slate-50/50">
-                                  <td className="p-4 font-semibold text-slate-500 font-mono whitespace-nowrap">{dateText}</td>
-                                  <td className="p-4 font-mono font-bold text-slate-700">{log.jobId}</td>
-                                  <td className="p-4 font-bold text-slate-800 whitespace-nowrap">
-                                    <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200/60 lowercase">@{log.username || 'system'}</span>
-                                  </td>
-                                  <td className="p-4 whitespace-nowrap">
-                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${badgeBg}`}>
-                                      {log.actionType}
+                            return (
+                              <div key={log.id || ('log-' + Math.random())} className="hover:bg-slate-900/60 py-0.5 px-2 rounded-md flex flex-col md:flex-row md:items-start gap-1 select-text transition-colors duration-150">
+                                <span className="text-slate-500 shrink-0 font-medium">[{dateText}]</span>
+                                <span className={`shrink-0 ${levelColor}`}>[{level}]</span>
+                                <span className="text-indigo-400 shrink-0">@{log.username || 'system'}</span>
+                                <div className="flex-1 md:pl-1 text-slate-300">
+                                  <span className="text-zinc-400 font-medium uppercase text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800/40 mr-1.5 shrink-0 inline-block align-middle">{log.actionType}</span>
+                                  <span className="text-amber-300 font-bold mr-1.5">[TICKET #{log.jobId}]</span>
+                                  {log.customerName && (
+                                    <span className="text-slate-100 font-semibold mr-1">
+                                      {log.customerName} ({log.deviceType || 'Device'}) &raquo;
                                     </span>
-                                  </td>
-                                  <td className="p-4">
-                                    <p className="font-bold text-slate-900">{log.customerName || 'N/A'}</p>
-                                    <p className="text-[10px] text-slate-400 font-mono italic">{log.deviceType || 'Unknown Device'}</p>
-                                  </td>
-                                  <td className="p-4">
-                                    <p className="text-slate-600 leading-relaxed max-w-sm select-text font-normal">
-                                      {log.details || 'No additional activity notes provided.'}
-                                    </p>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                            {activityLogs.length === 0 && (
-                              <tr>
-                                <td colSpan={6} className="py-12 text-center text-slate-400 italic font-medium">
-                                  No recorded activity logs found. Try performing actions such as creating, updating, or deleting tickets.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                                  )}
+                                  <span className="text-slate-400 font-normal italic select-text pl-1">
+                                    {log.details || 'No additional activity notes provided.'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {activityLogs.length === 0 && (
+                            <div className="py-20 text-center text-slate-500 italic select-none">
+                              $ tail -n 100 activity.log<br />
+                              <span className="text-slate-600">No logs found in registry. Performing actions on tickets will populate live audit logs here.</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
