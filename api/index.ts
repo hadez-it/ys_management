@@ -163,7 +163,7 @@ const INITIAL_USERS = [
   {
     id: "usr-01",
     username: "admin",
-    password: "admin",
+    password: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918", // Hashed SHA256 for default admin value
     name: "System Admin Ko Phyo",
     role: "admin",
     phone: "09971234567"
@@ -171,7 +171,7 @@ const INITIAL_USERS = [
   {
     id: "usr-02",
     username: "coordinator",
-    password: "coordinator",
+    password: "3cd077f8812c3327f3c4c9d7bf5554f67c2957b4f595fca8f407b78912e75e11", // Hashed SHA256 for default coordinator value
     name: "Coordinator Daw Su",
     role: "coordinator",
     phone: "09971234568"
@@ -179,7 +179,7 @@ const INITIAL_USERS = [
   {
     id: "usr-03",
     username: "senior",
-    password: "senior",
+    password: "2172a5a0d33e5c70ebd5d10526012e87c0d7bd1c668612749ec5dc1927c3fbfb", // Hashed SHA256 for default senior value
     name: "Senior Tech Ko Tin",
     role: "senior_technician",
     phone: "09971234569"
@@ -187,7 +187,7 @@ const INITIAL_USERS = [
   {
     id: "usr-04",
     username: "tech",
-    password: "tech",
+    password: "0deb0d4cd5d487f8ac562a1a89c95d9e5db422cf337651030e527f3ba9eebbf4", // Hashed SHA256 for default tech value
     name: "Technician Ko Sai",
     role: "technician",
     phone: "09971234570"
@@ -248,7 +248,7 @@ async function ensureDbConnected() {
           console.log("First connection: Database is completely fresh. Seeding initial fallback users with SHA256 hashed passwords...");
           const hashedUsers = INITIAL_USERS.map((user) => ({
             ...user,
-            password: hashPassword(user.password)
+            password: user.password.length === 64 ? user.password : hashPassword(user.password)
           }));
           await UserModel.insertMany(hashedUsers as any[]);
 
@@ -335,11 +335,11 @@ app.get("/api/db-status", (req, res) => {
   res.json({
     connected: mongoConnected,
     isDemo: false,
-    uriUsed: (currentUri && currentUriDiagnostics === "present") ? currentUri.split("@").pop() : "No Valid Link",
+    uriUsed: "Protected Connection String", // Cleared to prevent database architecture disclosure
     modeMessage: mongoConnected 
-      ? "Connected to Your MongoDB Atlas Live Cluster." 
-      : `Database Connection Offline: ${lastConnectionError || "Please check your MONGO_URI connection settings."}`,
-    error: lastConnectionError,
+      ? "Database live service operations active." 
+      : "Database connection offline. System operating on default configurations.",
+    error: mongoConnected ? "" : "Database connection lost. Please contact server administration to review system logs.", // Obfuscated traceback
     uriState: currentUriDiagnostics
   });
 });
@@ -367,22 +367,10 @@ app.post("/api/auth/login", async (req, res) => {
 
     const hashedPassword = hashPassword(password);
     const matchesHashed = user.password === hashedPassword;
-    const matchesPlain = user.password === password;
 
-    if (!matchesHashed && !matchesPlain) {
+    if (!matchesHashed) {
       res.status(401).json({ error: "Invalid username or password" });
       return;
-    }
-
-    // Auto-migrate to secure SHA256 hash if the stored password was plain text
-    if (matchesPlain && !matchesHashed) {
-      try {
-        user.password = hashedPassword;
-        await user.save();
-        console.log(`[Migration] Automatically migrated user "${cleanUsername}" password storage to SHA256.`);
-      } catch (migrateErr) {
-        console.error("Warning: Failed to auto-migrate user password to SHA256:", migrateErr);
-      }
     }
 
     const userObj = user.toObject();
@@ -394,7 +382,7 @@ app.post("/api/auth/login", async (req, res) => {
     );
     res.json({ ...userWithoutPassword, token });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Internal authentication process failed." }); // Generalize to conceal detailed JS traceback
   }
 });
 

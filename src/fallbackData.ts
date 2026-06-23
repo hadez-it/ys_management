@@ -4,7 +4,6 @@ export const INITIAL_FALLBACK_USERS = [
   {
     id: "usr-01",
     username: "admin",
-    password: "admin",
     name: "System Admin Ko Phyo",
     role: "admin",
     phone: "09971234567"
@@ -12,7 +11,6 @@ export const INITIAL_FALLBACK_USERS = [
   {
     id: "usr-02",
     username: "coordinator",
-    password: "coordinator",
     name: "Coordinator Daw Su",
     role: "coordinator",
     phone: "09971234568"
@@ -20,7 +18,6 @@ export const INITIAL_FALLBACK_USERS = [
   {
     id: "usr-03",
     username: "senior",
-    password: "senior",
     name: "Senior Tech Ko Tin",
     role: "senior_technician",
     phone: "09971234569"
@@ -28,7 +25,6 @@ export const INITIAL_FALLBACK_USERS = [
   {
     id: "usr-04",
     username: "tech",
-    password: "tech",
     name: "Technician Ko Sai",
     role: "technician",
     phone: "09971234570"

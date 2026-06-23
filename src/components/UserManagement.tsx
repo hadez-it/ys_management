@@ -61,7 +61,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       if (localUsers) {
         setUsers(JSON.parse(localUsers));
       } else {
-        const cleanUsers = INITIAL_FALLBACK_USERS.map(({ password, ...u }) => u) as User[];
+        const cleanUsers = INITIAL_FALLBACK_USERS as User[];
         setUsers(cleanUsers);
         localStorage.setItem('smartfix_users', JSON.stringify(cleanUsers));
       }
@@ -90,7 +90,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
           setErrorMsg('');
         } else {
           // Initialize clean fallback users list (omit passwords)
-          const cleanUsers = INITIAL_FALLBACK_USERS.map(({ password, ...u }) => u) as User[];
+          const cleanUsers = INITIAL_FALLBACK_USERS as User[];
           setUsers(cleanUsers);
           localStorage.setItem('smartfix_users', JSON.stringify(cleanUsers));
           setErrorMsg('');
@@ -183,7 +183,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       .catch((err) => {
         // Fallback for offline/Vercel
         const currentLocal = localStorage.getItem('smartfix_users');
-        let localUsersList: User[] = currentLocal ? JSON.parse(currentLocal) : (INITIAL_FALLBACK_USERS.map(({ password, ...u }) => u) as User[]);
+        let localUsersList: User[] = currentLocal ? JSON.parse(currentLocal) : (INITIAL_FALLBACK_USERS as User[]);
 
         if (editingUser) {
           localUsersList = localUsersList.map((u) => 

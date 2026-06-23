@@ -17,10 +17,8 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
 
   React.useEffect(() => {
     const savedUser = localStorage.getItem('remember_username') || '';
-    const savedPass = localStorage.getItem('remember_password') || '';
-    if (savedUser || savedPass) {
+    if (savedUser) {
       setUsername(savedUser);
-      setPassword(savedPass);
       setRememberMe(true);
     }
   }, []);
@@ -56,16 +54,16 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
       .then((userData: User) => {
         if (rememberMe) {
           localStorage.setItem('remember_username', username);
-          localStorage.setItem('remember_password', password);
         } else {
           localStorage.removeItem('remember_username');
-          localStorage.removeItem('remember_password');
         }
+        // Always remove password from localStorage if it lingered from previous instances
+        localStorage.removeItem('remember_password');
         onLoginSuccess(userData);
       })
       .catch((err) => {
         setErrorMsg(err.message === 'BACKEND_OFFLINE' 
-          ? 'Database connection offline. Please examine your MONGO_URI setup.' 
+          ? 'Database connection offline. Please examine your setup configuration.' 
           : (err.message || 'Authentication failed: Invalid username or passcode.'));
       })
       .finally(() => {
@@ -116,32 +114,13 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
 
                 {/* Condition-specific direct errors */}
                 {dbStatus.error && (
-                  <div className="text-[11px] text-rose-805 bg-rose-50/75 p-3 rounded-2xl border border-rose-100 space-y-2">
+                  <div className="text-[11px] text-rose-800 bg-rose-50/75 p-3 rounded-2xl border border-rose-100 flex flex-col gap-1 select-none">
                     <p className="font-bold text-rose-950 flex items-center gap-1">
-                      <span>❌ MongoDB Connection Failed</span>
+                      <span>❌ Database Connection Error</span>
                     </p>
-                    <div className="bg-white/90 border border-rose-100 font-mono text-[10px] p-2.5 rounded-xl break-words leading-normal max-h-24 overflow-y-auto">
-                      {dbStatus.error}
-                    </div>
-                    <div className="text-[10px] text-rose-800 space-y-1 bg-white/40 p-2.5 rounded-xl border border-rose-100/50">
-                      <p className="font-extrabold text-rose-900 border-b border-rose-100 pb-1 mb-1 select-none">
-                        💡 Troubleshooting Tips:
-                      </p>
-                      <ul className="list-disc pl-4 space-y-1 leading-normal">
-                        <li>
-                          <strong>Incorrect credentials in MONGO_URI:</strong> The specified <code className="bg-rose-100 text-rose-700 px-1 rounded">username</code> or <code className="bg-rose-100 text-rose-700 px-1 rounded">password</code> inside the MONGO_URI string might be incorrect.
-                        </li>
-                        <li>
-                          <strong>Remove placeholder brackets:</strong> Do not include bracket characters <code className="bg-rose-100 text-rose-700 font-bold px-1 rounded">&lt;</code> and <code className="bg-rose-100 text-rose-700 font-bold px-1 rounded">&gt;</code> in your MONGO_URI String. These should be replaced as direct values, e.g., <code className="bg-slate-150 text-slate-700 px-1 rounded">username:password</code>.
-                        </li>
-                        <li>
-                          <strong>URL-encode special characters:</strong> If the password contains symbols like <code className="bg-rose-100 text-rose-700 px-1 rounded">@, :, /, +, #</code>, they must be URL-encoded (for example, replace <code className="bg-rose-100 text-rose-700 px-1 rounded">@</code> with <code className="bg-slate-100 px-1 rounded font-bold">%40</code>).
-                        </li>
-                        <li>
-                          <strong>Verify IP Access settings:</strong> In the MongoDB Atlas console under <strong>Network Access</strong>, ensure that <code className="bg-rose-105 text-rose-705 font-bold px-1 rounded">0.0.0.0/0</code> is configured to whitelist connections from any external source.
-                        </li>
-                      </ul>
-                    </div>
+                    <p className="text-xs text-rose-800 font-sans leading-relaxed">
+                      Detailed system logs are stored under secure console diagnostics. Please verify that your configurations conform to network standards.
+                    </p>
                   </div>
                 )}
               </div>
