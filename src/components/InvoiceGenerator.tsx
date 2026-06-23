@@ -227,7 +227,8 @@ export default function InvoiceGenerator({ job, onSaveInvoice, onCancel }: Invoi
         <div className="space-y-4">
           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Line Items Billed</h4>
           
-          <div className="border border-gray-50 rounded-2xl overflow-hidden shadow-inner max-h-52 overflow-y-auto" id="added-billing-table">
+          {/* Desktop View (Table) */}
+          <div className="hidden sm:block border border-gray-50 rounded-2xl overflow-hidden shadow-inner max-h-52 overflow-y-auto" id="added-billing-table">
             <table className="w-full text-xs text-left">
               <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-50">
                 <tr>
@@ -268,51 +269,83 @@ export default function InvoiceGenerator({ job, onSaveInvoice, onCancel }: Invoi
             </table>
           </div>
 
+          {/* Mobile View (Cards) */}
+          <div className="block sm:hidden space-y-2.5 max-h-60 overflow-y-auto">
+            {items.map((item) => (
+              <div key={item.id} className="p-3.5 bg-gray-55/60 border border-gray-150/70 rounded-2xl flex items-start gap-3 relative">
+                <div className="flex-1 min-w-0 pr-8">
+                  <p className="font-semibold text-gray-800 text-xs leading-snug break-words">{item.description}</p>
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    Qty: {item.quantity} x {formatMMK(item.unitPrice)}
+                  </p>
+                  <p className="text-xs font-bold text-blue-600 mt-1">
+                    Amount: {formatMMK(item.amount)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  id={`btn-remove-line-mob-${item.id}`}
+                  onClick={() => handleRemoveItem(item.id)}
+                  className="absolute top-2.5 right-2 text-gray-400 hover:text-rose-600 p-1.5 rounded-lg active:bg-rose-50 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {items.length === 0 && (
+              <div className="py-8 text-center text-gray-400 italic text-xs">
+                No billed items added yet. Use form below to add.
+              </div>
+            )}
+          </div>
+
           {/* Add Item form */}
           <div className="bg-gray-50/65 p-4 rounded-2xl border border-gray-100 flex flex-col gap-3">
             <h5 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">Add Part or Service Manually</h5>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-              <div className="md:col-span-6">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <div className="sm:col-span-6">
                 <input
                   type="text"
                   id="add-item-description"
                   placeholder="e.g. Keyboard Replacement Unit, GPU stress tests..."
                   value={newItemDesc}
                   onChange={(e) => setNewItemDesc(e.target.value)}
-                  className="w-full bg-white border border-gray-150 py-2 px-3 text-xs rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-150 py-2.5 px-3 text-xs rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
-              <div className="md:col-span-2">
-                <input
-                  type="number"
-                  id="add-item-qty"
-                  min="1"
-                  placeholder="Qty"
-                  value={newItemQty}
-                  onChange={(e) => setNewItemQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full bg-white border border-gray-150 py-2 px-3 text-xs rounded-xl text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="md:col-span-3">
-                <input
-                  type="number"
-                  id="add-item-price"
-                  min="0"
-                  placeholder="Price (Ks)"
-                  value={newItemPrice === 0 ? '' : newItemPrice}
-                  onChange={(e) => setNewItemPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                  className="w-full bg-white border border-gray-150 py-2 px-3 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="md:col-span-1 flex items-center justify-center">
-                <button
-                  type="button"
-                  id="btn-add-item-to-list"
-                  onClick={handleAddItem}
-                  className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl cursor-pointer transition-colors w-full flex items-center justify-center"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
+              <div className="grid grid-cols-6 sm:col-span-6 gap-3">
+                <div className="col-span-2 sm:col-span-2">
+                  <input
+                    type="number"
+                    id="add-item-qty"
+                    min="1"
+                    placeholder="Qty"
+                    value={newItemQty}
+                    onChange={(e) => setNewItemQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full bg-white border border-gray-150 py-2.5 px-3 text-xs rounded-xl text-center focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
+                  />
+                </div>
+                <div className="col-span-3 sm:col-span-3">
+                  <input
+                    type="number"
+                    id="add-item-price"
+                    min="0"
+                    placeholder="Price (Ks)"
+                    value={newItemPrice === 0 ? '' : newItemPrice}
+                    onChange={(e) => setNewItemPrice(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full bg-white border border-gray-150 py-2.5 px-3 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                  />
+                </div>
+                <div className="col-span-1 sm:col-span-1 flex items-center justify-center">
+                  <button
+                    type="button"
+                    id="btn-add-item-to-list"
+                    onClick={handleAddItem}
+                    className="h-full min-h-[38px] max-h-[42px] bg-blue-600 hover:bg-blue-700 text-white rounded-xl cursor-pointer transition-colors w-full flex items-center justify-center"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -398,6 +431,25 @@ export default function InvoiceGenerator({ job, onSaveInvoice, onCancel }: Invoi
             onChange={(e) => setNotes(e.target.value)}
             className="w-full bg-gray-50 border border-gray-150 text-xs rounded-xl py-2 px-3 focus:outline-none focus:bg-white leading-relaxed text-gray-600"
           />
+        </div>
+
+        {/* Mobile action bar for the form tab */}
+        <div className="xl:hidden flex items-center justify-between gap-3 pt-6 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 py-3 px-4 border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50 rounded-xl text-xs font-semibold cursor-pointer text-center"
+          >
+            Cancel
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => setActiveMobileTab('preview')}
+            className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer text-center active:scale-95 transition-all"
+          >
+            Preview Draft &rarr;
+          </button>
         </div>
       </div>
 

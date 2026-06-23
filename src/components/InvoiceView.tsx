@@ -36,7 +36,7 @@ export default function InvoiceView({ invoice, onClose }: InvoiceViewProps) {
 
         {/* Printable Section */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-8 text-left space-y-6" id="printable-invoice-content">
-          <div className="flex justify-between items-start flex-wrap gap-4 border-b border-gray-100 pb-6">
+          <div className="flex justify-between items-start flex-col sm:flex-row gap-4 border-b border-gray-100 pb-6">
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 font-bold text-gray-900 text-lg">
                 <span className="bg-blue-600 text-white rounded p-1 w-7 h-7 flex items-center justify-center text-xs font-black">A</span>
@@ -49,7 +49,7 @@ export default function InvoiceView({ invoice, onClose }: InvoiceViewProps) {
               </p>
             </div>
 
-            <div className="text-right space-y-1">
+            <div className="text-left sm:text-right space-y-1 w-full sm:w-auto">
               <h2 className="text-xl font-bold font-sans text-gray-800 tracking-tight">Receipt / Invoice</h2>
               <p className="text-xs text-gray-400">Invoice Ref Key:</p>
               <p className="text-xs font-bold font-mono text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-md inline-block">
@@ -66,7 +66,7 @@ export default function InvoiceView({ invoice, onClose }: InvoiceViewProps) {
               <p className="text-gray-500 font-medium font-mono">{invoice.customerPhone}</p>
             </div>
             
-            <div className="text-right space-y-1">
+            <div className="text-left sm:text-right space-y-1">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">PAYMENT DETAILS</p>
               <p className="font-bold text-gray-800">
                 Settled through: <strong className="text-blue-600 font-sans">{invoice.paymentMethod}</strong>
@@ -75,11 +75,13 @@ export default function InvoiceView({ invoice, onClose }: InvoiceViewProps) {
             </div>
           </div>
 
-          {/* Table list */}
+          {/* Responsive list of items */}
           <div className="space-y-2 text-xs">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">BILLED SERVICE LINE ITEMS</p>
-            <div className="border border-gray-100 rounded-2xl overflow-x-auto shadow-inner">
-              <table className="w-full min-w-[460px] sm:min-w-0 text-left">
+            
+            {/* Desktop View (Table) */}
+            <div className="hidden sm:block border border-gray-100 rounded-2xl overflow-x-auto shadow-inner">
+              <table className="w-full text-left">
                 <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-100">
                   <tr>
                     <th className="p-3">Work Done / Diagnostics Description</th>
@@ -99,6 +101,23 @@ export default function InvoiceView({ invoice, onClose }: InvoiceViewProps) {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile View (Cards) */}
+            <div className="block sm:hidden space-y-3">
+              {invoice.items.map((item, idx) => (
+                <div key={idx} className="p-4 bg-gray-50 border border-gray-100 rounded-2xl space-y-2 text-left">
+                  <div className="font-semibold text-gray-800 leading-snug">{item.description}</div>
+                  <div className="flex justify-between items-center text-xs pt-1 border-t border-gray-100 text-gray-500">
+                    <div>
+                      <span>{item.quantity} x {formatMMK(item.unitPrice)}</span>
+                    </div>
+                    <div className="font-bold text-gray-800">
+                      {formatMMK(item.amount)}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

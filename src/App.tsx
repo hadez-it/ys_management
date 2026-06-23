@@ -1012,13 +1012,6 @@ export default function App() {
 
                   {activeTab === 'deleted' && (
                     <div className="bg-white border border-slate-200/55 rounded-2xl p-5 md:p-6 shadow-xs text-left space-y-5" id="deleted-list-tab-module">
-                      <div className="space-y-0.5">
-                        <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-1.5 text-slate-800">
-                          <History className="h-5 w-5 text-slate-700" /> Operational Activity Logs
-                        </h3>
-                        <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Audit trail of ticket creations, completions, cancellations, and deletions</p>
-                      </div>
-
                       {/* Developer-style Console / Terminal container */}
                       <div className="rounded-xl overflow-hidden border border-slate-950 shadow-lg text-slate-200 font-mono text-[11px] md:text-xs">
                         {/* Terminal Header */}
