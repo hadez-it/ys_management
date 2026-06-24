@@ -156,6 +156,21 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
     setUrgency('High');
   };
 
+  // Helper to get day name from selectedDate
+  const getDayName = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      // Avoid time zone shifts by using the exact year, month, day components
+      const [year, month, day] = dateStr.split('-').map(Number);
+      if (!year || !month || !day) return '';
+      const dateObj = new Date(year, month - 1, day);
+      if (isNaN(dateObj.getTime())) return '';
+      return new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(dateObj);
+    } catch {
+      return '';
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -276,8 +291,15 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
 
             {/* Modern Date Picker */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5" htmlFor="appointment-date">
-                <Calendar className="h-3.5 w-3.5 text-gray-400" /> Appointment Date <span className="text-rose-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 flex items-center justify-between gap-1.5" htmlFor="appointment-date">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-gray-400" /> Appointment Date <span className="text-rose-500">*</span>
+                </span>
+                {selectedDate && (
+                  <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2.5 py-0.5 rounded-full select-none" id="selected-date-day-name">
+                    {getDayName(selectedDate)}
+                  </span>
+                )}
               </label>
               <input
                 type="date"
