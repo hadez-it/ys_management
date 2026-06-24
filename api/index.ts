@@ -4,22 +4,11 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { GoogleGenAI, Type } from "@google/genai";
 
 // Load configuration
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "jwt-fallback-secret-key-12345";
-
-// Initialize Gemini Client
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
-  }
-});
 
 // SHA256 Password Hashing Helper
 function hashPassword(password: string): string {
@@ -803,7 +792,7 @@ app.delete("/api/users/:id", async (req, res) => {
   }
 });
 
-// AI TICKET AUTOFILL ENDPOINT WITH GEMINI
+// AI TICKET AUTOFILL ENDPOINT WITH OPENROUTER
 app.post("/api/parse-ticket", async (req, res) => {
   try {
     const { rawText, referenceDate } = req.body;
@@ -812,8 +801,9 @@ app.post("/api/parse-ticket", async (req, res) => {
       return;
     }
 
-    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.includes("YourGeminiApiKeyHere")) {
-      res.status(500).json({ error: "Gemini AI API Key is not properly configured. Please configure GEMINI_API_KEY to use AI Auto-fill." });
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey.includes("YourGeminiApiKeyHere") || apiKey.includes("sk-or-v1-...")) {
+      res.status(500).json({ error: "OpenRouter API Key (OPENROUTER_API_KEY) is not properly configured. Please configure it to use AI Auto-fill." });
       return;
     }
 
@@ -831,71 +821,86 @@ app.post("/api/parse-ticket", async (req, res) => {
       "5. Location / Address (locationText): Combine building numbers, condo name, streets, township, e.g. 'Shwe Hinthar Condo B, 6 မိုင်ခွဲ, Yangon' or standard descriptive Yangon addresses.\n" +
       "6. Date (selectedDate): Look at date indicators like relative expressions ('Monday', 'tomorrow', 'today', 'Sunday'). Utilize the referenceDate: " + (referenceDate || new Date().toISOString().split('T')[0]) + " to accurately calculate the correct date target as YYYY-MM-DD. For example, if referenceDate is 2026-06-14 (Sunday), 'Monday' corresponds to 2026-06-15. If no date is found, default to referenceDate.\n" +
       "7. Time Slot (selectedTime): Must be strictly matched to one of: '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', or 'none'. Match based on hour preferences if mentioned (e.g. '1 PM' -> '13:00', '10 AM' -> '10:00'). If unspecified, return 'none'.\n" +
-      "8. Urgency (urgency): Set urgency based on keywords or high priority. Must be strictly one of: 'Low', 'Medium', 'High', 'Critical'. Default to 'Medium'.";
+      "8. Urgency (urgency): Set urgency based on keywords or high priority. Must be strictly one of: 'Low', 'Medium', 'High', 'Critical'. Default to 'Medium'.\n\n" +
+      "You MUST return ONLY a valid, single JSON object matching this schema exactly:\n" +
+      "{\n" +
+      "  \"customerName\": \"string\",\n" +
+      "  \"customerPhone\": \"string\",\n" +
+      "  \"deviceType\": \"string\",\n" +
+      "  \"deviceIssue\": \"string\",\n" +
+      "  \"locationText\": \"string\",\n" +
+      "  \"urgency\": \"Low\" | \"Medium\" | \"High\" | \"Critical\",\n" +
+      "  \"selectedDate\": \"YYYY-MM-DD\",\n" +
+      "  \"selectedTime\": \"string\"\n" +
+      "}\n" +
+      "Do not output markdown block wrappers (like ```json), no notes, no commentary.";
 
     const prompt = `Please extract the service ticket specifications from the following raw text:\n---\n${rawText}\n---`;
 
-    const modelsToTry = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
-    let response: any = null;
+    const openRouterModels = [
+      "google/gemma-4-31b-it:free"
+    ];
+
+    let resultJsonStr = "";
     let lastError: any = null;
 
-    for (const modelName of modelsToTry) {
+    for (const modelName of openRouterModels) {
       try {
-        console.log(`Attempting ticket parse using GenAI model: ${modelName}`);
-        response = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt,
-          config: {
-            systemInstruction,
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                customerName: { type: Type.STRING },
-                customerPhone: { type: Type.STRING },
-                deviceType: { type: Type.STRING },
-                deviceIssue: { type: Type.STRING },
-                locationText: { type: Type.STRING },
-                urgency: { type: Type.STRING },
-                selectedDate: { type: Type.STRING },
-                selectedTime: { type: Type.STRING }
-              },
-              required: [
-                "customerName",
-                "customerPhone",
-                "deviceType",
-                "deviceIssue",
-                "locationText",
-                "urgency",
-                "selectedDate",
-                "selectedTime"
-              ]
-            }
-          }
+        console.log(`Attempting ticket parse via OpenRouter with model: ${modelName}`);
+        
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+            "HTTP-Referer": "https://ys-management.vercel.app",
+            "X-Title": "YS SVC Ticket Parser"
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              { role: "system", content: systemInstruction },
+              { role: "user", content: prompt }
+            ],
+            response_format: { type: "json_object" }
+          })
         });
-        if (response && response.text) {
-          console.log(`Successfully parsed ticket info using GenAI model: ${modelName}`);
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`OpenRouter HTTP ${response.status}: ${errText}`);
+        }
+
+        const data = await response.json() as any;
+        const text = data?.choices?.[0]?.message?.content;
+        
+        if (text) {
+          resultJsonStr = text.trim();
+          console.log(`Successfully retrieved text from model ${modelName}`);
           break;
         }
       } catch (err: any) {
-        console.warn(`GenAI model ${modelName} failed or encountered high demand. Error: ${err.message || err}`);
+        console.warn(`OpenRouter model ${modelName} failed. Error: ${err.message || err}`);
         lastError = err;
       }
     }
 
-    if (!response) {
-      throw new Error(`AI Parsing Failed on all attempted models. Last error: ${lastError?.message || lastError}`);
+    if (!resultJsonStr) {
+      throw new Error(`OpenRouter parsing failed on all models. Last error: ${lastError?.message || lastError}`);
     }
 
-    const resultText = response.text;
-    if (!resultText) {
-      throw new Error("No response generated by Gemini model.");
+    // Clean up markdown block if present
+    let cleaned = resultJsonStr;
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, "");
+      cleaned = cleaned.replace(/\n?```$/, "");
+      cleaned = cleaned.trim();
     }
 
-    const parsedData = JSON.parse(resultText.trim());
+    const parsedData = JSON.parse(cleaned);
     res.json(parsedData);
   } catch (err: any) {
-    console.error("Gemini Parse Ticket Error:", err);
+    console.error("OpenRouter Parse Ticket Error:", err);
     res.status(500).json({ error: "AI Parsing Failed: " + (err.message || String(err)) });
   }
 });
