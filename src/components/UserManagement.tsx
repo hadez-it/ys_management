@@ -17,7 +17,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { User, UserRole } from '../types.ts';
-import { INITIAL_FALLBACK_USERS } from '../fallbackData.ts';
+import { secureStorage } from '../lib/secureStorage.ts';
 
 interface UserManagementProps {
   currentUser: User | null;
@@ -57,13 +57,12 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
   const fetchUsers = () => {
     if (!currentUser?.token) {
       // Fallback silently if user is not authenticated yet
-      const localUsers = localStorage.getItem('smartfix_users');
-      if (localUsers) {
-        setUsers(JSON.parse(localUsers));
+      const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
+      if (cachedUsers) {
+        setUsers(cachedUsers);
       } else {
-        const cleanUsers = INITIAL_FALLBACK_USERS as User[];
-        setUsers(cleanUsers);
-        localStorage.setItem('smartfix_users', JSON.stringify(cleanUsers));
+        setUsers([]);
+        secureStorage.setItem('smartfix_users', []);
       }
       setLoading(false);
       return;
@@ -79,20 +78,19 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       })
       .then((data) => {
         setUsers(data || []);
-        localStorage.setItem('smartfix_users', JSON.stringify(data || []));
+        secureStorage.setItem('smartfix_users', data || []);
         setErrorMsg('');
       })
       .catch((err) => {
         console.warn('Database offline: fetching users fallback to local storage.', err.message || err);
-        const localUsers = localStorage.getItem('smartfix_users');
-        if (localUsers) {
-          setUsers(JSON.parse(localUsers));
+        const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
+        if (cachedUsers) {
+          setUsers(cachedUsers);
           setErrorMsg('');
         } else {
           // Initialize clean fallback users list (omit passwords)
-          const cleanUsers = INITIAL_FALLBACK_USERS as User[];
-          setUsers(cleanUsers);
-          localStorage.setItem('smartfix_users', JSON.stringify(cleanUsers));
+          setUsers([]);
+          secureStorage.setItem('smartfix_users', []);
           setErrorMsg('');
         }
       })
@@ -182,8 +180,8 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       })
       .catch((err) => {
         // Fallback for offline/Vercel
-        const currentLocal = localStorage.getItem('smartfix_users');
-        let localUsersList: User[] = currentLocal ? JSON.parse(currentLocal) : (INITIAL_FALLBACK_USERS as User[]);
+        const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
+        let localUsersList: User[] = cachedUsers || [];
 
         if (editingUser) {
           localUsersList = localUsersList.map((u) => 
@@ -202,7 +200,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
           setSuccessMsg('New user account created successfully (Local storage backup updated)!');
         }
 
-        localStorage.setItem('smartfix_users', JSON.stringify(localUsersList));
+        secureStorage.setItem('smartfix_users', localUsersList);
         setUsers(localUsersList);
         setIsFormOpen(false);
         resetForm();
@@ -233,11 +231,10 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       })
       .catch((err) => {
         // Fallback for offline/Vercel
-        const currentLocal = localStorage.getItem('smartfix_users');
-        if (currentLocal) {
-          const localUsersList: User[] = JSON.parse(currentLocal);
-          const updated = localUsersList.filter(u => u.id !== userId);
-          localStorage.setItem('smartfix_users', JSON.stringify(updated));
+        const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
+        if (cachedUsers) {
+          const updated = cachedUsers.filter(u => u.id !== userId);
+          secureStorage.setItem('smartfix_users', updated);
           setUsers(updated);
         }
         setSuccessMsg('User account successfully removed (Local storage backup updated).');

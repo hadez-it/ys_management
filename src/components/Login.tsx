@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, User as UserIcon, ShieldAlert, ArrowRight, Terminal, Database, CheckCircle, AlertTriangle } from 'lucide-react';
 import { User } from '../types.ts';
-import { INITIAL_FALLBACK_USERS } from '../fallbackData.ts';
+import { secureStorage } from '../lib/secureStorage.ts';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
@@ -16,7 +16,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
   const [errorMsg, setErrorMsg] = useState('');
 
   React.useEffect(() => {
-    const savedUser = localStorage.getItem('remember_username') || '';
+    const savedUser = secureStorage.getItem<string>('remember_username') || '';
     if (savedUser) {
       setUsername(savedUser);
       setRememberMe(true);
@@ -53,12 +53,12 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
       })
       .then((userData: User) => {
         if (rememberMe) {
-          localStorage.setItem('remember_username', username);
+          secureStorage.setItem('remember_username', username);
         } else {
-          localStorage.removeItem('remember_username');
+          secureStorage.removeItem('remember_username');
         }
         // Always remove password from localStorage if it lingered from previous instances
-        localStorage.removeItem('remember_password');
+        secureStorage.removeItem('remember_password');
         onLoginSuccess(userData);
       })
       .catch((err) => {

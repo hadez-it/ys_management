@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Calendar, User, Phone, Laptop, AlertTriangle, MapPin, AlignLeft, Send, Sparkles, RefreshCw } from 'lucide-react';
 import { ServiceJob, DeviceType, UrgencyLevel, LocationCoords } from '../types.ts';
 import { MAP_CENTER_YANGON } from '../utils.ts';
+import { secureStorage } from '../lib/secureStorage.ts';
 
 const GeminiIcon = ({ className = "h-5 w-5", flat = false }: { className?: string; flat?: boolean }) => (
   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -95,14 +96,13 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
       let token = '';
       let username = 'system';
       try {
-        const cached = localStorage.getItem('smartfix_current_user');
-        if (cached) {
-          const userObj = JSON.parse(cached);
+        const userObj = secureStorage.getItem<any>('smartfix_current_user');
+        if (userObj) {
           token = userObj?.token || '';
           username = userObj?.username || 'system';
         }
       } catch (e) {
-        console.error('Error fetching user from local storage:', e);
+        console.error('Error fetching user from secure storage:', e);
       }
 
       const headers: Record<string, string> = {

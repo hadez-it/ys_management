@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import cookieParser from "cookie-parser";
 
 // Load configuration
 dotenv.config();
@@ -18,6 +19,7 @@ function hashPassword(password: string): string {
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 let mongoConnected = false;
 let lastConnectionError = "";
@@ -270,11 +272,17 @@ const authenticateToken = (req: express.Request, res: express.Response, next: ex
     return next();
   }
 
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  // 1. Try to extract token from httpOnly cookie
+  let token = req.cookies ? req.cookies.token : null;
+
+  // 2. Fallback to Authorization header if cookie is missing
+  if (!token) {
+    const authHeader = req.headers["authorization"];
+    token = authHeader && authHeader.split(" ")[1];
+  }
 
   if (!token) {
-    res.status(401).json({ error: "Access denied. Token missing from Authorization header." });
+    res.status(401).json({ error: "Access denied. Token missing." });
     return;
   }
 
@@ -369,10 +377,25 @@ app.post("/api/auth/login", async (req, res) => {
       JWT_SECRET,
       { expiresIn: "1d" }
     );
+
+    // Set JWT in a secure, httpOnly cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+
     res.json({ ...userWithoutPassword, token });
   } catch (err: any) {
     res.status(500).json({ error: "Internal authentication process failed." }); // Generalize to conceal detailed JS traceback
   }
+});
+
+// LOGOUT Endpoint
+app.post("/api/auth/logout", (req, res) => {
+  res.clearCookie("token");
+  res.json({ success: true, message: "Logged out successfully" });
 });
 
 // JOB API Endpoints
@@ -908,6 +931,18 @@ app.post("/api/parse-ticket", async (req, res) => {
 // Clear collections endpoint (useful utility)
 app.post("/api/system/reset", async (req, res) => {
   try {
+    const userRole = (req as any).user?.role;
+    if (userRole !== "admin") {
+      res.status(403).json({ error: "Access denied. Only administrators can reset system database state." });
+      return;
+    }
+
+    const { confirm } = req.body;
+    if (confirm !== "WIPE_ALL_DATA") {
+      res.status(400).json({ error: "Missing or invalid confirmation to reset the database." });
+      return;
+    }
+
     if (!mongoConnected) {
       res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
       return;

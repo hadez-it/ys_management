@@ -27,7 +27,7 @@ import {
   formatMMK,
   MAP_CENTER_YANGON
 } from './utils.ts';
-import { INITIAL_JOBS_FALLBACK, INITIAL_INVOICES_FALLBACK } from './fallbackData.ts';
+import { secureStorage } from './lib/secureStorage.ts';
 
 // Import components
 import DashboardStats from './components/DashboardStats.tsx';
@@ -42,8 +42,7 @@ export default function App() {
   // User Session Management
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
-      const cached = localStorage.getItem('smartfix_current_user');
-      return cached ? JSON.parse(cached) : null;
+      return secureStorage.getItem<User>('smartfix_current_user');
     } catch (_) {
       return null;
     }
@@ -52,14 +51,16 @@ export default function App() {
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
     try {
-      localStorage.setItem('smartfix_current_user', JSON.stringify(user));
+      secureStorage.setItem('smartfix_current_user', user);
     } catch (_) {}
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     try {
-      localStorage.removeItem('smartfix_current_user');
+      secureStorage.removeItem('smartfix_current_user');
+      // Call server logout to clear secure cookie
+      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     } catch (_) {}
   };
 
@@ -108,16 +109,16 @@ export default function App() {
       })
       .then((data) => {
         setActivityLogs(data || []);
-        localStorage.setItem('smartfix_activity_logs', JSON.stringify(data || []));
+        secureStorage.setItem('smartfix_activity_logs', data || []);
       })
       .catch((err) => {
         console.warn('Fallback: fetching activity logs offline.', err.message || err);
-        const localActVal = localStorage.getItem('smartfix_activity_logs');
-        if (localActVal) {
-          setActivityLogs(JSON.parse(localActVal));
+        const cachedLogs = secureStorage.getItem<ActivityLog[]>('smartfix_activity_logs');
+        if (cachedLogs) {
+          setActivityLogs(cachedLogs);
         } else {
           setActivityLogs([]);
-          localStorage.setItem('smartfix_activity_logs', JSON.stringify([]));
+          secureStorage.setItem('smartfix_activity_logs', []);
         }
       });
   };
@@ -154,24 +155,24 @@ export default function App() {
   useEffect(() => {
     if (!currentUser?.token) {
       // Just fallback to local storage values silently if user is not authenticated yet
-      const localJobsVal = localStorage.getItem('smartfix_jobs');
-      const localInvsVal = localStorage.getItem('smartfix_invoices');
-      const localActVal = localStorage.getItem('smartfix_activity_logs');
+      const cachedJobs = secureStorage.getItem<ServiceJob[]>('smartfix_jobs');
+      const cachedInvs = secureStorage.getItem<Invoice[]>('smartfix_invoices');
+      const cachedLogs = secureStorage.getItem<ActivityLog[]>('smartfix_activity_logs');
       
-      if (localJobsVal) {
-        setJobs(JSON.parse(localJobsVal));
+      if (cachedJobs) {
+        setJobs(cachedJobs);
       } else {
-        setJobs(INITIAL_JOBS_FALLBACK);
+        setJobs([]);
       }
       
-      if (localInvsVal) {
-        setInvoices(JSON.parse(localInvsVal));
+      if (cachedInvs) {
+        setInvoices(cachedInvs);
       } else {
-        setInvoices(INITIAL_INVOICES_FALLBACK);
+        setInvoices([]);
       }
       
-      if (localActVal) {
-        setActivityLogs(JSON.parse(localActVal));
+      if (cachedLogs) {
+        setActivityLogs(cachedLogs);
       } else {
         setActivityLogs([]);
       }
@@ -194,17 +195,12 @@ export default function App() {
             return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
           });
           setJobs(filtered);
-          localStorage.setItem('smartfix_jobs', JSON.stringify(filtered));
+          secureStorage.setItem('smartfix_jobs', filtered);
         })
         .catch((err) => {
           console.warn('Fallback: fetching jobs offline.', err.message || err);
-          const localJobsVal = localStorage.getItem('smartfix_jobs');
-          let loadedJobs: ServiceJob[] = [];
-          if (localJobsVal) {
-            loadedJobs = JSON.parse(localJobsVal);
-          } else {
-            loadedJobs = INITIAL_JOBS_FALLBACK;
-          }
+          const cachedJobs = secureStorage.getItem<ServiceJob[]>('smartfix_jobs');
+          let loadedJobs: ServiceJob[] = cachedJobs || [];
           const now = new Date();
           const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
           const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
@@ -214,7 +210,7 @@ export default function App() {
             return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
           });
           setJobs(filtered);
-          localStorage.setItem('smartfix_jobs', JSON.stringify(filtered));
+          secureStorage.setItem('smartfix_jobs', filtered);
         });
     };
 
@@ -227,16 +223,16 @@ export default function App() {
       })
       .then((data) => {
         setInvoices(data || []);
-        localStorage.setItem('smartfix_invoices', JSON.stringify(data || []));
+        secureStorage.setItem('smartfix_invoices', data || []);
       })
       .catch((err) => {
         console.warn('Fallback: fetching invoices offline.', err.message || err);
-        const localInvsVal = localStorage.getItem('smartfix_invoices');
-        if (localInvsVal) {
-          setInvoices(JSON.parse(localInvsVal));
+        const cachedInvs = secureStorage.getItem<Invoice[]>('smartfix_invoices');
+        if (cachedInvs) {
+          setInvoices(cachedInvs);
         } else {
-          setInvoices(INITIAL_INVOICES_FALLBACK);
-          localStorage.setItem('smartfix_invoices', JSON.stringify(INITIAL_INVOICES_FALLBACK));
+          setInvoices([]);
+          secureStorage.setItem('smartfix_invoices', []);
         }
       });
 
@@ -249,16 +245,16 @@ export default function App() {
         })
         .then((data) => {
           setActivityLogs(data || []);
-          localStorage.setItem('smartfix_activity_logs', JSON.stringify(data || []));
+          secureStorage.setItem('smartfix_activity_logs', data || []);
         })
         .catch((err) => {
           console.warn('Fallback: fetching activity logs offline.', err.message || err);
-          const localActVal = localStorage.getItem('smartfix_activity_logs');
-          if (localActVal) {
-            setActivityLogs(JSON.parse(localActVal));
+          const cachedLogs = secureStorage.getItem<ActivityLog[]>('smartfix_activity_logs');
+          if (cachedLogs) {
+            setActivityLogs(cachedLogs);
           } else {
             setActivityLogs([]);
-            localStorage.setItem('smartfix_activity_logs', JSON.stringify([]));
+            secureStorage.setItem('smartfix_activity_logs', []);
           }
         });
     };
@@ -274,7 +270,7 @@ export default function App() {
         })
         .then((data) => {
           setJobs(data || []);
-          localStorage.setItem('smartfix_jobs', JSON.stringify(data || []));
+          secureStorage.setItem('smartfix_jobs', data || []);
         })
         .catch(() => {
           // Keep offline state silently running
@@ -375,7 +371,7 @@ export default function App() {
       .then((savedJob) => {
         setJobs((prev) => {
           const updated = [savedJob, ...prev];
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
         fetchActivityLogs();
@@ -387,7 +383,7 @@ export default function App() {
         // Fallback for offline/Vercel
         setJobs((prev) => {
           const updated = [newJob, ...prev];
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
         setIsNewTicketModalOpen(false);
@@ -432,7 +428,7 @@ export default function App() {
       .then((savedJob) => {
         setJobs((prev) => {
           const updated = prev.map((j) => (j.id === jobId ? savedJob : j));
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
         fetchActivityLogs();
@@ -444,7 +440,7 @@ export default function App() {
         // Fallback for offline/Vercel
         setJobs((prev) => {
           const updated = prev.map((j) => (j.id === jobId ? updatedJob : j));
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
         if (status === 'Completed') {
@@ -480,7 +476,7 @@ export default function App() {
       .then((savedJob) => {
         setJobs((prev) => {
           const updated = prev.map((j) => (j.id === jobId ? savedJob : j));
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
       })
@@ -488,7 +484,7 @@ export default function App() {
         // Fallback for offline/Vercel
         setJobs((prev) => {
           const updated = prev.map((j) => (j.id === jobId ? updatedJob : j));
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
       });
@@ -512,7 +508,7 @@ export default function App() {
       .then(() => {
         setJobs((prev) => {
           const updated = prev.filter((j) => j.id !== jobId);
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
         fetchActivityLogs();
@@ -521,7 +517,7 @@ export default function App() {
         // Fallback for offline/Vercel
         setJobs((prev) => {
           const updated = prev.filter((j) => j.id !== jobId);
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
 
@@ -538,7 +534,7 @@ export default function App() {
           };
           setActivityLogs((prev) => {
             const updated = [newActLog, ...prev];
-            localStorage.setItem('smartfix_activity_logs', JSON.stringify(updated));
+            secureStorage.setItem('smartfix_activity_logs', updated);
             return updated;
           });
         }
@@ -564,7 +560,7 @@ export default function App() {
       .then((savedJob) => {
         setJobs((prev) => {
           const updated = prev.map((j) => (j.id === jobId ? savedJob : j));
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
         fetchActivityLogs();
@@ -574,7 +570,7 @@ export default function App() {
         if (updatedJob) {
           setJobs((prev) => {
             const updated = prev.map((j) => (j.id === jobId ? updatedJob : j));
-            localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+            secureStorage.setItem('smartfix_jobs', updated);
             return updated;
           });
         }
@@ -590,6 +586,7 @@ export default function App() {
     authFetch('/api/system/reset', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: "WIPE_ALL_DATA" }),
     })
       .then((res) => {
         if (!res.ok) throw new Error('Wipe operation failed');
@@ -599,9 +596,9 @@ export default function App() {
         setJobs([]);
         setInvoices([]);
         setActivityLogs([]);
-        localStorage.setItem('smartfix_jobs', JSON.stringify([]));
-        localStorage.setItem('smartfix_invoices', JSON.stringify([]));
-        localStorage.setItem('smartfix_activity_logs', JSON.stringify([]));
+        secureStorage.setItem('smartfix_jobs', []);
+        secureStorage.setItem('smartfix_invoices', []);
+        secureStorage.setItem('smartfix_activity_logs', []);
         setShowDbStatusModal(false);
       })
       .catch((err) => {
@@ -610,9 +607,9 @@ export default function App() {
         setJobs([]);
         setInvoices([]);
         setActivityLogs([]);
-        localStorage.setItem('smartfix_jobs', JSON.stringify([]));
-        localStorage.setItem('smartfix_invoices', JSON.stringify([]));
-        localStorage.setItem('smartfix_activity_logs', JSON.stringify([]));
+        secureStorage.setItem('smartfix_jobs', []);
+        secureStorage.setItem('smartfix_invoices', []);
+        secureStorage.setItem('smartfix_activity_logs', []);
         setShowDbStatusModal(false);
       })
       .finally(() => {
@@ -648,7 +645,7 @@ export default function App() {
       .then((savedInvoice) => {
         setInvoices((prev) => {
           const updated = [savedInvoice, ...prev];
-          localStorage.setItem('smartfix_invoices', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_invoices', updated);
           return updated;
         });
 
@@ -671,7 +668,7 @@ export default function App() {
           .then((updatedJob) => {
             setJobs((prev) => {
               const updated = prev.map((j) => (j.id === invoiceWizardJob.id ? updatedJob : j));
-              localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+              secureStorage.setItem('smartfix_jobs', updated);
               return updated;
             });
             setInvoiceWizardJob(null);
@@ -682,7 +679,7 @@ export default function App() {
         // Fallback for offline/Vercel
         setInvoices((prev) => {
           const updated = [newInvoice, ...prev];
-          localStorage.setItem('smartfix_invoices', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_invoices', updated);
           return updated;
         });
 
@@ -695,7 +692,7 @@ export default function App() {
 
         setJobs((prev) => {
           const updated = prev.map((j) => (j.id === invoiceWizardJob.id ? updatedJob : j));
-          localStorage.setItem('smartfix_jobs', JSON.stringify(updated));
+          secureStorage.setItem('smartfix_jobs', updated);
           return updated;
         });
 
