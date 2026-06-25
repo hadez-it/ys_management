@@ -468,12 +468,12 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       {/* LIGHTBOX FOR CREATE / EDIT ACCOUNT FORM */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-6 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto" id="account-form-overlay">
-          <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl border border-slate-250/20 max-h-[90vh] flex flex-col overflow-hidden animate-scale-up" id="account-form-container">
+          <div className="bg-[#050e12]/95 backdrop-blur-xl w-full max-w-sm rounded-3xl shadow-2xl border border-white/10 max-h-[90vh] flex flex-col overflow-hidden animate-scale-up text-slate-100" id="account-form-container">
             
             {/* Modal Header */}
-            <div className="bg-slate-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div className="bg-white/5 px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
               <div>
-                <h3 className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5 font-sans uppercase tracking-wider">
+                <h3 className="font-extrabold text-white text-xs flex items-center gap-1.5 font-sans uppercase tracking-wider">
                   {editingUser ? 'Modify Account' : 'New System Operator'}
                 </h3>
                 <p className="text-[10px] text-slate-400 font-medium">
@@ -493,35 +493,33 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
             <form onSubmit={handleSaveUser} className="flex-1 overflow-y-auto p-5 space-y-4 text-left">
               
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">Full Name</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Full Name</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Ko Phyo"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500 font-sans"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">Username</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Username</label>
                 <div className="relative">
                   <span className="absolute left-3 top-2.5 text-slate-400 text-xs font-semibold">@</span>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. phyo"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
                     disabled={!!editingUser}
-                    className="w-full bg-slate-50 disabled:opacity-50 border border-slate-200 rounded-xl py-2.5 pl-7 pr-3 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                    className="w-full bg-slate-900 disabled:opacity-50 border border-white/10 rounded-xl py-2.5 pl-7 pr-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500 font-sans"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                   {editingUser ? 'New Password (Optional)' : 'Password (Required)'}
                 </label>
                 <div className="relative">
@@ -531,12 +529,12 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
                     required={!editingUser}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-3 pr-10 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 pl-3 pr-10 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500 font-sans"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-450 hover:text-slate-700"
+                    className="absolute right-3 top-3 text-slate-450 hover:text-slate-300"
                   >
                     {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
@@ -544,11 +542,11 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">Access Permissions</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Access Permissions</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-2.5 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 px-2.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500 font-sans"
                 >
                   <option value="admin">Administrator (System-wide Control)</option>
                   <option value="coordinator">Coordinator (Registration & Dispatch Only)</option>
@@ -558,28 +556,27 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-550 uppercase tracking-wider block">Contact Phone</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Contact Phone</label>
                 <input
                   type="text"
-                  placeholder="e.g. 09971234567"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs focus:outline-none focus:bg-white focus:border-slate-400 font-sans"
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl py-2.5 px-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500 font-sans"
                 />
               </div>
 
               {/* FOOTER ACTIONS */}
-              <div className="flex gap-2 pt-4 border-t border-slate-100">
+              <div className="flex gap-2 pt-4 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="flex-1 border border-slate-200 text-slate-600 rounded-xl py-2 text-xs font-bold hover:bg-slate-50 transition-all text-center cursor-pointer"
+                  className="flex-1 border border-white/10 text-slate-400 rounded-xl py-2 text-xs font-bold hover:bg-white/5 hover:text-white transition-all text-center cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-slate-950 hover:bg-slate-850 text-white rounded-xl py-2 text-xs font-bold shadow-md transition-all text-center cursor-pointer"
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 text-white border border-teal-500/30 rounded-xl py-2 text-xs font-bold shadow-md transition-all text-center cursor-pointer active:scale-95"
                 >
                   Save Account
                 </button>
@@ -592,28 +589,28 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       {/* CONFIRM DELETE MODAL */}
       {confirmDeleteUser && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto" id="delete-user-overlay">
-          <div className="bg-white max-w-sm w-full rounded-3xl p-6 border border-slate-100 text-left animate-scale-up space-y-4">
-            <div className="flex items-center gap-2 text-rose-600">
+          <div className="bg-[#050e12]/95 backdrop-blur-xl max-w-sm w-full rounded-3xl p-6 border border-white/10 text-left animate-scale-up space-y-4 shadow-2xl text-slate-100">
+            <div className="flex items-center gap-2 text-rose-500">
               <ShieldAlert className="h-5 w-5 shrink-0" />
-              <h4 className="font-extrabold text-sm tracking-tight font-sans">Revoke Access Permissions?</h4>
+              <h4 className="font-extrabold text-sm tracking-tight font-sans text-white">Revoke Access Permissions?</h4>
             </div>
 
-            <p className="text-xs text-slate-500 leading-relaxed">
-              This will permanently revoke system access for <strong className="text-slate-900">{confirmDeleteUser.name}</strong> (@{confirmDeleteUser.username}). Unassigned dispatches remains unaffected.
+            <p className="text-xs text-slate-400 leading-relaxed">
+              This will permanently revoke system access for <strong className="text-white">{confirmDeleteUser.name}</strong> (@{confirmDeleteUser.username}). Unassigned dispatches remains unaffected.
             </p>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-2 border-t border-white/10 mt-4">
               <button
                 type="button"
                 onClick={() => setConfirmDeleteUser(null)}
-                className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl py-2 text-xs font-bold cursor-pointer transition-all text-center"
+                className="flex-1 border border-white/10 hover:bg-white/5 text-slate-400 hover:text-white rounded-xl py-2 mt-2 text-xs font-bold cursor-pointer transition-all text-center"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => handleDeleteUser(confirmDeleteUser.id)}
-                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white rounded-xl py-2 text-xs font-bold cursor-pointer transition-all shadow-md text-center"
+                className="flex-1 bg-rose-600/90 hover:bg-rose-600 text-white border border-rose-500/30 rounded-xl py-2 mt-2 text-xs font-bold cursor-pointer transition-all shadow-md text-center active:scale-95"
               >
                 Delete Account
               </button>
