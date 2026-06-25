@@ -815,7 +815,7 @@ app.delete("/api/users/:id", async (req, res) => {
   }
 });
 
-// AI TICKET AUTOFILL ENDPOINT WITH OPENROUTER
+// AI TICKET AUTOFILL ENDPOINT WITH GROQ
 app.post("/api/parse-ticket", async (req, res) => {
   try {
     const { rawText, referenceDate } = req.body;
@@ -824,9 +824,9 @@ app.post("/api/parse-ticket", async (req, res) => {
       return;
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey.includes("YourGeminiApiKeyHere") || apiKey.includes("sk-or-v1-...")) {
-      res.status(500).json({ error: "OpenRouter API Key (OPENROUTER_API_KEY) is not properly configured. Please configure it to use AI Auto-fill." });
+    const apiKey = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey.includes("YourGeminiApiKeyHere") || apiKey.includes("gsk_...")) {
+      res.status(500).json({ error: "Groq API Key (GROQ_API_KEY) is not properly configured. Please configure it to use AI Auto-fill." });
       return;
     }
 
@@ -860,24 +860,22 @@ app.post("/api/parse-ticket", async (req, res) => {
 
     const prompt = `Please extract the service ticket specifications from the following raw text:\n---\n${rawText}\n---`;
 
-    const openRouterModels = [
-      "google/gemma-4-26b-a4b-it:free"
+    const groqModels = [
+      "qwen/qwen3.6-27b"
     ];
 
     let resultJsonStr = "";
     let lastError: any = null;
 
-    for (const modelName of openRouterModels) {
+    for (const modelName of groqModels) {
       try {
-        console.log(`Attempting ticket parse via OpenRouter with model: ${modelName}`);
+        console.log(`Attempting ticket parse via Groq with model: ${modelName}`);
         
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-            "HTTP-Referer": "https://ys-management.vercel.app",
-            "X-Title": "YS SVC Ticket Parser"
+            "Authorization": `Bearer ${apiKey}`
           },
           body: JSON.stringify({
             model: modelName,
@@ -891,7 +889,7 @@ app.post("/api/parse-ticket", async (req, res) => {
 
         if (!response.ok) {
           const errText = await response.text();
-          throw new Error(`OpenRouter HTTP ${response.status}: ${errText}`);
+          throw new Error(`Groq HTTP ${response.status}: ${errText}`);
         }
 
         const data = await response.json() as any;
@@ -903,13 +901,13 @@ app.post("/api/parse-ticket", async (req, res) => {
           break;
         }
       } catch (err: any) {
-        console.warn(`OpenRouter model ${modelName} failed. Error: ${err.message || err}`);
+        console.warn(`Groq model ${modelName} failed. Error: ${err.message || err}`);
         lastError = err;
       }
     }
 
     if (!resultJsonStr) {
-      throw new Error(`OpenRouter parsing failed on all models. Last error: ${lastError?.message || lastError}`);
+      throw new Error(`Groq parsing failed on all models. Last error: ${lastError?.message || lastError}`);
     }
 
     // Clean up markdown block if present
@@ -923,7 +921,7 @@ app.post("/api/parse-ticket", async (req, res) => {
     const parsedData = JSON.parse(cleaned);
     res.json(parsedData);
   } catch (err: any) {
-    console.error("OpenRouter Parse Ticket Error:", err);
+    console.error("Groq Parse Ticket Error:", err);
     res.status(500).json({ error: "AI Parsing Failed: " + (err.message || String(err)) });
   }
 });
