@@ -258,7 +258,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
     switch (userRole) {
       case 'admin':
         return (
-          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-rose-500/10 text-rose-300 px-2 py-0.5 rounded-md border border-rose-500/25">
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-violet-500/10 text-violet-300 px-2 py-0.5 rounded-md border border-violet-500/25">
             <ShieldCheck className="h-3 w-3" /> Admin
           </span>
         );
@@ -364,9 +364,9 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
       {/* BENCHMARK STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
+         {[
           { label: 'Total Users', count: users.length, style: 'bg-white/5 border-white/10 text-slate-100 hover:bg-white/10' },
-          { label: 'System Admins', count: users.filter(u => u.role === 'admin').length, style: 'bg-rose-500/10 border-rose-500/20 text-rose-300 hover:bg-rose-500/15' },
+          { label: 'System Admins', count: users.filter(u => u.role === 'admin').length, style: 'bg-violet-500/10 border-violet-500/20 text-violet-300 hover:bg-violet-500/15' },
           { label: 'Senior Engineers', count: users.filter(u => u.role === 'senior_technician').length, style: 'bg-blue-500/10 border-blue-500/20 text-blue-300 hover:bg-blue-500/15' },
           { label: 'Field Technicians', count: users.filter(u => u.role === 'technician').length, style: 'bg-teal-500/10 border-teal-500/20 text-teal-300 hover:bg-teal-500/15' }
         ].map((stat, i) => (
@@ -394,7 +394,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
             >
               <div className="flex items-start gap-3">
                 <div className={`p-2.5 rounded-xl shrink-0 ${
-                  user.role === 'admin' ? 'bg-rose-500/10 text-rose-300 border border-rose-500/25' :
+                  user.role === 'admin' ? 'bg-violet-500/10 text-violet-300 border border-violet-500/25' :
                   user.role === 'coordinator' ? 'bg-amber-500/10 text-amber-300 border border-amber-500/25' :
                   user.role === 'senior_technician' ? 'bg-blue-500/10 text-blue-300 border border-blue-500/25' :
                   'bg-teal-500/10 text-teal-300 border border-teal-500/25'
