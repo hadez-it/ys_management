@@ -56,7 +56,7 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
 
   return (
     <div className="space-y-4 text-left" id="dashboard-statistics">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         {kpis.map((kpi, idx) => {
           const IconComponent = kpi.icon;
           return (
@@ -64,24 +64,30 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
               key={idx}
               id={`kpi-card-${idx}`}
               onClick={() => onSelectedStatusFilter(kpi.filter)}
-              className={`bg-white p-5 rounded-2xl border border-slate-200/60 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between cursor-pointer group relative overflow-hidden select-none ${kpi.color}`}
+              className="ios-glass-card ios-glass-card-hover p-6 rounded-3xl cursor-pointer group relative overflow-hidden select-none flex flex-col justify-between h-40"
             >
-              <div className="flex justify-between items-start gap-2.5">
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase font-bold tracking-wider text-slate-450">
+              {/* Top ambient color reflection */}
+              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              
+              <div className="flex justify-between items-start gap-4">
+                <div className="space-y-1.5">
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
                     {kpi.title}
                   </p>
-                  <p className="text-xl lg:text-2xl font-extrabold text-slate-900 tracking-tight font-display">
+                  <p className="text-2xl lg:text-3xl font-black text-white tracking-tight font-display">
                     {kpi.value}
                   </p>
                 </div>
-                <div className={`p-2.5 rounded-xl shrink-0 ${kpi.badgeColor} transition-transform group-hover:scale-105`}>
-                  <IconComponent className="h-4.5 w-4.5" />
+                <div className="p-3 rounded-2xl shrink-0 bg-white/5 border border-white/10 text-teal-300 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                  <IconComponent className="h-5 w-5 text-teal-400" />
                 </div>
               </div>
-              <p className="text-[10px] text-slate-400 mt-4 font-semibold tracking-wide flex items-center gap-1">
-                <span>•</span> {kpi.desc}
-              </p>
+              <div className="flex items-center gap-1.5 mt-auto">
+                <span className="h-2 w-2 rounded-full bg-teal-500 animate-pulse" />
+                <p className="text-[11px] text-slate-400 font-semibold tracking-wide">
+                  {kpi.desc}
+                </p>
+              </div>
             </div>
           );
         })}

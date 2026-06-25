@@ -108,18 +108,16 @@ export default function App() {
         return res.json();
       })
       .then((data) => {
-        setActivityLogs(data || []);
-        secureStorage.setItem('smartfix_activity_logs', data || []);
+        const logsArray = Array.isArray(data) ? data : [];
+        setActivityLogs(logsArray);
+        secureStorage.setItem('smartfix_activity_logs', logsArray);
       })
       .catch((err) => {
         console.warn('Fallback: fetching activity logs offline.', err.message || err);
         const cachedLogs = secureStorage.getItem<ActivityLog[]>('smartfix_activity_logs');
-        if (cachedLogs) {
-          setActivityLogs(cachedLogs);
-        } else {
-          setActivityLogs([]);
-          secureStorage.setItem('smartfix_activity_logs', []);
-        }
+        const logsArray = Array.isArray(cachedLogs) ? cachedLogs : [];
+        setActivityLogs(logsArray);
+        secureStorage.setItem('smartfix_activity_logs', logsArray);
       });
   };
 
@@ -159,23 +157,9 @@ export default function App() {
       const cachedInvs = secureStorage.getItem<Invoice[]>('smartfix_invoices');
       const cachedLogs = secureStorage.getItem<ActivityLog[]>('smartfix_activity_logs');
       
-      if (cachedJobs) {
-        setJobs(cachedJobs);
-      } else {
-        setJobs([]);
-      }
-      
-      if (cachedInvs) {
-        setInvoices(cachedInvs);
-      } else {
-        setInvoices([]);
-      }
-      
-      if (cachedLogs) {
-        setActivityLogs(cachedLogs);
-      } else {
-        setActivityLogs([]);
-      }
+      setJobs(Array.isArray(cachedJobs) ? cachedJobs : []);
+      setInvoices(Array.isArray(cachedInvs) ? cachedInvs : []);
+      setActivityLogs(Array.isArray(cachedLogs) ? cachedLogs : []);
       return;
     }
 
@@ -186,10 +170,11 @@ export default function App() {
           return res.json();
         })
         .then((data: ServiceJob[]) => {
+          const dataArray = Array.isArray(data) ? data : [];
           const now = new Date();
           const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
           const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
-          const filtered = (data || []).filter((job) => {
+          const filtered = dataArray.filter((job) => {
             if (!job.createdAt) return true;
             const jobDate = new Date(job.createdAt);
             return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
@@ -200,7 +185,7 @@ export default function App() {
         .catch((err) => {
           console.warn('Fallback: fetching jobs offline.', err.message || err);
           const cachedJobs = secureStorage.getItem<ServiceJob[]>('smartfix_jobs');
-          let loadedJobs: ServiceJob[] = cachedJobs || [];
+          let loadedJobs: ServiceJob[] = Array.isArray(cachedJobs) ? cachedJobs : [];
           const now = new Date();
           const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
           const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
@@ -222,18 +207,16 @@ export default function App() {
         return res.json();
       })
       .then((data) => {
-        setInvoices(data || []);
-        secureStorage.setItem('smartfix_invoices', data || []);
+        const invoicesArray = Array.isArray(data) ? data : [];
+        setInvoices(invoicesArray);
+        secureStorage.setItem('smartfix_invoices', invoicesArray);
       })
       .catch((err) => {
         console.warn('Fallback: fetching invoices offline.', err.message || err);
         const cachedInvs = secureStorage.getItem<Invoice[]>('smartfix_invoices');
-        if (cachedInvs) {
-          setInvoices(cachedInvs);
-        } else {
-          setInvoices([]);
-          secureStorage.setItem('smartfix_invoices', []);
-        }
+        const invoicesArray = Array.isArray(cachedInvs) ? cachedInvs : [];
+        setInvoices(invoicesArray);
+        secureStorage.setItem('smartfix_invoices', invoicesArray);
       });
 
     // Fetch activity logs helper
@@ -244,18 +227,16 @@ export default function App() {
           return res.json();
         })
         .then((data) => {
-          setActivityLogs(data || []);
-          secureStorage.setItem('smartfix_activity_logs', data || []);
+          const logsArray = Array.isArray(data) ? data : [];
+          setActivityLogs(logsArray);
+          secureStorage.setItem('smartfix_activity_logs', logsArray);
         })
         .catch((err) => {
           console.warn('Fallback: fetching activity logs offline.', err.message || err);
           const cachedLogs = secureStorage.getItem<ActivityLog[]>('smartfix_activity_logs');
-          if (cachedLogs) {
-            setActivityLogs(cachedLogs);
-          } else {
-            setActivityLogs([]);
-            secureStorage.setItem('smartfix_activity_logs', []);
-          }
+          const logsArray = Array.isArray(cachedLogs) ? cachedLogs : [];
+          setActivityLogs(logsArray);
+          secureStorage.setItem('smartfix_activity_logs', logsArray);
         });
     };
 
@@ -269,8 +250,9 @@ export default function App() {
           throw new Error();
         })
         .then((data) => {
-          setJobs(data || []);
-          secureStorage.setItem('smartfix_jobs', data || []);
+          const dataArray = Array.isArray(data) ? data : [];
+          setJobs(dataArray);
+          secureStorage.setItem('smartfix_jobs', dataArray);
         })
         .catch(() => {
           // Keep offline state silently running
@@ -737,19 +719,27 @@ export default function App() {
   });
 
   return (
-    <div className="h-screen bg-slate-50/50 text-slate-800 font-sans antialiased flex flex-col lg:flex-row overflow-hidden" id="app-viewport">
+    <div className="h-screen bg-[#050e12] text-slate-100 font-sans antialiased flex flex-col lg:flex-row overflow-hidden relative" id="app-viewport">
+      
+      {/* Drifting background liquid glass blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[5%] left-[15%] w-[450px] h-[450px] rounded-full bg-teal-600 opacity-[0.14] blur-[110px] animate-blob-1" />
+        <div className="absolute bottom-[10%] left-[40%] w-[500px] h-[500px] rounded-full bg-emerald-600 opacity-[0.12] blur-[120px] animate-blob-2" />
+        <div className="absolute top-[35%] right-[5%] w-[420px] h-[420px] rounded-full bg-cyan-500 opacity-[0.15] blur-[100px] animate-blob-3" />
+      </div>
       
       {/* DESKTOP SIDEBAR (Visible only on screens lg and up) */}
-      <aside className="hidden lg:flex lg:w-64 bg-slate-950 text-white flex-col shrink-0 fixed top-0 bottom-0 left-0 border-r border-slate-900 z-30 select-none" id="desktop-sidebar">
+      <aside className="hidden lg:flex lg:w-64 ios-glass-sidebar text-white flex-col shrink-0 fixed top-0 bottom-0 left-0 z-30 select-none" id="desktop-sidebar">
         {/* Brand Banner */}
-        <div className="p-6 border-b border-slate-900 flex items-center gap-3">
-          <div className="bg-black text-slate-100 border border-slate-800 p-2 rounded-xl flex items-center justify-center shadow-sm">
-            <Terminal className="h-4 w-4" />
+        <div className="p-6 border-b border-white/5 flex items-center gap-3">
+          <div className="bg-gradient-to-tr from-teal-500 to-emerald-600 text-slate-100 border border-white/20 p-2.5 rounded-xl flex items-center justify-center shadow-md">
+            <Terminal className="h-4.5 w-4.5 animate-pulse" />
           </div>
           <div>
-            <h1 className="text-sm font-black uppercase tracking-widest font-display text-slate-100">
+            <h1 className="text-sm font-black uppercase tracking-widest font-display text-white">
               YS SVC
             </h1>
+            <span className="text-[9px] text-teal-400 font-bold uppercase tracking-wider block">Liquid Svc</span>
           </div>
         </div>
 
@@ -766,10 +756,10 @@ export default function App() {
                   setActiveTab(tab.id as any);
                   setInvoiceWizardJob(null);
                 }}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer active:scale-97 ${
                   isSelected
-                    ? 'bg-white text-slate-950 font-bold shadow-xs'
-                    : 'text-slate-400 hover:text-slate-150 hover:bg-slate-900/50'
+                    ? 'bg-white/15 text-white font-bold border border-white/20 shadow-[0_0_12px_rgba(255,255,255,0.05)] backdrop-blur-md'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -780,14 +770,14 @@ export default function App() {
         </nav>
 
         {/* Bottom Profile Details */}
-        <div className="p-4 border-t border-slate-900 bg-slate-950 flex flex-col gap-3">
+        <div className="p-4 border-t border-white/5 bg-white/2 flex flex-col gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700/60 flex items-center justify-center font-extrabold text-xs text-slate-205 uppercase tracking-wider shrink-0 select-none">
+            <div className="h-8.5 w-8.5 rounded-full bg-teal-500/20 border border-teal-500/30 flex items-center justify-center font-black text-xs text-teal-300 uppercase tracking-wider shrink-0 select-none">
               {currentUser?.name[0]}
             </div>
             <div className="flex-1 min-w-0 pr-1 text-left">
-              <p className="text-xs font-bold text-slate-100 truncate leading-none mb-1">{currentUser?.name}</p>
-              <span className="text-[9px] font-extrabold uppercase bg-slate-900 border border-slate-800 text-slate-400 px-1.5 py-0.5 rounded">
+              <p className="text-xs font-bold text-white truncate leading-none mb-1">{currentUser?.name}</p>
+              <span className="text-[9px] font-extrabold uppercase bg-white/5 border border-white/10 text-slate-400 px-1.5 py-0.5 rounded">
                 {currentUser?.role.replace('_', ' ')}
               </span>
             </div>
@@ -797,7 +787,7 @@ export default function App() {
             <button
               type="button"
               onClick={handleLogout}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 border border-slate-800 hover:border-rose-500/30 hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 text-xs font-bold py-2 px-3 rounded-lg transition-all cursor-pointer"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 border border-white/10 hover:border-rose-500/30 hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 text-xs font-bold py-2 px-3 rounded-lg transition-all cursor-pointer active:scale-95"
             >
               <LogOut className="h-3.5 w-3.5" /> Log Out
             </button>
@@ -806,12 +796,12 @@ export default function App() {
                 type="button"
                 onClick={() => setShowDbStatusModal(true)}
                 className={`flex items-center justify-center h-8 w-8 rounded-lg border shrink-0 cursor-pointer hover:opacity-80 active:scale-95 transition-all outline-none ${
-                  dbStatus.connected ? 'border-emerald-900 bg-emerald-950/25 focus:ring-1 focus:ring-emerald-500' : 'border-amber-900 bg-amber-950/25 focus:ring-1 focus:ring-amber-500'
+                  dbStatus.connected ? 'border-emerald-500/30 bg-emerald-500/10 focus:ring-1 focus:ring-emerald-500' : 'border-amber-500/30 bg-amber-500/10 focus:ring-1 focus:ring-amber-500'
                 }`}
                 title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed} (Click for details)` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error} (Click for details)` : `${dbStatus.modeMessage || "Local Offline Mode"} (Click for details)`)}
               >
                 <span className={`h-2.5 w-2.5 rounded-full ${
-                  dbStatus.connected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.7)]' : 'bg-amber-500'
+                  dbStatus.connected ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.7)]' : 'bg-amber-400 animate-pulse'
                 }`} />
               </button>
             )}
@@ -820,25 +810,25 @@ export default function App() {
       </aside>
 
       {/* RIGHT SIDE MAIN CONTAINER */}
-      <div className="flex-1 lg:pl-64 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 lg:pl-64 flex flex-col h-screen overflow-hidden relative z-10">
         
         {/* RESPONSIVE FLUID HEADER */}
-        <header className="bg-white border-b border-slate-200/55 z-20 shrink-0 select-none" id="shop-header">
+        <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 z-20 shrink-0 select-none" id="shop-header">
           <div className="mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
             
             {/* Title / Mobile Brand */}
             <div className="flex items-center gap-2.5 text-left">
-              <div className="bg-slate-950 text-white p-2 rounded-xl flex items-center justify-center lg:hidden shrink-0">
+              <div className="bg-gradient-to-tr from-teal-500 to-emerald-600 text-white p-2.5 rounded-xl flex items-center justify-center lg:hidden shrink-0 shadow-md">
                 <Terminal className="h-4.5 w-4.5" />
               </div>
               <div>
-                <h2 className="text-sm lg:text-base font-extrabold tracking-tight text-slate-900 font-display">
+                <h2 className="text-sm lg:text-base font-extrabold tracking-tight text-white font-display">
                   {activeTab === 'dashboard' ? 'Overview Stats' :
                    activeTab === 'queue' ? 'Dispatching Queue' :
                    activeTab === 'invoices' ? 'Billing History' :
                    activeTab === 'deleted' ? 'Activity Log History' : 'Team Directory'}
                 </h2>
-                <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase hidden sm:block">
+                <p className="text-[10px] text-teal-400 font-bold tracking-wider uppercase hidden sm:block">
                   YS SVC Dispatch Hub
                 </p>
               </div>
@@ -849,10 +839,10 @@ export default function App() {
               
               {/* User Identity - Hidden in lg sidebar format but visible in md size header */}
               <div className="text-right hidden sm:block lg:hidden select-none">
-                <p className="text-xs font-bold text-slate-900 leading-tight">
+                <p className="text-xs font-bold text-white leading-tight">
                   {currentUser?.name}
                 </p>
-                <span className="inline-block text-[9px] font-extrabold bg-slate-100 text-slate-500 px-1.5 rounded uppercase mt-0.5 border border-slate-200">
+                <span className="inline-block text-[9px] font-extrabold bg-white/10 text-slate-300 px-1.5 rounded uppercase mt-0.5 border border-white/5">
                   {currentUser?.role.replace('_', ' ')}
                 </span>
               </div>
@@ -865,7 +855,7 @@ export default function App() {
                     setIsDispatching(false);
                     setIsNewTicketModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 bg-slate-950 hover:bg-slate-850 text-white text-xs font-bold py-2.5 px-4 rounded-xl cursor-pointer transition-all active:scale-98 shadow-sm"
+                  className="inline-flex items-center gap-1.5 ios-btn-primary text-xs font-bold py-2.5 px-4 rounded-xl cursor-pointer shadow-md"
                 >
                   <PlusCircle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">New Ticket</span><span className="sm:hidden">New</span>
                 </button>
@@ -877,20 +867,18 @@ export default function App() {
                   <button 
                     type="button"
                     onClick={() => setShowDbStatusModal(true)}
-                    className={`flex items-center justify-center h-9 w-9 rounded-xl border cursor-pointer hover:opacity-80 active:scale-95 transition-all outline-none ${
-                      dbStatus.connected ? 'border-emerald-100 bg-emerald-50/40 text-emerald-600 focus:ring-1 focus:ring-emerald-500' : 'border-amber-100 bg-amber-50/40 text-amber-600 focus:ring-1 focus:ring-amber-500'
-                    }`}
+                    className="flex items-center justify-center h-9 w-9 rounded-xl border border-white/10 bg-white/5 text-white cursor-pointer hover:bg-white/10 active:scale-95 transition-all outline-none"
                     title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed} (Click for details)` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error} (Click for details)` : `${dbStatus.modeMessage || "Local Offline Mode"} (Click for details)`)}
                   >
-                    <span className={`h-2 w-2 rounded-full ${
-                      dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                    <span className={`h-2.5 w-2.5 rounded-full ${
+                      dbStatus.connected ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.7)]' : 'bg-amber-400'
                     }`} />
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="text-xs text-slate-450 hover:text-rose-600 border border-slate-200 rounded-xl p-2.5 transition-all bg-white cursor-pointer hover:bg-rose-50/20"
+                  className="text-xs text-slate-300 hover:text-rose-400 border border-white/10 rounded-xl p-2.5 transition-all bg-white/5 cursor-pointer hover:bg-rose-950/20"
                   title="Log Out Session"
                 >
                   <LogOut className="h-3.5 w-3.5" />
@@ -947,17 +935,17 @@ export default function App() {
                   )}
 
                   {activeTab === 'invoices' && (
-                    <div className="bg-white border border-slate-200/55 rounded-2xl p-5 md:p-6 shadow-xs text-left space-y-5" id="invoices-list-tab-module">
+                    <div className="ios-glass-card rounded-3xl p-5 md:p-6 text-left space-y-5" id="invoices-list-tab-module">
                       <div className="space-y-0.5">
-                        <h3 className="font-extrabold text-slate-900 text-base tracking-tight font-display flex items-center gap-1.5">
-                          <History className="h-5 w-5 text-slate-800" /> Settlement Ledger
+                        <h3 className="font-extrabold text-white text-base tracking-tight font-display flex items-center gap-1.5">
+                          <History className="h-5 w-5 text-teal-400" /> Settlement Ledger
                         </h3>
                         <p className="text-xs text-slate-400">Review final transaction logs, KBZPay entries, and invoices details.</p>
                       </div>
 
-                      <div className="border border-slate-200 rounded-xl overflow-x-auto" id="historic-invoices-register">
+                      <div className="border border-white/5 rounded-2xl overflow-x-auto" id="historic-invoices-register">
                         <table className="w-full text-xs text-left">
-                          <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 select-none">
+                          <thead className="bg-white/5 text-slate-350 font-bold uppercase tracking-wider text-[10px] border-b border-white/5 select-none">
                             <tr>
                               <th className="p-4">Ref Number</th>
                               <th className="p-4">Customer Details</th>
@@ -1055,7 +1043,7 @@ export default function App() {
                               <div key={log.id || ('log-' + Math.random())} className="hover:bg-slate-900/60 py-0.5 px-2 rounded-md flex flex-col md:flex-row md:items-start gap-1 select-text transition-colors duration-150">
                                 <span className="text-slate-500 shrink-0 font-medium">[{dateText}]</span>
                                 <span className={`shrink-0 ${levelColor}`}>[{level}]</span>
-                                <span className="text-indigo-400 shrink-0">@{log.username || 'system'}</span>
+                                <span className="text-teal-400 shrink-0">@{log.username || 'system'}</span>
                                 <div className="flex-1 md:pl-1 text-slate-300">
                                   <span className="text-zinc-400 font-medium uppercase text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800/40 mr-1.5 shrink-0 inline-block align-middle">{log.actionType}</span>
                                   <span className="text-amber-300 font-bold mr-1.5">[TICKET #{log.jobId}]</span>
@@ -1106,20 +1094,20 @@ export default function App() {
           onClick={() => setShowDbStatusModal(false)}
         >
           <div 
-            className="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200/50 flex flex-col overflow-hidden animate-scale-up" 
+            className="bg-[#050e12]/95 backdrop-blur-xl w-full max-w-md rounded-2xl shadow-2xl border border-white/10 flex flex-col overflow-hidden animate-scale-up text-slate-100" 
             id="db-status-detail-modal-container"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-slate-50 px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 text-left select-none">
+            <div className="bg-white/5 px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0 text-left select-none">
               <div className="flex items-center gap-2">
-                <Database className="h-4.5 w-4.5 text-slate-700" />
-                <h3 className="font-extrabold text-slate-900 text-sm font-display">Database Status Details</h3>
+                <Database className="h-4.5 w-4.5 text-teal-400" />
+                <h3 className="font-extrabold text-white text-sm font-display">Database Status Details</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowDbStatusModal(false)}
-                className="text-slate-400 hover:text-slate-700 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-xl font-bold cursor-pointer transition-colors"
+                className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-xl font-bold cursor-pointer transition-colors"
                 aria-label="Close"
               >
                 &times;
@@ -1131,8 +1119,8 @@ export default function App() {
               <div className="flex items-center gap-3">
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
                   dbStatus.connected 
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                    : 'bg-rose-50 text-rose-750 border border-rose-100'
+                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20' 
+                    : 'bg-rose-500/15 text-rose-300 border border-rose-500/20'
                 }`}>
                   <span className={`h-2 w-2 rounded-full ${
                     dbStatus.connected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
@@ -1140,17 +1128,17 @@ export default function App() {
                   {dbStatus.connected ? 'Connected' : 'Database Offline'}
                 </span>
                 
-                <span className="text-[11px] text-slate-400 font-mono font-semibold">
+                <span className="text-[11px] text-teal-400 font-mono font-semibold">
                   MongoDB Atlas
                 </span>
               </div>
 
               {/* Status Message */}
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/50 space-y-1 text-slate-705 text-xs select-text">
-                <p className="font-bold text-slate-800">Current Message:</p>
-                <p className="leading-relaxed font-medium text-slate-600">{dbStatus.modeMessage}</p>
+              <div className="bg-white/5 p-3.5 rounded-xl border border-white/5 space-y-1 text-slate-300 text-xs select-text">
+                <p className="font-bold text-teal-300">Current Message:</p>
+                <p className="leading-relaxed font-medium text-slate-300">{dbStatus.modeMessage}</p>
                 {dbStatus.uriUsed && (
-                  <p className="text-[10px] text-slate-450 mt-1.5 font-mono truncate">
+                  <p className="text-[10px] text-slate-400 mt-1.5 font-mono truncate">
                     <strong>URI Endpoint:</strong> {dbStatus.uriUsed}
                   </p>
                 )}
@@ -1158,9 +1146,9 @@ export default function App() {
 
               {/* Error Message Details */}
               {dbStatus.error && (
-                <div className="bg-rose-50/50 p-3.5 rounded-xl border border-rose-100 space-y-1 text-xs select-text text-rose-800">
-                  <p className="font-bold text-rose-900">Error Log:</p>
-                  <p className="font-mono text-[11px] leading-relaxed break-words bg-white/70 p-2 rounded border border-rose-200/50">{dbStatus.error}</p>
+                <div className="bg-rose-950/20 p-3.5 rounded-xl border border-rose-900/30 space-y-1 text-xs select-text text-rose-300">
+                  <p className="font-bold text-rose-200">Error Log:</p>
+                  <p className="font-mono text-[11px] leading-relaxed break-words bg-black/40 p-2 rounded border border-rose-500/20 text-rose-200">{dbStatus.error}</p>
                 </div>
               )}
 
@@ -1171,7 +1159,7 @@ export default function App() {
                     type="button"
                     disabled={isWiping}
                     onClick={handleWipeAllData}
-                    className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                    className="bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
                   >
                     {isWiping ? 'Wiping Data...' : 'Wipe Mock/Simulated Data'}
                   </button>
@@ -1179,7 +1167,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setShowDbStatusModal(false)}
-                  className="bg-slate-950 hover:bg-slate-850 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer"
+                  className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer border border-teal-500/20"
                 >
                   Close Details
                 </button>
@@ -1188,22 +1176,20 @@ export default function App() {
           </div>
         </div>
       )}
-
-
       {/* NEW TICKET REGISTRATION POPUP */}
       {isNewTicketModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-4 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto" id="new-ticket-modal-overlay">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200/30 max-h-[90vh] flex flex-col overflow-hidden animate-scale-up" id="new-ticket-modal-container">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-4 sm:pt-4 bg-slate-955/75 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto" id="new-ticket-modal-overlay">
+          <div className="bg-[#050e12]/95 backdrop-blur-xl w-full max-w-2xl rounded-3xl shadow-2xl border border-white/10 max-h-[90vh] flex flex-col overflow-hidden animate-scale-up text-slate-100" id="new-ticket-modal-container">
             {/* Modal Header */}
-            <div className="bg-slate-50 px-6 py-5 border-b border-slate-200 flex items-center justify-between shrink-0 text-left select-none">
+            <div className="bg-white/5 px-6 py-5 border-b border-white/5 flex items-center justify-between shrink-0 text-left select-none">
               <div>
-                <h3 className="font-extrabold text-slate-905 text-base font-display">Register Service Work</h3>
+                <h3 className="font-extrabold text-white text-base font-display">Register Service Work</h3>
                 <p className="text-xs text-slate-400">Assign technician & record service ticket details</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsNewTicketModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-2 text-2xl font-bold rounded-lg hover:bg-slate-100 tracking-none leading-none cursor-pointer"
+                className="text-slate-400 hover:text-white p-2 text-2xl font-bold rounded-lg hover:bg-white/5 tracking-none leading-none cursor-pointer"
               >
                 &times;
               </button>
@@ -1221,7 +1207,7 @@ export default function App() {
       )}
 
       {/* RESPONSIVE BOTTOM MOBILE NAVBAR (Invisible in wide viewports) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/70 shadow-[0_-4px_16px_rgba(0,0,0,0.03)] lg:hidden select-none" id="workspace-bottom-nav">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#050e12]/90 backdrop-blur-lg border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.15)] lg:hidden select-none" id="workspace-bottom-nav">
         <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-around">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
@@ -1237,23 +1223,23 @@ export default function App() {
                 }}
                 className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group ${
                   isSelected
-                    ? 'text-slate-950 scale-102'
-                    : 'text-slate-400 hover:text-slate-700'
+                    ? 'text-teal-400 scale-102'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <div className={`p-1.5 rounded-xl transition-all ${
-                  isSelected ? 'bg-slate-100 text-slate-950' : 'group-hover:bg-slate-50'
+                  isSelected ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20' : 'group-hover:bg-white/5'
                 }`}>
                   <Icon className="h-4.5 w-4.5 shrink-0" />
                 </div>
                 <span className={`text-[9px] font-bold tracking-tight mt-0.5 transition-colors ${
-                  isSelected ? 'text-slate-950 font-black' : 'text-slate-400'
+                  isSelected ? 'text-teal-300 font-bold' : 'text-slate-400'
                 }`}>
                   {tab.label.split(' ')[0]}
                 </span>
 
                 {isSelected && (
-                  <span className="absolute top-0 w-2 h-1 rounded-b-full bg-slate-950 shadow-xs" />
+                  <span className="absolute top-0 w-2 h-1 rounded-b-full bg-teal-450 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
                 )}
               </button>
             );

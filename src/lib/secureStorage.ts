@@ -48,7 +48,15 @@ export const secureStorage = {
     try {
       // Minimize: do not store tokens or any sensitive password information in local storage.
       let sanitizedValue = value;
-      if (value && typeof value === 'object') {
+      if (Array.isArray(value)) {
+        sanitizedValue = value.map(item => {
+          if (item && typeof item === 'object') {
+            const { token, password, ...rest } = item;
+            return rest;
+          }
+          return item;
+        });
+      } else if (value && typeof value === 'object') {
         // Clone and strip sensitive token property if present
         const { token, password, ...rest } = value;
         sanitizedValue = rest;

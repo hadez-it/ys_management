@@ -286,11 +286,13 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
   const isSelf = (userId: string) => currentUser?.id === userId;
 
   return (
-    <div className="bg-white border border-slate-200/50 rounded-2xl p-6 shadow-xs text-left animate-fade-in space-y-6" id="user-management-tab-module">
+    <div className="ios-glass-card rounded-3xl p-6 text-left animate-fade-in space-y-6" id="user-management-tab-module">
       
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-0.5">
+          <h3 className="text-base font-extrabold text-white tracking-tight font-display">Team Directory</h3>
+          <p className="text-xs text-slate-400">Manage operator permissions, technician allocations, and credentials.</p>
         </div>
 
         <div className="flex gap-2 shrink-0">
@@ -298,7 +300,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
             type="button"
             disabled={currentUser?.role !== 'admin'}
             onClick={handleOpenCreate}
-            className={`px-3 py-2 bg-slate-950 hover:bg-slate-850 active:scale-98 text-white rounded-xl text-xs flex items-center gap-1.5 font-bold shadow-xs cursor-pointer transition-all ${
+            className={`px-3 py-2 ios-btn-primary text-white rounded-xl text-xs flex items-center gap-1.5 font-bold cursor-pointer transition-all ${
               currentUser?.role !== 'admin' ? 'opacity-40 cursor-not-allowed' : ''
             }`}
           >
@@ -309,7 +311,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
           <button
             type="button"
             onClick={fetchUsers}
-            className="p-2 text-slate-500 hover:text-slate-950 border border-slate-200 rounded-xl hover:bg-slate-50 text-xs flex items-center gap-1.5 font-semibold cursor-pointer transition-all"
+            className="p-2 text-slate-300 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 text-xs flex items-center gap-1.5 font-semibold cursor-pointer transition-all"
             title="Refresh Account Registry"
           >
             <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
@@ -320,21 +322,21 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
       {/* FEEDBACK BANNERS */}
       {errorMsg && (
-        <div className="bg-rose-50 border border-rose-150 text-rose-850 p-4 rounded-xl flex items-start gap-2.5 text-xs">
-          <ShieldAlert className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+        <div className="bg-rose-500/10 border border-rose-500/20 text-rose-350 p-4 rounded-xl flex items-start gap-2.5 text-xs">
+          <ShieldAlert className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
           <div>
             <span className="font-bold block mb-0.5">Operation Error</span>
-            <p className="text-rose-700">{errorMsg}</p>
+            <p className="text-rose-300">{errorMsg}</p>
           </div>
         </div>
       )}
 
       {successMsg && (
-        <div className="bg-emerald-50 border border-emerald-150 text-emerald-850 p-4 rounded-xl flex items-start gap-2.5 text-xs animate-fade-in">
-          <UserCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-350 p-4 rounded-xl flex items-start gap-2.5 text-xs animate-fade-in">
+          <UserCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
           <div>
             <span className="font-bold block mb-0.5">Success</span>
-            <p className="text-emerald-700">{successMsg}</p>
+            <p className="text-emerald-300">{successMsg}</p>
           </div>
         </div>
       )}
@@ -347,12 +349,12 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
           placeholder="Filter users by full name, username, or contact phone..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:border-slate-400 border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs focus:outline-none transition-all font-sans"
+          className="w-full bg-white/5 border border-white/10 text-white placeholder-slate-400 rounded-xl pl-9 pr-8 py-2.5 text-xs focus:outline-none focus:bg-white/10 focus:border-teal-500/50 transition-all font-sans"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+            className="absolute right-3 top-3 text-slate-400 hover:text-white"
           >
             <X className="h-3.5 w-3.5" />
           </button>
