@@ -861,7 +861,7 @@ app.post("/api/parse-ticket", async (req, res) => {
     const prompt = `Please extract the service ticket specifications from the following raw text:\n---\n${rawText}\n---`;
 
     const openRouterModels = [
-      "poolside/laguna-m.1:free"
+      "google/gemma-4-26b-a4b-it:free"
     ];
 
     let resultJsonStr = "";
