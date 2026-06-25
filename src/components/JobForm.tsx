@@ -212,30 +212,18 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
           </div>
         </div>
 
-        {/* Gemini AI Auto-fill Modal Trigger */}
-        <div className="bg-gradient-to-r from-teal-500/10 via-emerald-500/10 to-cyan-500/10 border border-teal-500/20 rounded-xl p-3.5 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => {
-              setIsAiCollatorOpen(true);
-              setAiError('');
-            }}
-            className="flex items-center gap-2 group cursor-pointer focus:outline-none text-left"
-          >
-            <GeminiIcon className="h-5 w-5 group-hover:scale-110 transition-transform" />
-            <span className="text-xs font-bold text-teal-300 uppercase tracking-wide group-hover:text-teal-200 transition-colors">AI auto fill</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsAiCollatorOpen(true);
-              setAiError('');
-            }}
-            className="text-[10px] font-bold text-teal-400 hover:text-teal-300 bg-white/5 border border-teal-500/20 hover:border-teal-500/40 px-3 py-1.5 rounded-lg transition-all shadow-xs cursor-pointer"
-          >
-            Click to Open
-          </button>
-        </div>
+        {/* AI Auto-fill Modal Trigger */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsAiCollatorOpen(true);
+            setAiError('');
+          }}
+          className="w-full bg-gradient-to-r from-teal-500/10 via-emerald-500/10 to-cyan-500/10 border border-teal-500/20 hover:border-teal-500/40 rounded-xl p-3.5 flex items-center justify-center gap-2 group cursor-pointer focus:outline-none transition-all shadow-xs"
+        >
+          <GeminiIcon className="h-5 w-5 group-hover:scale-110 transition-transform" />
+          <span className="text-xs font-bold text-teal-300 uppercase tracking-wide group-hover:text-teal-200 transition-colors">Auto Fill</span>
+        </button>
 
         {/* Customer Name */}
         <div className="space-y-1">
