@@ -861,7 +861,7 @@ app.post("/api/parse-ticket", async (req, res) => {
     const prompt = `Please extract the service ticket specifications from the following raw text:\n---\n${rawText}\n---`;
 
     const openRouterModels = [
-      "openrouter/auto"
+      "openai/gpt-oss-120b:free"
     ];
 
     let resultJsonStr = "";
