@@ -58,7 +58,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
     if (!currentUser?.token) {
       // Fallback silently if user is not authenticated yet
       const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
-      if (cachedUsers) {
+      if (cachedUsers && Array.isArray(cachedUsers)) {
         setUsers(cachedUsers);
       } else {
         setUsers([]);
@@ -77,14 +77,15 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
         return res.json();
       })
       .then((data) => {
-        setUsers(data || []);
-        secureStorage.setItem('smartfix_users', data || []);
+        const usersArray = Array.isArray(data) ? data : [];
+        setUsers(usersArray);
+        secureStorage.setItem('smartfix_users', usersArray);
         setErrorMsg('');
       })
       .catch((err) => {
         console.warn('Database offline: fetching users fallback to local storage.', err.message || err);
         const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
-        if (cachedUsers) {
+        if (cachedUsers && Array.isArray(cachedUsers)) {
           setUsers(cachedUsers);
           setErrorMsg('');
         } else {
@@ -181,7 +182,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       .catch((err) => {
         // Fallback for offline/Vercel
         const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
-        let localUsersList: User[] = cachedUsers || [];
+        let localUsersList: User[] = (cachedUsers && Array.isArray(cachedUsers)) ? cachedUsers : [];
 
         if (editingUser) {
           localUsersList = localUsersList.map((u) => 
@@ -232,7 +233,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       .catch((err) => {
         // Fallback for offline/Vercel
         const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
-        if (cachedUsers) {
+        if (cachedUsers && Array.isArray(cachedUsers)) {
           const updated = cachedUsers.filter(u => u.id !== userId);
           secureStorage.setItem('smartfix_users', updated);
           setUsers(updated);
@@ -257,26 +258,26 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
     switch (userRole) {
       case 'admin':
         return (
-          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-slate-900 text-white px-2 py-0.5 rounded-md border border-slate-950">
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-rose-500/10 text-rose-300 px-2 py-0.5 rounded-md border border-rose-500/25">
             <ShieldCheck className="h-3 w-3" /> Admin
           </span>
         );
       case 'coordinator':
         return (
-          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-slate-200 text-slate-800 px-2 py-0.5 rounded-md border border-slate-300">
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/25">
             Coordinator
           </span>
         );
       case 'senior_technician':
         return (
-          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-250">
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded-md border border-blue-500/25">
             Senior Tech
           </span>
         );
       case 'technician':
       default:
         return (
-          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200">
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider font-bold bg-teal-500/10 text-teal-300 px-2 py-0.5 rounded-md border border-teal-500/25">
             Technician
           </span>
         );
@@ -364,12 +365,12 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       {/* BENCHMARK STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Total Users', count: users.length, style: 'bg-slate-50/50 border-slate-250/20 text-slate-900' },
-          { label: 'System Admins', count: users.filter(u => u.role === 'admin').length, style: 'bg-rose-50/30 border-rose-100 text-rose-900' },
-          { label: 'Senior Engineers', count: users.filter(u => u.role === 'senior_technician').length, style: 'bg-blue-50/30 border-blue-105 text-blue-900' },
-          { label: 'Field Technicians', count: users.filter(u => u.role === 'technician').length, style: 'bg-slate-100/40 border-slate-200 text-slate-600' }
+          { label: 'Total Users', count: users.length, style: 'bg-white/5 border-white/10 text-slate-100 hover:bg-white/10' },
+          { label: 'System Admins', count: users.filter(u => u.role === 'admin').length, style: 'bg-rose-500/10 border-rose-500/20 text-rose-300 hover:bg-rose-500/15' },
+          { label: 'Senior Engineers', count: users.filter(u => u.role === 'senior_technician').length, style: 'bg-blue-500/10 border-blue-500/20 text-blue-300 hover:bg-blue-500/15' },
+          { label: 'Field Technicians', count: users.filter(u => u.role === 'technician').length, style: 'bg-teal-500/10 border-teal-500/20 text-teal-300 hover:bg-teal-500/15' }
         ].map((stat, i) => (
-          <div key={i} className={`p-4 border rounded-2xl ${stat.style}`}>
+          <div key={i} className={`p-4 border rounded-2xl transition-all duration-150 ${stat.style}`}>
             <span className="text-[10px] uppercase font-bold tracking-wider opacity-60 block">{stat.label}</span>
             <p className="text-2xl font-extrabold tracking-tight mt-1 font-display">{stat.count}</p>
           </div>
@@ -387,23 +388,24 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
           {filteredUsers.map((user) => (
             <div 
               key={user.id} 
-              className={`p-4 bg-white hover:bg-slate-50/20 border rounded-2xl flex items-start justify-between transition-all duration-150 ${
-                isSelf(user.id) ? 'border-slate-800 bg-slate-50/40' : 'border-slate-200/65'
+              className={`p-4 bg-white/5 hover:bg-white/10 border rounded-2xl flex items-start justify-between transition-all duration-150 ${
+                isSelf(user.id) ? 'border-teal-500/35 bg-teal-500/5' : 'border-white/10'
               }`}
             >
               <div className="flex items-start gap-3">
                 <div className={`p-2.5 rounded-xl shrink-0 ${
-                  user.role === 'admin' ? 'bg-slate-950 text-white' :
-                  user.role === 'coordinator' ? 'bg-slate-100 text-slate-700' :
-                  user.role === 'senior_technician' ? 'bg-blue-50 text-blue-700' : 'bg-slate-50 text-slate-600'
+                  user.role === 'admin' ? 'bg-rose-500/10 text-rose-300 border border-rose-500/25' :
+                  user.role === 'coordinator' ? 'bg-amber-500/10 text-amber-300 border border-amber-500/25' :
+                  user.role === 'senior_technician' ? 'bg-blue-500/10 text-blue-300 border border-blue-500/25' :
+                  'bg-teal-500/10 text-teal-300 border border-teal-500/25'
                 }`}>
                   <Users className="h-4.5 w-4.5" />
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-slate-900 text-sm tracking-tight">{user.name}</span>
+                    <span className="font-bold text-white text-sm tracking-tight">{user.name}</span>
                     {isSelf(user.id) && (
-                      <span className="text-[9px] bg-slate-950 text-white font-extrabold px-1.5 py-0.5 rounded font-mono select-none">
+                      <span className="text-[9px] bg-teal-500/20 text-teal-300 border border-teal-500/30 font-extrabold px-1.5 py-0.5 rounded font-mono select-none">
                         YOU
                       </span>
                     )}
@@ -414,11 +416,11 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
                     {getRoleBadge(user.role)}
                     
                     {user.phone ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/50">
-                        <Smartphone className="h-3 w-3 text-slate-450" /> {user.phone}
+                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-350 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                        <Smartphone className="h-3 w-3 text-teal-400" /> {user.phone}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-slate-350 italic">No phone registered</span>
+                      <span className="text-[10px] text-slate-450 italic">No phone registered</span>
                     )}
                   </div>
                 </div>
@@ -430,7 +432,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(user)}
-                    className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer transition-all"
+                    className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-all"
                     title="Edit User Profile"
                   >
                     <Edit className="h-3.5 w-3.5" />
@@ -441,8 +443,8 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
                     onClick={() => setConfirmDeleteUser(user)}
                     className={`p-1.5 rounded-lg transition-all ${
                       isSelf(user.id) 
-                        ? 'text-slate-200 cursor-not-allowed'
-                        : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer'
+                        ? 'text-slate-600 cursor-not-allowed opacity-30'
+                        : 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer'
                     }`}
                     title={isSelf(user.id) ? "Cannot delete yourself" : "Delete User"}
                   >
@@ -450,13 +452,13 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
                   </button>
                 </div>
               ) : (
-                <span className="text-[9px] text-slate-350 font-bold uppercase tracking-wide">Read Only</span>
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Read Only</span>
               )}
             </div>
           ))}
 
           {filteredUsers.length === 0 && (
-            <div className="col-span-full py-12 text-center text-slate-400 italic text-xs border border-dashed border-slate-250/60 rounded-2xl bg-slate-50/50">
+            <div className="col-span-full py-12 text-center text-slate-400 italic text-xs border border-dashed border-white/10 rounded-2xl bg-white/5">
               No matching records found in team registry.
             </div>
           )}

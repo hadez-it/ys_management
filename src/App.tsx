@@ -737,9 +737,8 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-sm font-black uppercase tracking-widest font-display text-white">
-              YS SVC
+              Yangon Store
             </h1>
-            <span className="text-[9px] text-teal-400 font-bold uppercase tracking-wider block">Liquid Svc</span>
           </div>
         </div>
 
@@ -996,11 +995,11 @@ export default function App() {
                   )}
 
                   {activeTab === 'deleted' && (
-                    <div className="bg-white border border-slate-200/55 rounded-2xl p-5 md:p-6 shadow-xs text-left space-y-5" id="deleted-list-tab-module">
+                    <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-5 md:p-6 shadow-2xl text-left space-y-5" id="deleted-list-tab-module">
                       {/* Developer-style Console / Terminal container */}
-                      <div className="rounded-xl overflow-hidden border border-slate-950 shadow-lg text-slate-200 font-mono text-[11px] md:text-xs">
+                      <div className="rounded-xl overflow-hidden border border-white/10 shadow-lg text-slate-200 font-mono text-[11px] md:text-xs">
                         {/* Terminal Header */}
-                        <div className="bg-slate-900 px-4 py-2.5 flex items-center justify-between select-none border-b border-slate-950">
+                        <div className="bg-slate-900/80 px-4 py-2.5 flex items-center justify-between select-none border-b border-white/10">
                           <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-[#ff5f56] inline-block shadow-inner" />
                             <span className="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block shadow-inner" />
@@ -1011,7 +1010,7 @@ export default function App() {
                         </div>
 
                         {/* Terminal Log Output Body */}
-                        <div className="bg-slate-950 p-4 min-h-[350px] max-h-[550px] overflow-y-auto space-y-2 select-text custom-scrollbar">
+                        <div className="bg-slate-950/60 backdrop-blur-sm p-4 min-h-[350px] max-h-[550px] overflow-y-auto space-y-2 select-text custom-scrollbar">
                           {activityLogs.map((log) => {
                             const dateText = log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
                               month: 'short',
@@ -1153,17 +1152,7 @@ export default function App() {
               )}
 
               {/* Dismiss controls */}
-              <div className="pt-2 flex justify-between gap-2">
-                {currentUser?.role === 'admin' && (
-                  <button
-                    type="button"
-                    disabled={isWiping}
-                    onClick={handleWipeAllData}
-                    className="bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    {isWiping ? 'Wiping Data...' : 'Wipe Mock/Simulated Data'}
-                  </button>
-                )}
+              <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowDbStatusModal(false)}
