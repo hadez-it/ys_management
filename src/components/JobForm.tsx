@@ -511,7 +511,7 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
             {/* Modal Body */}
             <div className="p-5 space-y-4 overflow-y-auto">
               <p className="text-xs text-slate-400 leading-relaxed">
-                Paste any unstructured customer message or ticket details below. Gemini will analyze the text to automatically extract and populate the name, phone number, device details, urgency, date, and address.
+                Paste unstructured customer message or ticket details here to auto-fill the form.
               </p>
 
               <textarea
