@@ -922,6 +922,76 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                 ) : (
                   <p className="text-xs text-slate-400 italic">No notes or remarks logged yet.</p>
                 )}
+                
+                {/* Preset responses and Manual entry field */}
+                <div className="pt-2 border-t border-white/5 mt-2">
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Yangon' });
+                        const datePrefix = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Yangon' });
+                        const text = `[${datePrefix} ${timestamp}] Unreachable: Busy / No Answer`;
+                        const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
+                        onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
+                      }}
+                      className="text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-semibold py-1 px-2.5 rounded-lg border border-amber-500/20 cursor-pointer transition-all"
+                    >
+                      📞 Busy / No Answer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Yangon' });
+                        const datePrefix = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Yangon' });
+                        const text = `[${datePrefix} ${timestamp}] Unreachable: Switched Off`;
+                        const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
+                        onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
+                      }}
+                      className="text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-semibold py-1 px-2.5 rounded-lg border border-amber-500/20 cursor-pointer transition-all"
+                    >
+                      📴 Switched Off
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Yangon' });
+                        const datePrefix = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Yangon' });
+                        const text = `[${datePrefix} ${timestamp}] Site Unreachable: Customer Closed / Away`;
+                        const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
+                        onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
+                      }}
+                      className="text-[10px] bg-slate-500/10 hover:bg-slate-500/20 text-slate-300 font-semibold py-1 px-2.5 rounded-lg border border-slate-500/20 cursor-pointer transition-all"
+                    >
+                      🏠 Closed / Not Present
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      id="input-manual-remark"
+                      placeholder="Type custom action description..."
+                      value={tempRemark}
+                      onChange={(e) => setTempRemark(e.target.value)}
+                      className="flex-1 bg-slate-900 border border-white/10 text-xs py-1.5 px-3 text-white rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-500 font-sans placeholder-slate-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!tempRemark.trim()) return;
+                        const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Yangon' });
+                        const datePrefix = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Yangon' });
+                        const text = `[${datePrefix} ${timestamp}] ${tempRemark.trim()}`;
+                        const updatedRemarks = selectedJob.remarks ? `${selectedJob.remarks}\n${text}` : text;
+                        onUpdateJobStatus(selectedJob.id, selectedJob.status, selectedJob.technicianName, selectedJob.diagnosedProblem, selectedJob.resolutionNotes, updatedRemarks);
+                        setTempRemark('');
+                      }}
+                      className="bg-teal-600 text-white rounded-lg px-3.5 py-1 text-xs font-bold hover:bg-teal-700 cursor-pointer transition-all active:scale-95 border border-teal-500/25"
+                    >
+                      Save Remark
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Audit trail / Edit Logs history */}
@@ -1080,7 +1150,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                   </div>
 
                   {/* COMMUNICATORS & UNREACHABLE DISPATCH PRESET ACTIONS */}
-                  <div className="border-t border-white/5 pt-3 space-y-2">
+                  <div className="border-t border-white/5 pt-3 space-y-2 hidden">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wilder block select-none">
                       Log Remarks / Customer Unreachable Actions
                     </label>
