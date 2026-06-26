@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
+import { GoogleGenAI, Type } from "@google/genai";
 
 // Load configuration
 dotenv.config();
@@ -268,7 +269,7 @@ async function ensureDbConnected() {
 const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   // Public endpoints do not require token
   const path = req.path;
-  if (path === "/db-status" || path === "/auth/login") {
+  if (path === "/db-status" || path === "/auth/login" || path === "/auth/logout" || path === "/parse-ticket") {
     return next();
   }
 
@@ -815,7 +816,7 @@ app.delete("/api/users/:id", async (req, res) => {
   }
 });
 
-// AI TICKET AUTOFILL ENDPOINT WITH GROQ
+// AI TICKET AUTOFILL ENDPOINT WITH GEMINI
 app.post("/api/parse-ticket", async (req, res) => {
   try {
     const { rawText, referenceDate } = req.body;
@@ -824,11 +825,20 @@ app.post("/api/parse-ticket", async (req, res) => {
       return;
     }
 
-    const apiKey = process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey.includes("YourGeminiApiKeyHere") || apiKey.includes("gsk_...")) {
-      res.status(500).json({ error: "Groq API Key (GROQ_API_KEY) is not properly configured. Please configure it to use AI Auto-fill." });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey.includes("YourGeminiApiKeyHere")) {
+      res.status(500).json({ error: "Gemini API Key (GEMINI_API_KEY) is not properly configured. Please configure it to use AI Auto-fill." });
       return;
     }
+
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
 
     const systemInstruction = 
       "You are an expert bilingual administrative dispatcher assistant for 'YS SVC', " +
@@ -844,74 +854,60 @@ app.post("/api/parse-ticket", async (req, res) => {
       "5. Location / Address (locationText): Combine building numbers, condo name, streets, township, e.g. 'Shwe Hinthar Condo B, 6 မိုင်ခွဲ, Yangon' or standard descriptive Yangon addresses.\n" +
       "6. Date (selectedDate): Look at date indicators like relative expressions ('Monday', 'tomorrow', 'today', 'Sunday'). Utilize the referenceDate: " + (referenceDate || new Date().toISOString().split('T')[0]) + " to accurately calculate the correct date target as YYYY-MM-DD. For example, if referenceDate is 2026-06-14 (Sunday), 'Monday' corresponds to 2026-06-15. If no date is found, default to referenceDate.\n" +
       "7. Time Slot (selectedTime): Must be strictly matched to one of: '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', or 'none'. Match based on hour preferences if mentioned (e.g. '1 PM' -> '13:00', '10 AM' -> '10:00'). If unspecified, return 'none'.\n" +
-      "8. Urgency (urgency): Set urgency based on keywords or high priority. Must be strictly one of: 'Low', 'Medium', 'High', 'Critical'. Default to 'Medium'.\n\n" +
-      "You MUST return ONLY a valid, single JSON object matching this schema exactly:\n" +
-      "{\n" +
-      "  \"customerName\": \"string\",\n" +
-      "  \"customerPhone\": \"string\",\n" +
-      "  \"deviceType\": \"string\",\n" +
-      "  \"deviceIssue\": \"string\",\n" +
-      "  \"locationText\": \"string\",\n" +
-      "  \"urgency\": \"Low\" | \"Medium\" | \"High\" | \"Critical\",\n" +
-      "  \"selectedDate\": \"YYYY-MM-DD\",\n" +
-      "  \"selectedTime\": \"string\"\n" +
-      "}\n" +
-      "Do not output markdown block wrappers (like ```json), no notes, no commentary.";
+      "8. Urgency (urgency): Set urgency based on keywords or high priority. Must be strictly one of: 'Low', 'Medium', 'High', 'Critical'. Default to 'Medium'.";
 
-    const prompt = `Please extract the service ticket specifications from the following raw text:\n---\n${rawText}\n---`;
+    const prompt = `Please extract the service ticket specifications from the following raw text and format the output strictly as a JSON object:\n---\n${rawText}\n---`;
 
-    const groqModels = [
-      "qwen/qwen3.6-27b"
+    const modelsToTry = [
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite"
     ];
 
-    let resultJsonStr = "";
+    let resultText = "";
     let lastError: any = null;
 
-    for (const modelName of groqModels) {
+    for (const modelName of modelsToTry) {
       try {
-        console.log(`Attempting ticket parse via Groq with model: ${modelName}`);
-        
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: modelName,
-            messages: [
-              { role: "system", content: systemInstruction },
-              { role: "user", content: prompt }
-            ],
-            response_format: { type: "json_object" }
-          })
+        console.log(`Attempting ticket parse via Gemini with model: ${modelName}`);
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            systemInstruction: systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                customerName: { type: Type.STRING, description: "Bilingual or English customer name cleanly extracted from text. If unspecified, return empty string." },
+                customerPhone: { type: Type.STRING, description: "Bilingual phone number. Cleaned and formatted. If unspecified, return empty string." },
+                deviceType: { type: Type.STRING, description: "Device category (e.g., PC, Laptop, Printer, CCTV, AC, etc.). If unspecified, return empty string." },
+                deviceIssue: { type: Type.STRING, description: "Detailed description of the issue or upgrade request, in bilingual English/Burmese text preserving full context. If unspecified, return empty string." },
+                locationText: { type: Type.STRING, description: "Extracted Yangon, Myanmar address. If unspecified, return empty string." },
+                urgency: { type: Type.STRING, description: "Urgency category. Must be strictly one of: Low, Medium, High, Critical", enum: ["Low", "Medium", "High", "Critical"] },
+                selectedDate: { type: Type.STRING, description: "The calculated target service date as YYYY-MM-DD. Calculate relative dates like 'tomorrow' based on the referenceDate." },
+                selectedTime: { type: Type.STRING, description: "Preferred hour match. Strictly one of: '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', or 'none'. Default is 'none'." }
+              },
+              required: ["customerName", "customerPhone", "deviceType", "deviceIssue", "locationText", "urgency", "selectedDate", "selectedTime"]
+            }
+          }
         });
 
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`Groq HTTP ${response.status}: ${errText}`);
-        }
-
-        const data = await response.json() as any;
-        const text = data?.choices?.[0]?.message?.content;
-        
-        if (text) {
-          resultJsonStr = text.trim();
+        if (response.text) {
+          resultText = response.text;
           console.log(`Successfully retrieved text from model ${modelName}`);
           break;
         }
       } catch (err: any) {
-        console.warn(`Groq model ${modelName} failed. Error: ${err.message || err}`);
+        console.warn(`Gemini model ${modelName} failed. Error: ${err.message || err}`);
         lastError = err;
       }
     }
 
-    if (!resultJsonStr) {
-      throw new Error(`Groq parsing failed on all models. Last error: ${lastError?.message || lastError}`);
+    if (!resultText) {
+      throw new Error(`Gemini parsing failed on all models. Last error: ${lastError?.message || lastError}`);
     }
 
-    // Clean up markdown block if present
-    let cleaned = resultJsonStr;
+    let cleaned = resultText.trim();
     if (cleaned.startsWith("```")) {
       cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, "");
       cleaned = cleaned.replace(/\n?```$/, "");
@@ -921,7 +917,7 @@ app.post("/api/parse-ticket", async (req, res) => {
     const parsedData = JSON.parse(cleaned);
     res.json(parsedData);
   } catch (err: any) {
-    console.error("Groq Parse Ticket Error:", err);
+    console.error("Gemini Parse Ticket Error:", err);
     res.status(500).json({ error: "AI Parsing Failed: " + (err.message || String(err)) });
   }
 });
