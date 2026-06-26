@@ -1,52 +1,34 @@
 /**
- * Secure Storage Utility for session storage encryption and minimization.
- * Prevents plain-text data exposure in browser storage.
+ * Secure Storage Utility for local storage serialization and minimization.
+ * Prevents direct plain-text exposure of application state.
  */
 
-const SECURE_KEY = "YS_SVC_SECURE_STORAGE_KEY_2026";
-
-// Simple XOR cipher + Base64 encoding for client-side session storage obfuscation/encryption
-function encrypt(text: string): string {
-  const textChars = Array.from(text);
-  const keyChars = Array.from(SECURE_KEY);
-  const encrypted = textChars.map((char, index) => {
-    const keyChar = keyChars[index % keyChars.length];
-    return String.fromCharCode(char.charCodeAt(0) ^ keyChar.charCodeAt(0));
-  }).join('');
-  
-  // Convert to Base64 to ensure safe characters for sessionStorage
+// Simple encoding to prevent clear-text scanning of browser storage
+function encodeData(text: string): string {
   try {
-    return btoa(encodeURIComponent(encrypted));
+    return btoa(encodeURIComponent(text));
   } catch {
-    return btoa(encrypted);
+    return btoa(text);
   }
 }
 
-function decrypt(cipherText: string): string {
-  if (!cipherText) return '';
-  let decoded = '';
+function decodeData(encodedText: string): string {
+  if (!encodedText) return '';
   try {
-    decoded = decodeURIComponent(atob(cipherText));
+    return decodeURIComponent(atob(encodedText));
   } catch {
     try {
-      decoded = atob(cipherText);
+      return atob(encodedText);
     } catch {
       return '';
     }
   }
-
-  const textChars = Array.from(decoded);
-  const keyChars = Array.from(SECURE_KEY);
-  return textChars.map((char, index) => {
-    const keyChar = keyChars[index % keyChars.length];
-    return String.fromCharCode(char.charCodeAt(0) ^ keyChar.charCodeAt(0));
-  }).join('');
 }
 
 export const secureStorage = {
   setItem: (key: string, value: any): void => {
     try {
-      // Minimize: do not store tokens or any sensitive password information in session storage.
+      // Minimize: do not store tokens or any sensitive password information in local storage.
       let sanitizedValue = value;
       if (Array.isArray(value)) {
         sanitizedValue = value.map(item => {
@@ -63,8 +45,8 @@ export const secureStorage = {
       }
 
       const jsonStr = JSON.stringify(sanitizedValue);
-      const encryptedStr = encrypt(jsonStr);
-      sessionStorage.setItem(key, encryptedStr);
+      const encodedStr = encodeData(jsonStr);
+      localStorage.setItem(key, encodedStr);
     } catch (err) {
       console.error("Secure storage setItem error:", err);
     }
@@ -72,13 +54,13 @@ export const secureStorage = {
 
   getItem: <T = any>(key: string): T | null => {
     try {
-      const encryptedStr = sessionStorage.getItem(key);
-      if (!encryptedStr) return null;
+      const encodedStr = localStorage.getItem(key);
+      if (!encodedStr) return null;
       
-      const decryptedStr = decrypt(encryptedStr);
-      if (!decryptedStr) return null;
+      const decodedStr = decodeData(encodedStr);
+      if (!decodedStr) return null;
       
-      return JSON.parse(decryptedStr) as T;
+      return JSON.parse(decodedStr) as T;
     } catch (err) {
       console.warn(`Secure storage getItem error for key "${key}". Returning fallback.`, err);
       return null;
@@ -87,7 +69,7 @@ export const secureStorage = {
 
   removeItem: (key: string): void => {
     try {
-      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
     } catch (err) {
       console.error("Secure storage removeItem error:", err);
     }
@@ -95,7 +77,7 @@ export const secureStorage = {
 
   clear: (): void => {
     try {
-      sessionStorage.clear();
+      localStorage.clear();
     } catch (err) {
       console.error("Secure storage clear error:", err);
     }
