@@ -954,18 +954,18 @@ export default function App() {
                               <th className="p-4 text-center w-28">Action</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 font-sans">
+                          <tbody className="divide-y divide-white/5 font-sans">
                             {invoices.map((inv) => (
-                              <tr key={inv.id} className="hover:bg-slate-50/50">
-                                <td className="p-4 font-mono font-bold text-slate-900">{inv.id}</td>
+                              <tr key={inv.id} className="hover:bg-white/5 transition-colors">
+                                <td className="p-4 font-mono font-bold text-teal-400">{inv.id}</td>
                                 <td className="p-4">
-                                  <p className="font-bold text-slate-900">{inv.customerName}</p>
+                                  <p className="font-bold text-slate-100">{inv.customerName}</p>
                                   <p className="text-[10px] text-slate-400 font-mono">{inv.customerPhone}</p>
                                 </td>
-                                <td className="p-4 font-semibold text-slate-600">{inv.paymentMethod}</td>
-                                <td className="p-4 text-right font-extrabold text-slate-900 font-display">{formatMMK(inv.total)}</td>
+                                <td className="p-4 font-semibold text-slate-300">{inv.paymentMethod}</td>
+                                <td className="p-4 text-right font-extrabold text-slate-100 font-display">{formatMMK(inv.total)}</td>
                                 <td className="p-4 text-center">
-                                  <span className="inline-flex text-[9px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-250 font-bold select-none">
+                                  <span className="inline-flex text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold select-none">
                                     Paid
                                   </span>
                                 </td>
@@ -974,7 +974,7 @@ export default function App() {
                                     type="button"
                                     id={`view-registered-inv-${inv.id}`}
                                     onClick={() => setViewingInvoice(inv)}
-                                    className="text-xs text-slate-950 hover:text-slate-800 font-bold cursor-pointer"
+                                    className="text-xs text-teal-400 hover:text-teal-300 font-bold cursor-pointer transition-colors"
                                   >
                                     View Invoice
                                   </button>

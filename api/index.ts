@@ -859,8 +859,8 @@ app.post("/api/parse-ticket", async (req, res) => {
     const prompt = `Please extract the service ticket specifications from the following raw text and format the output strictly as a JSON object:\n---\n${rawText}\n---`;
 
     const modelsToTry = [
-      "gemini-3.5-flash",
-      "gemini-3.1-flash-lite"
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash"
     ];
 
     let resultText = "";
