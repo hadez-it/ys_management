@@ -70,42 +70,4 @@ export const INITIAL_JOBS: ServiceJob[] = [];
 // Mock invoice for the completed job
 export const INITIAL_INVOICES: Invoice[] = [];
 
-// LocalStorage helpers to simulate database operations
-export function getStoredJobs(): ServiceJob[] {
-  const jobs = localStorage.getItem('cs_jobs');
-  if (!jobs) {
-    localStorage.setItem('cs_jobs', JSON.stringify(INITIAL_JOBS));
-    return INITIAL_JOBS;
-  }
-  return JSON.parse(jobs);
-}
 
-export function saveStoredJobs(jobs: ServiceJob[]) {
-  localStorage.setItem('cs_jobs', JSON.stringify(jobs));
-}
-
-export function getStoredTechnicians(): Technician[] {
-  const techs = localStorage.getItem('cs_technicians');
-  if (!techs) {
-    localStorage.setItem('cs_technicians', JSON.stringify(INITIAL_TECHNICIANS));
-    return INITIAL_TECHNICIANS;
-  }
-  return JSON.parse(techs);
-}
-
-export function saveStoredTechnicians(techs: Technician[]) {
-  localStorage.setItem('cs_technicians', JSON.stringify(techs));
-}
-
-export function getStoredInvoices(): Invoice[] {
-  const invoices = localStorage.getItem('cs_invoices');
-  if (!invoices) {
-    localStorage.setItem('cs_invoices', JSON.stringify(INITIAL_INVOICES));
-    return INITIAL_INVOICES;
-  }
-  return JSON.parse(invoices);
-}
-
-export function saveStoredInvoices(invoices: Invoice[]) {
-  localStorage.setItem('cs_invoices', JSON.stringify(invoices));
-}

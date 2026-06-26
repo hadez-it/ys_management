@@ -110,14 +110,9 @@ export default function App() {
       .then((data) => {
         const logsArray = Array.isArray(data) ? data : [];
         setActivityLogs(logsArray);
-        secureStorage.setItem('smartfix_activity_logs', logsArray);
       })
       .catch((err) => {
-        console.warn('Fallback: fetching activity logs offline.', err.message || err);
-        const cachedLogs = secureStorage.getItem<ActivityLog[]>('smartfix_activity_logs');
-        const logsArray = Array.isArray(cachedLogs) ? cachedLogs : [];
-        setActivityLogs(logsArray);
-        secureStorage.setItem('smartfix_activity_logs', logsArray);
+        console.error('Error fetching activity logs online:', err.message || err);
       });
   };
 
@@ -152,14 +147,9 @@ export default function App() {
   // Load state from Backend APIs when user is logged-authorized
   useEffect(() => {
     if (!currentUser?.token) {
-      // Just fallback to local storage values silently if user is not authenticated yet
-      const cachedJobs = secureStorage.getItem<ServiceJob[]>('smartfix_jobs');
-      const cachedInvs = secureStorage.getItem<Invoice[]>('smartfix_invoices');
-      const cachedLogs = secureStorage.getItem<ActivityLog[]>('smartfix_activity_logs');
-      
-      setJobs(Array.isArray(cachedJobs) ? cachedJobs : []);
-      setInvoices(Array.isArray(cachedInvs) ? cachedInvs : []);
-      setActivityLogs(Array.isArray(cachedLogs) ? cachedLogs : []);
+      setJobs([]);
+      setInvoices([]);
+      setActivityLogs([]);
       return;
     }
 
@@ -180,22 +170,9 @@ export default function App() {
             return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
           });
           setJobs(filtered);
-          secureStorage.setItem('smartfix_jobs', filtered);
         })
         .catch((err) => {
-          console.warn('Fallback: fetching jobs offline.', err.message || err);
-          const cachedJobs = secureStorage.getItem<ServiceJob[]>('smartfix_jobs');
-          let loadedJobs: ServiceJob[] = Array.isArray(cachedJobs) ? cachedJobs : [];
-          const now = new Date();
-          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
-          const filtered = loadedJobs.filter((job) => {
-            if (!job.createdAt) return true;
-            const jobDate = new Date(job.createdAt);
-            return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
-          });
-          setJobs(filtered);
-          secureStorage.setItem('smartfix_jobs', filtered);
+          console.error('Error fetching jobs online:', err.message || err);
         });
     };
 
@@ -209,14 +186,9 @@ export default function App() {
       .then((data) => {
         const invoicesArray = Array.isArray(data) ? data : [];
         setInvoices(invoicesArray);
-        secureStorage.setItem('smartfix_invoices', invoicesArray);
       })
       .catch((err) => {
-        console.warn('Fallback: fetching invoices offline.', err.message || err);
-        const cachedInvs = secureStorage.getItem<Invoice[]>('smartfix_invoices');
-        const invoicesArray = Array.isArray(cachedInvs) ? cachedInvs : [];
-        setInvoices(invoicesArray);
-        secureStorage.setItem('smartfix_invoices', invoicesArray);
+        console.error('Error fetching invoices online:', err.message || err);
       });
 
     // Fetch activity logs helper
@@ -229,14 +201,9 @@ export default function App() {
         .then((data) => {
           const logsArray = Array.isArray(data) ? data : [];
           setActivityLogs(logsArray);
-          secureStorage.setItem('smartfix_activity_logs', logsArray);
         })
         .catch((err) => {
-          console.warn('Fallback: fetching activity logs offline.', err.message || err);
-          const cachedLogs = secureStorage.getItem<ActivityLog[]>('smartfix_activity_logs');
-          const logsArray = Array.isArray(cachedLogs) ? cachedLogs : [];
-          setActivityLogs(logsArray);
-          secureStorage.setItem('smartfix_activity_logs', logsArray);
+          console.error('Error fetching activity logs online:', err.message || err);
         });
     };
 
@@ -252,7 +219,6 @@ export default function App() {
         .then((data) => {
           const dataArray = Array.isArray(data) ? data : [];
           setJobs(dataArray);
-          secureStorage.setItem('smartfix_jobs', dataArray);
         })
         .catch(() => {
           // Keep offline state silently running
@@ -351,26 +317,15 @@ export default function App() {
         return res.json();
       })
       .then((savedJob) => {
-        setJobs((prev) => {
-          const updated = [savedJob, ...prev];
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
+        setJobs((prev) => [savedJob, ...prev]);
         fetchActivityLogs();
         setIsNewTicketModalOpen(false);
         setIsDispatching(false);
         setActiveTab('queue');
       })
       .catch((err) => {
-        // Fallback for offline/Vercel
-        setJobs((prev) => {
-          const updated = [newJob, ...prev];
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
-        setIsNewTicketModalOpen(false);
+        alert(err.message || 'Failed to create job. Please check your internet connection.');
         setIsDispatching(false);
-        setActiveTab('queue');
       });
   };
 
@@ -408,26 +363,14 @@ export default function App() {
         return res.json();
       })
       .then((savedJob) => {
-        setJobs((prev) => {
-          const updated = prev.map((j) => (j.id === jobId ? savedJob : j));
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
         fetchActivityLogs();
         if (status === 'Completed') {
           setInvoiceWizardJob(savedJob);
         }
       })
       .catch((err) => {
-        // Fallback for offline/Vercel
-        setJobs((prev) => {
-          const updated = prev.map((j) => (j.id === jobId ? updatedJob : j));
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
-        if (status === 'Completed') {
-          setInvoiceWizardJob(updatedJob);
-        }
+        alert(err.message || 'Failed to update job. Please check your internet connection.');
       });
   };
 
@@ -456,26 +399,15 @@ export default function App() {
         return res.json();
       })
       .then((savedJob) => {
-        setJobs((prev) => {
-          const updated = prev.map((j) => (j.id === jobId ? savedJob : j));
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
       })
       .catch((err) => {
-        // Fallback for offline/Vercel
-        setJobs((prev) => {
-          const updated = prev.map((j) => (j.id === jobId ? updatedJob : j));
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
+        alert(err.message || 'Failed to update priority. Please check your connection.');
       });
   };
 
   // Delete customer job and log reason
   const handleDeleteJob = (jobId: string, reason: string) => {
-    const jobToDelete = jobs.find((j) => j.id === jobId);
-
     authFetch(`/api/jobs/${jobId}`, {
       method: 'DELETE',
       headers: { 
@@ -488,46 +420,16 @@ export default function App() {
         return res.json();
       })
       .then(() => {
-        setJobs((prev) => {
-          const updated = prev.filter((j) => j.id !== jobId);
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
+        setJobs((prev) => prev.filter((j) => j.id !== jobId));
         fetchActivityLogs();
       })
       .catch((err) => {
-        // Fallback for offline/Vercel
-        setJobs((prev) => {
-          const updated = prev.filter((j) => j.id !== jobId);
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
-
-        if (jobToDelete) {
-          const newActLog: ActivityLog = {
-            id: 'ACT-LOCAL-' + Date.now(),
-            actionType: 'Deleted',
-            jobId: jobToDelete.id,
-            customerName: jobToDelete.customerName,
-            deviceType: jobToDelete.deviceType,
-            username: currentUser?.username || 'system',
-            timestamp: new Date().toISOString(),
-            details: `Ticket permanently deleted. Reason/Explanations: ${reason}`
-          };
-          setActivityLogs((prev) => {
-            const updated = [newActLog, ...prev];
-            secureStorage.setItem('smartfix_activity_logs', updated);
-            return updated;
-          });
-        }
+        alert(err.message || 'Failed to delete job. Please check your connection.');
       });
   };
 
   // Edit job details
   const handleEditJob = (jobId: string, updatedJobData: any) => {
-    const targetJob = jobs.find((j) => j.id === jobId);
-    const updatedJob = targetJob ? { ...targetJob, ...updatedJobData, updatedAt: new Date().toISOString() } : null;
-
     authFetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 
@@ -540,22 +442,11 @@ export default function App() {
         return res.json();
       })
       .then((savedJob) => {
-        setJobs((prev) => {
-          const updated = prev.map((j) => (j.id === jobId ? savedJob : j));
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
         fetchActivityLogs();
       })
       .catch((err) => {
-        // Fallback for offline/Vercel
-        if (updatedJob) {
-          setJobs((prev) => {
-            const updated = prev.map((j) => (j.id === jobId ? updatedJob : j));
-            secureStorage.setItem('smartfix_jobs', updated);
-            return updated;
-          });
-        }
+        alert(err.message || 'Failed to edit job. Please check your connection.');
       });
   };
 
@@ -578,21 +469,10 @@ export default function App() {
         setJobs([]);
         setInvoices([]);
         setActivityLogs([]);
-        secureStorage.setItem('smartfix_jobs', []);
-        secureStorage.setItem('smartfix_invoices', []);
-        secureStorage.setItem('smartfix_activity_logs', []);
         setShowDbStatusModal(false);
       })
       .catch((err) => {
-        console.error('Wipe error:', err);
-        // Clean up client-side fallback as fallback
-        setJobs([]);
-        setInvoices([]);
-        setActivityLogs([]);
-        secureStorage.setItem('smartfix_jobs', []);
-        secureStorage.setItem('smartfix_invoices', []);
-        secureStorage.setItem('smartfix_activity_logs', []);
-        setShowDbStatusModal(false);
+        alert(err.message || 'Failed to wipe data. Please check your connection.');
       })
       .finally(() => {
         setIsWiping(false);
@@ -625,11 +505,7 @@ export default function App() {
         return res.json();
       })
       .then((savedInvoice) => {
-        setInvoices((prev) => {
-          const updated = [savedInvoice, ...prev];
-          secureStorage.setItem('smartfix_invoices', updated);
-          return updated;
-        });
+        setInvoices((prev) => [savedInvoice, ...prev]);
 
         // Link invoice key to job and lock job
         const updatedJobFields = {
@@ -648,38 +524,13 @@ export default function App() {
             return res.json();
           })
           .then((updatedJob) => {
-            setJobs((prev) => {
-              const updated = prev.map((j) => (j.id === invoiceWizardJob.id ? updatedJob : j));
-              secureStorage.setItem('smartfix_jobs', updated);
-              return updated;
-            });
+            setJobs((prev) => prev.map((j) => (j.id === invoiceWizardJob.id ? updatedJob : j)));
             setInvoiceWizardJob(null);
             setViewingInvoice(savedInvoice);
           });
       })
       .catch((err) => {
-        // Fallback for offline/Vercel
-        setInvoices((prev) => {
-          const updated = [newInvoice, ...prev];
-          secureStorage.setItem('smartfix_invoices', updated);
-          return updated;
-        });
-
-        const updatedJob: ServiceJob = {
-          ...invoiceWizardJob,
-          status: 'Completed' as JobStatus,
-          invoiceId: newInvoice.id,
-          updatedAt: new Date().toISOString(),
-        };
-
-        setJobs((prev) => {
-          const updated = prev.map((j) => (j.id === invoiceWizardJob.id ? updatedJob : j));
-          secureStorage.setItem('smartfix_jobs', updated);
-          return updated;
-        });
-
-        setInvoiceWizardJob(null);
-        setViewingInvoice(newInvoice);
+        alert(err.message || 'Failed to process invoice payment online. Please check your connection.');
       });
   };
 
