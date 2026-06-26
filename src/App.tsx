@@ -809,7 +809,7 @@ export default function App() {
       </aside>
 
       {/* RIGHT SIDE MAIN CONTAINER */}
-      <div className="flex-1 lg:pl-64 flex flex-col h-screen overflow-hidden relative z-10">
+      <div className="flex-1 lg:pl-64 flex flex-col h-screen overflow-hidden relative">
         
         {/* RESPONSIVE FLUID HEADER */}
         <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 z-20 shrink-0 select-none" id="shop-header">
