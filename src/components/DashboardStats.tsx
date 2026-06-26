@@ -56,7 +56,7 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
 
   return (
     <div className="space-y-4 text-left" id="dashboard-statistics">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
         {kpis.map((kpi, idx) => {
           const IconComponent = kpi.icon;
           return (
@@ -64,7 +64,9 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
               key={idx}
               id={`kpi-card-${idx}`}
               onClick={() => onSelectedStatusFilter(kpi.filter)}
-              className="ios-glass-card ios-glass-card-hover p-6 rounded-3xl cursor-pointer group relative overflow-hidden select-none flex flex-col justify-between h-40"
+              className={`ios-glass-card ios-glass-card-hover p-4 md:p-6 rounded-3xl cursor-pointer group relative overflow-hidden select-none flex flex-col justify-between h-36 md:h-40 ${
+                idx === 2 ? 'col-span-2 md:col-span-1' : ''
+              }`}
             >
               {/* Top ambient color reflection */}
               <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
