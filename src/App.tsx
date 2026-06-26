@@ -979,7 +979,7 @@ export default function App() {
                 </span>
                 
                 <span className="text-[11px] text-teal-400 font-mono font-semibold">
-                  MongoDB Atlas
+                  Cloud Database
                 </span>
               </div>
 

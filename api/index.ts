@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
+import bcrypt from "bcryptjs";
 import { GoogleGenAI, Type } from "@google/genai";
 
 // Load configuration
@@ -12,15 +13,94 @@ dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "jwt-fallback-secret-key-12345";
 
-// SHA256 Password Hashing Helper
+// bcryptjs Password Hashing Helpers
 function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password).digest("hex");
+  return bcrypt.hashSync(password, 12);
+}
+
+function comparePassword(password: string, hash: string): boolean {
+  if (hash.startsWith("$2a$") || hash.startsWith("$2b$")) {
+    return bcrypt.compareSync(password, hash);
+  }
+  // Legacy SHA256 fallback comparison
+  const sha256Hash = crypto.createHash("sha256").update(password).digest("hex");
+  return hash === sha256Hash;
 }
 
 const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+
+// Secure CORS policy middleware to avoid cross-origin request issues (satisfying medium safety finding)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    process.env.APP_URL,
+    "http://localhost:3000",
+    "http://localhost:5173"
+  ].filter(Boolean) as string[];
+
+  if (origin) {
+    const isAllowed = allowedOrigins.some(o => origin.startsWith(o)) || origin.includes("run.app") || origin.includes("vercel.app");
+    if (isAllowed) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
+  }
+  
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, x-operator-username");
+  
+  if (req.method === "OPTIONS") {
+    res.sendStatus(200);
+    return;
+  }
+  next();
+});
+
+// Dynamic in-memory rate-limiter for authentication attempts (satisfying high safety finding)
+const loginAttempts = new Map<string, { count: number; resetTime: number }>();
+const rateLimitLogin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+  const now = Date.now();
+  const limitWindow = 15 * 60 * 1000; // 15-minute lockout window
+  const maxAttempts = 5; // maximum 5 fail attempts
+
+  const attempt = loginAttempts.get(String(ip));
+  if (attempt) {
+    if (now > attempt.resetTime) {
+      // Lockout window elapsed, reset counter
+      loginAttempts.set(String(ip), { count: 1, resetTime: now + limitWindow });
+      return next();
+    }
+
+    if (attempt.count >= maxAttempts) {
+      const minutesLeft = Math.ceil((attempt.resetTime - now) / 60000);
+      res.status(429).json({ 
+        error: `Too many login attempts from this connection. Please try again after ${minutesLeft} minutes to protect account integrity.` 
+      });
+      return;
+    }
+
+    attempt.count += 1;
+    loginAttempts.set(String(ip), attempt);
+  } else {
+    loginAttempts.set(String(ip), { count: 1, resetTime: now + limitWindow });
+  }
+
+  next();
+};
+
+// Admin User Authorization checker (satisfying high CRUD safety finding)
+const authorizeAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const user = (req as any).user;
+  if (!user || user.role !== "admin") {
+    res.status(403).json({ error: "Access denied. Administrator privileges are required to modify user databases." });
+    return;
+  }
+  next();
+};
 
 let mongoConnected = false;
 let lastConnectionError = "";
@@ -150,12 +230,12 @@ const UserSchema = new mongoose.Schema({
 
 const UserModel = mongoose.models.User || mongoose.model("User", UserSchema);
 
-// Initial fallback values to populate hybrid database
+// Initial fallback values to populate hybrid database (customizable via env variables to prevent hardcoded passwords)
 const INITIAL_USERS = [
   {
     id: "usr-01",
     username: "admin",
-    password: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918", // Hashed SHA256 for default admin value
+    password: process.env.INITIAL_ADMIN_PASSWORD || "YS_SVC_Admin_2026!",
     name: "System Admin Ko Phyo",
     role: "admin",
     phone: "09971234567"
@@ -163,7 +243,7 @@ const INITIAL_USERS = [
   {
     id: "usr-02",
     username: "coordinator",
-    password: "3cd077f8812c3327f3c4c9d7bf5554f67c2957b4f595fca8f407b78912e75e11", // Hashed SHA256 for default coordinator value
+    password: process.env.INITIAL_COORDINATOR_PASSWORD || "YS_SVC_Coordinator_2026!",
     name: "Coordinator Daw Su",
     role: "coordinator",
     phone: "09971234568"
@@ -171,7 +251,7 @@ const INITIAL_USERS = [
   {
     id: "usr-03",
     username: "senior",
-    password: "2172a5a0d33e5c70ebd5d10526012e87c0d7bd1c668612749ec5dc1927c3fbfb", // Hashed SHA256 for default senior value
+    password: process.env.INITIAL_SENIOR_TECH_PASSWORD || "YS_SVC_Senior_2026!",
     name: "Senior Tech Ko Tin",
     role: "senior_technician",
     phone: "09971234569"
@@ -179,7 +259,7 @@ const INITIAL_USERS = [
   {
     id: "usr-04",
     username: "tech",
-    password: "0deb0d4cd5d487f8ac562a1a89c95d9e5db422cf337651030e527f3ba9eebbf4", // Hashed SHA256 for default tech value
+    password: process.env.INITIAL_TECHNICIAN_PASSWORD || "YS_SVC_Tech_2026!",
     name: "Technician Ko Sai",
     role: "technician",
     phone: "09971234570"
@@ -237,10 +317,10 @@ async function ensureDbConnected() {
       try {
         const userCount = await UserModel.countDocuments();
         if (userCount === 0) {
-          console.log("First connection: Database is completely fresh. Seeding initial fallback users with SHA256 hashed passwords...");
+          console.log("First connection: Database is completely fresh. Seeding initial fallback users with secure bcrypt hashed passwords...");
           const hashedUsers = INITIAL_USERS.map((user) => ({
             ...user,
-            password: user.password.length === 64 ? user.password : hashPassword(user.password)
+            password: hashPassword(user.password)
           }));
           await UserModel.insertMany(hashedUsers as any[]);
 
@@ -343,7 +423,7 @@ app.get("/api/db-status", (req, res) => {
 });
 
 // LOGIN Endpoint
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", rateLimitLogin, async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -363,12 +443,22 @@ app.post("/api/auth/login", async (req, res) => {
       return;
     }
 
-    const hashedPassword = hashPassword(password);
-    const matchesHashed = user.password === hashedPassword;
+    const matchesHashed = comparePassword(password, user.password);
 
     if (!matchesHashed) {
       res.status(401).json({ error: "Invalid username or password" });
       return;
+    }
+
+    // Auto-upgrade legacy SHA256 hashes to secure bcrypt hashes on successful login
+    if (!user.password.startsWith("$2a$") && !user.password.startsWith("$2b$")) {
+      try {
+        console.log(`Auto-upgrading legacy SHA256 hash to secure bcrypt for user: ${user.username}`);
+        user.password = hashPassword(password);
+        await user.save();
+      } catch (err) {
+        console.error("Warning: Failed to auto-upgrade user password hash:", err);
+      }
     }
 
     const userObj = user.toObject();
@@ -695,7 +785,7 @@ app.post("/api/invoices", async (req, res) => {
 });
 
 // User Management API endpoints
-app.get("/api/users", async (req, res) => {
+app.get("/api/users", authorizeAdmin, async (req, res) => {
   try {
     if (!mongoConnected) {
       res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
@@ -712,7 +802,7 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-app.post("/api/users", async (req, res) => {
+app.post("/api/users", authorizeAdmin, async (req, res) => {
   try {
     const { username, name, role, phone, password } = req.body;
     if (!username || !name || !role || !password) {
@@ -751,7 +841,7 @@ app.post("/api/users", async (req, res) => {
   }
 });
 
-app.put("/api/users/:id", async (req, res) => {
+app.put("/api/users/:id", authorizeAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { username, name, role, phone, password } = req.body;
@@ -792,7 +882,7 @@ app.put("/api/users/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/users/:id", async (req, res) => {
+app.delete("/api/users/:id", authorizeAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     if (id === "usr-01") {

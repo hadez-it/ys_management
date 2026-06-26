@@ -416,7 +416,17 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
     const isOverdueAndUpcoming = activeTab === 'upcoming' && getJobCategory(job) === 'Overdue';
     
     return (
-      <div
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+        transition={{ 
+          type: 'spring',
+          stiffness: 350,
+          damping: 30,
+          layout: { duration: 0.25, type: 'spring', stiffness: 350, damping: 30 }
+        }}
         key={job.id}
         id={`job-card-${job.id}`}
         onClick={() => {
@@ -497,7 +507,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
           </div>
           {getStatusBadge(job.status)}
         </div>
-      </div>
+      </motion.div>
     );
   };
 
@@ -637,7 +647,9 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                             </span>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {jobsForDate.map((job) => renderJobCard(job))}
+                            <AnimatePresence mode="popLayout">
+                              {jobsForDate.map((job) => renderJobCard(job))}
+                            </AnimatePresence>
                           </div>
                         </div>
                       ))}
@@ -666,7 +678,9 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                             </span>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {jobsForDate.map((job) => renderJobCard(job))}
+                            <AnimatePresence mode="popLayout">
+                              {jobsForDate.map((job) => renderJobCard(job))}
+                            </AnimatePresence>
                           </div>
                         </div>
                       ))}
@@ -695,7 +709,9 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                             </span>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {jobsForDate.map((job) => renderJobCard(job))}
+                            <AnimatePresence mode="popLayout">
+                              {jobsForDate.map((job) => renderJobCard(job))}
+                            </AnimatePresence>
                           </div>
                         </div>
                       ))}
@@ -724,7 +740,9 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                             </span>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {jobsForDate.map((job) => renderJobCard(job))}
+                            <AnimatePresence mode="popLayout">
+                              {jobsForDate.map((job) => renderJobCard(job))}
+                            </AnimatePresence>
                           </div>
                         </div>
                       ))}
@@ -753,7 +771,9 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                             </span>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {jobsForDate.map((job) => renderJobCard(job))}
+                            <AnimatePresence mode="popLayout">
+                              {jobsForDate.map((job) => renderJobCard(job))}
+                            </AnimatePresence>
                           </div>
                         </div>
                       ))}

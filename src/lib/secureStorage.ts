@@ -1,11 +1,11 @@
 /**
- * Secure Storage Utility for local storage encryption and minimization.
+ * Secure Storage Utility for session storage encryption and minimization.
  * Prevents plain-text data exposure in browser storage.
  */
 
 const SECURE_KEY = "YS_SVC_SECURE_STORAGE_KEY_2026";
 
-// Simple XOR cipher + Base64 encoding for client-side local storage obfuscation/encryption
+// Simple XOR cipher + Base64 encoding for client-side session storage obfuscation/encryption
 function encrypt(text: string): string {
   const textChars = Array.from(text);
   const keyChars = Array.from(SECURE_KEY);
@@ -14,7 +14,7 @@ function encrypt(text: string): string {
     return String.fromCharCode(char.charCodeAt(0) ^ keyChar.charCodeAt(0));
   }).join('');
   
-  // Convert to Base64 to ensure safe characters for localStorage
+  // Convert to Base64 to ensure safe characters for sessionStorage
   try {
     return btoa(encodeURIComponent(encrypted));
   } catch {
@@ -46,7 +46,7 @@ function decrypt(cipherText: string): string {
 export const secureStorage = {
   setItem: (key: string, value: any): void => {
     try {
-      // Minimize: do not store tokens or any sensitive password information in local storage.
+      // Minimize: do not store tokens or any sensitive password information in session storage.
       let sanitizedValue = value;
       if (Array.isArray(value)) {
         sanitizedValue = value.map(item => {
@@ -64,7 +64,7 @@ export const secureStorage = {
 
       const jsonStr = JSON.stringify(sanitizedValue);
       const encryptedStr = encrypt(jsonStr);
-      localStorage.setItem(key, encryptedStr);
+      sessionStorage.setItem(key, encryptedStr);
     } catch (err) {
       console.error("Secure storage setItem error:", err);
     }
@@ -72,7 +72,7 @@ export const secureStorage = {
 
   getItem: <T = any>(key: string): T | null => {
     try {
-      const encryptedStr = localStorage.getItem(key);
+      const encryptedStr = sessionStorage.getItem(key);
       if (!encryptedStr) return null;
       
       const decryptedStr = decrypt(encryptedStr);
@@ -87,7 +87,7 @@ export const secureStorage = {
 
   removeItem: (key: string): void => {
     try {
-      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
     } catch (err) {
       console.error("Secure storage removeItem error:", err);
     }
@@ -95,7 +95,7 @@ export const secureStorage = {
 
   clear: (): void => {
     try {
-      localStorage.clear();
+      sessionStorage.clear();
     } catch (err) {
       console.error("Secure storage clear error:", err);
     }

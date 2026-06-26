@@ -57,7 +57,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
         } else {
           secureStorage.removeItem('remember_username');
         }
-        // Always remove password from localStorage if it lingered from previous instances
+        // Always remove password from secureStorage if it lingered from previous instances
         secureStorage.removeItem('remember_password');
         onLoginSuccess(userData);
       })
@@ -105,7 +105,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
             {dbStatus.connected ? (
               <div className="inline-flex items-center gap-1.5 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full py-1 px-3.5 font-bold shadow-[0_0_15px_rgba(16,185,129,0.15)]">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>MongoDB Link Verified</span>
+                <span>Cloud Database Connected</span>
               </div>
             ) : (
               <div className="ios-glass-dark rounded-2xl p-4 space-y-3 text-left">
@@ -119,7 +119,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
                       Database is currently offline
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                      Please verify that your database credentials are correctly set up and MongoDB cluster is accessible.
+                      Please verify that your database credentials are correctly set up and database server is accessible.
                     </p>
                   </div>
                 </div>
