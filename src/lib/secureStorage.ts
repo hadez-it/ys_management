@@ -28,19 +28,19 @@ function decodeData(encodedText: string): string {
 export const secureStorage = {
   setItem: (key: string, value: any): void => {
     try {
-      // Minimize: do not store tokens or any sensitive password information in local storage.
+      // Minimize: do not store plain passwords in local storage.
       let sanitizedValue = value;
       if (Array.isArray(value)) {
         sanitizedValue = value.map(item => {
           if (item && typeof item === 'object') {
-            const { token, password, ...rest } = item;
+            const { password, ...rest } = item;
             return rest;
           }
           return item;
         });
       } else if (value && typeof value === 'object') {
-        // Clone and strip sensitive token property if present
-        const { token, password, ...rest } = value;
+        // Clone and strip password property if present
+        const { password, ...rest } = value;
         sanitizedValue = rest;
       }
 
