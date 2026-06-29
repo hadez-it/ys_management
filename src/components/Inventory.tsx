@@ -197,8 +197,38 @@ export default function Inventory({
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
-  const [logStartDate, setLogStartDate] = useState('');
+  const [logStartDate, setLogStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
   const [logEndDate, setLogEndDate] = useState('');
+
+  // Touch handlers for swiping between tabs
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 75;
+    const isRightSwipe = distance < -75;
+
+    if (isLeftSwipe && inventorySubTab === 'stock') {
+      setInventorySubTab('logs');
+    } else if (isRightSwipe && inventorySubTab === 'logs') {
+      setInventorySubTab('stock');
+    }
+  };
 
   // Sync category input if a category is selected
   const handleSelectCategory = (cat: string) => {
@@ -389,7 +419,13 @@ export default function Inventory({
             <p className="text-xs">Loading inventory registry details...</p>
           </div>
         ) : (
-          <AnimatePresence mode="wait">
+          <div
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            className="touch-pan-y"
+          >
+            <AnimatePresence mode="wait">
             {/* STOCK VIEW */}
             {inventorySubTab === 'stock' && (
               <motion.div
@@ -744,6 +780,7 @@ export default function Inventory({
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
         )}
       </div>
 
