@@ -17,7 +17,8 @@ import {
   TrendingUp,
   TrendingDown,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Edit
 } from 'lucide-react';
 import { InventoryItem, InventoryLog, User } from '../types';
 
@@ -57,12 +58,64 @@ export default function Inventory({
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [isFillModalOpen, setIsFillModalOpen] = useState(false);
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [transactionQty, setTransactionQty] = useState<number>(1);
   const [customerName, setCustomerName] = useState('');
   const [transactionSubmitting, setTransactionSubmitting] = useState(false);
   const [transactionError, setTransactionError] = useState('');
   const [transactionSuccess, setTransactionSuccess] = useState('');
+  const [editItemName, setEditItemName] = useState('');
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const [showEditCategoryDropdown, setShowEditCategoryDropdown] = useState(false);
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedItem) return;
+    if (!editItemName.trim() || !editCategoryName.trim()) {
+      setTransactionError('Item Name and Category are required.');
+      return;
+    }
+
+    setTransactionSubmitting(true);
+    setTransactionError('');
+    setTransactionSuccess('');
+
+    authFetch(`/api/inventory/${selectedItem.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: editItemName.trim(),
+        category: editCategoryName.trim()
+      })
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to update item');
+        }
+        return data;
+      })
+      .then(() => {
+        setTransactionSuccess('Successfully updated item details!');
+        fetchInventoryData();
+        setTimeout(() => {
+          setIsEditModalOpen(false);
+          setSelectedItem(null);
+          setTransactionSuccess('');
+          setEditItemName('');
+          setEditCategoryName('');
+        }, 1500);
+      })
+      .catch((err) => {
+        setTransactionError(err.message || 'An error occurred during the update.');
+      })
+      .finally(() => {
+        setTransactionSubmitting(false);
+      });
+  };
 
   const handleTransactionSubmit = (e: React.FormEvent, type: 'fill' | 'sell') => {
     e.preventDefault();
@@ -357,6 +410,20 @@ export default function Inventory({
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedItem(item);
+                                    setEditItemName(item.name);
+                                    setEditCategoryName(item.category);
+                                    setIsEditModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20 hover:bg-blue-500/20 transition-all font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+                                  title="Edit Item"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedItem(item);
                                     setTransactionQty(1);
                                     setIsFillModalOpen(true);
                                   }}
@@ -447,7 +514,20 @@ export default function Inventory({
                                   onClick={(e) => e.stopPropagation()} // Prevent collapse when interacting with the actions panel
                                 >
                                   <p className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider mb-2.5">Stock Management Operations</p>
-                                  <div className="grid grid-cols-2 gap-3">
+                                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedItem(item);
+                                        setEditItemName(item.name);
+                                        setEditCategoryName(item.category);
+                                        setIsEditModalOpen(true);
+                                      }}
+                                      className="flex items-center justify-center gap-1.5 py-2.5 sm:py-3 px-2 sm:px-3 rounded-2xl bg-blue-500/10 hover:bg-blue-500/15 text-blue-300 border border-blue-500/20 hover:border-blue-500/30 transition-all font-bold text-[10px] sm:text-xs cursor-pointer active:scale-97"
+                                    >
+                                      <Edit className="h-3.5 w-3.5" />
+                                      <span>Edit</span>
+                                    </button>
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -455,10 +535,10 @@ export default function Inventory({
                                         setTransactionQty(1);
                                         setIsFillModalOpen(true);
                                       }}
-                                      className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/30 transition-all font-bold text-xs cursor-pointer active:scale-97"
+                                      className="flex items-center justify-center gap-1.5 py-2.5 sm:py-3 px-2 sm:px-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/30 transition-all font-bold text-[10px] sm:text-xs cursor-pointer active:scale-97"
                                     >
-                                      <Plus className="h-4 w-4" />
-                                      <span>Fill Stock</span>
+                                      <Plus className="h-3.5 w-3.5" />
+                                      <span>Fill</span>
                                     </button>
                                     <button
                                       onClick={(e) => {
@@ -468,10 +548,10 @@ export default function Inventory({
                                         setCustomerName('');
                                         setIsSellModalOpen(true);
                                       }}
-                                      className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:border-amber-500/30 transition-all font-bold text-xs cursor-pointer active:scale-97"
+                                      className="flex items-center justify-center gap-1.5 py-2.5 sm:py-3 px-2 sm:px-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:border-amber-500/30 transition-all font-bold text-[10px] sm:text-xs cursor-pointer active:scale-97"
                                     >
-                                      <ShoppingBag className="h-4 w-4" />
-                                      <span>Sell Item</span>
+                                      <ShoppingBag className="h-3.5 w-3.5" />
+                                      <span>Sell</span>
                                     </button>
                                   </div>
                                 </motion.div>
@@ -1080,6 +1160,158 @@ export default function Inventory({
                       <>
                         <ShoppingBag className="h-4.5 w-4.5" />
                         <span>Confirm and Register Sale</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* EDIT ITEM MODAL */}
+      <AnimatePresence>
+        {isEditModalOpen && selectedItem && (
+          <div 
+            className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto"
+            onClick={() => {
+              setIsEditModalOpen(false);
+              setSelectedItem(null);
+            }}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#050e12]/95 backdrop-blur-xl w-full max-w-md rounded-3xl shadow-2xl border border-white/10 flex flex-col overflow-visible text-slate-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-white/5 px-6 py-4 border-b border-white/5 flex items-center justify-between shrink-0 text-left select-none rounded-t-3xl">
+                <div className="flex items-center gap-2">
+                  <Edit className="h-5 w-5 text-blue-400" />
+                  <h3 className="font-extrabold text-white text-sm font-display tracking-wide uppercase">Edit Item Details</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setSelectedItem(null);
+                  }}
+                  className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 text-xl font-bold cursor-pointer transition-colors"
+                >
+                  <X className="h-4.5 w-4.5" />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={handleEditSubmit} className="p-6 space-y-4 text-left">
+                {transactionError && (
+                  <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-4 py-3 rounded-2xl">
+                    {transactionError}
+                  </div>
+                )}
+                {transactionSuccess && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-3 rounded-2xl">
+                    {transactionSuccess}
+                  </div>
+                )}
+
+                {/* CATEGORY */}
+                <div className="space-y-1.5 relative z-20">
+                  <label className="text-[11px] font-extrabold text-slate-350 uppercase tracking-wider block">Category</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Type a category..."
+                      value={editCategoryName}
+                      disabled={transactionSubmitting}
+                      onChange={(e) => {
+                        setEditCategoryName(e.target.value);
+                        setShowEditCategoryDropdown(true);
+                      }}
+                      onFocus={() => setShowEditCategoryDropdown(true)}
+                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-blue-500/40 transition-colors pr-10 disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      disabled={transactionSubmitting}
+                      onClick={() => setShowEditCategoryDropdown(!showEditCategoryDropdown)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-200 transition-colors p-1 disabled:opacity-50"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Dropdown menu for categories */}
+                  <AnimatePresence>
+                    {showEditCategoryDropdown && inventoryCategories.length > 0 && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setShowEditCategoryDropdown(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="absolute left-0 right-0 mt-1 bg-slate-950 border border-white/10 rounded-2xl shadow-xl max-h-36 overflow-y-auto z-20"
+                        >
+                          <div className="p-1 divide-y divide-white/5">
+                            {inventoryCategories
+                              .filter(cat => cat.toLowerCase().includes(editCategoryName.toLowerCase()))
+                              .map((cat) => (
+                                <button
+                                  key={cat}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditCategoryName(cat);
+                                    setShowEditCategoryDropdown(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/5 font-medium transition-colors"
+                                >
+                                  {cat}
+                                </button>
+                              ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* ITEM NAME */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-[11px] font-extrabold text-slate-350 uppercase tracking-wider block">Item Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Samsung S23 LCD Assembly"
+                    value={editItemName}
+                    disabled={transactionSubmitting}
+                    onChange={(e) => setEditItemName(e.target.value)}
+                    className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-blue-500/40 transition-colors disabled:opacity-50"
+                  />
+                </div>
+
+                {/* SUBMIT BUTTON */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={transactionSubmitting}
+                    className="w-full bg-gradient-to-tr from-blue-500 to-indigo-600 hover:from-blue-450 hover:to-indigo-550 text-white text-xs font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-97 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {transactionSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Updating Item...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="h-4.5 w-4.5" />
+                        <span>Save Changes</span>
                       </>
                     )}
                   </button>

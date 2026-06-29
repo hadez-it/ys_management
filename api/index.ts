@@ -1013,6 +1013,57 @@ app.post("/api/inventory", async (req, res) => {
   }
 });
 
+app.patch("/api/inventory/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, category } = req.body;
+    
+    if (!name || !category) {
+      res.status(400).json({ error: "Item Name and Category are required." });
+      return;
+    }
+
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
+    }
+
+    const item = await InventoryItemModel.findOne({ id } as any);
+    if (!item) {
+      res.status(404).json({ error: "Item not found." });
+      return;
+    }
+
+    const oldName = item.name;
+    const oldCategory = item.category;
+
+    item.name = name.trim();
+    item.category = category.trim();
+    item.updatedAt = new Date().toISOString();
+    await item.save();
+
+    // Log the change
+    const operator = req.headers["x-operator-username"] || req.query.username || "system";
+    const newLog = new InventoryLogModel({
+      id: "log-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+      itemId: item.id,
+      itemName: item.name,
+      itemCategory: item.category,
+      action: "Edit Item",
+      qtyChange: 0,
+      currentQty: item.qty,
+      operator: String(operator),
+      timestamp: new Date().toISOString(),
+      notes: `Changed from ${oldName} (${oldCategory}) to ${item.name} (${item.category})`
+    });
+    await newLog.save();
+
+    res.json({ item, log: newLog });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to update item: " + err.message });
+  }
+});
+
 app.post("/api/inventory/transaction", async (req, res) => {
   try {
     const { itemId, type, qty, customerName, date } = req.body;
