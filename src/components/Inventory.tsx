@@ -131,6 +131,15 @@ export default function Inventory({
     return new Date().toISOString().split('T')[0];
   });
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showItemNameDropdown, setShowItemNameDropdown] = useState(false);
+
+  const uniqueItemNames = React.useMemo(() => {
+    if (!categoryInput.trim()) return [];
+    const names = inventoryItems
+      .filter(item => item.category.toLowerCase() === categoryInput.trim().toLowerCase())
+      .map(item => item.name);
+    return Array.from(new Set(names));
+  }, [inventoryItems, categoryInput]);
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,6 +149,11 @@ export default function Inventory({
   const handleSelectCategory = (cat: string) => {
     setCategoryInput(cat);
     setShowCategoryDropdown(false);
+  };
+
+  const handleSelectItemName = (name: string) => {
+    setItemName(name);
+    setShowItemNameDropdown(false);
   };
 
   // Handle Form Submission
@@ -707,17 +721,65 @@ export default function Inventory({
                 </div>
 
                 {/* ITEM NAME */}
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 relative">
                   <label className="text-[11px] font-extrabold text-slate-350 uppercase tracking-wider block">Item Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Samsung S23 LCD Assembly, Kingston 8GB RAM"
-                    value={itemName}
-                    disabled={isSubmitting}
-                    onChange={(e) => setItemName(e.target.value)}
-                    className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-teal-500/40 transition-colors disabled:opacity-50"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Samsung S23 LCD Assembly, Kingston 8GB RAM"
+                      value={itemName}
+                      disabled={isSubmitting}
+                      onChange={(e) => {
+                        setItemName(e.target.value);
+                        setShowItemNameDropdown(true);
+                      }}
+                      onFocus={() => setShowItemNameDropdown(true)}
+                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-teal-500/40 transition-colors pr-10 disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => setShowItemNameDropdown(!showItemNameDropdown)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-200 transition-colors p-1 disabled:opacity-50"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Dropdown menu for item names */}
+                  <AnimatePresence>
+                    {showItemNameDropdown && uniqueItemNames.length > 0 && (
+                      <>
+                        {/* Invisible backdrop to dismiss dropdown */}
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setShowItemNameDropdown(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="absolute left-0 right-0 mt-1 bg-slate-950 border border-white/10 rounded-2xl shadow-xl max-h-36 overflow-y-auto z-20"
+                        >
+                          <div className="p-1 divide-y divide-white/5">
+                            {uniqueItemNames
+                              .filter(name => name.toLowerCase().includes(itemName.toLowerCase()))
+                              .map((name) => (
+                                <button
+                                  key={name}
+                                  type="button"
+                                  onClick={() => handleSelectItemName(name)}
+                                  className="w-full text-left px-3 py-2.5 text-xs text-slate-300 hover:text-white hover:bg-white/5 font-medium transition-colors"
+                                >
+                                  {name}
+                                </button>
+                              ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* QTY & DATE ROW */}
