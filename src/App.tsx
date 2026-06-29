@@ -805,12 +805,18 @@ export default function App() {
                   type="button"
                   id="btn-shortcut-add-job"
                   onClick={() => {
-                    setIsDispatching(false);
-                    setIsNewTicketModalOpen(true);
+                    if (activeTab === 'inventory') {
+                      setIsAddInventoryOpen(true);
+                    } else {
+                      setIsDispatching(false);
+                      setIsNewTicketModalOpen(true);
+                    }
                   }}
                   className="inline-flex items-center gap-1.5 ios-btn-primary text-xs font-bold py-2.5 px-4 rounded-xl cursor-pointer shadow-md"
                 >
-                  <PlusCircle className="h-3.5 w-3.5" /> <span className="hidden sm:inline">New Ticket</span><span className="sm:hidden">New</span>
+                  <PlusCircle className="h-3.5 w-3.5" /> 
+                  <span className="hidden sm:inline">{activeTab === 'inventory' ? 'Add Item' : 'New Ticket'}</span>
+                  <span className="sm:hidden">{activeTab === 'inventory' ? 'Add' : 'New'}</span>
                 </button>
               )}
 
@@ -1144,6 +1150,8 @@ export default function App() {
                       setInventorySubTab={setInventorySubTab}
                       fetchInventoryData={fetchInventoryData}
                       inventoryLoading={inventoryLoading}
+                      isAddInventoryOpen={isAddInventoryOpen}
+                      setIsAddInventoryOpen={setIsAddInventoryOpen}
                     />
                   )}
                 </motion.div>

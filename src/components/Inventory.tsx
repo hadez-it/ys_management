@@ -31,6 +31,8 @@ interface InventoryProps {
   setInventorySubTab: (tab: 'stock' | 'logs') => void;
   fetchInventoryData: () => void;
   inventoryLoading: boolean;
+  isAddInventoryOpen: boolean;
+  setIsAddInventoryOpen: (val: boolean) => void;
 }
 
 export default function Inventory({
@@ -42,10 +44,11 @@ export default function Inventory({
   inventorySubTab,
   setInventorySubTab,
   fetchInventoryData,
-  inventoryLoading
+  inventoryLoading,
+  isAddInventoryOpen,
+  setIsAddInventoryOpen
 }: InventoryProps) {
   // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -180,7 +183,7 @@ export default function Inventory({
         
         // Auto close modal after a brief success message
         setTimeout(() => {
-          setIsModalOpen(false);
+          setIsAddInventoryOpen(false);
           setSuccessMsg('');
         }, 1500);
       })
@@ -221,63 +224,6 @@ export default function Inventory({
 
   return (
     <div className="space-y-6 text-left" id="inventory-component-root">
-      {/* Header section with Sub-tabs and actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="bg-teal-500/10 border border-teal-500/20 p-2.5 rounded-2xl text-teal-400">
-            <Package className="h-6 w-6" />
-          </div>
-          <div>
-            <h2 className="text-xl font-extrabold text-white font-display tracking-tight">Inventory Ledger</h2>
-            <p className="text-xs text-slate-400 font-sans mt-0.5">Track and maintain shop parts, retail components, and repair stock levels.</p>
-          </div>
-        </div>
-
-        {/* Desktop-visible sub-tab selection and Add item button */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="bg-slate-950/60 p-1.5 rounded-2xl border border-white/5 flex items-center">
-            <button
-              onClick={() => {
-                setInventorySubTab('stock');
-                setSearchQuery('');
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                inventorySubTab === 'stock'
-                  ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Package className="h-4 w-4" />
-              <span>Stock</span>
-            </button>
-            <button
-              onClick={() => {
-                setInventorySubTab('logs');
-                setSearchQuery('');
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                inventorySubTab === 'logs'
-                  ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <History className="h-4 w-4" />
-              <span>Logs</span>
-            </button>
-          </div>
-
-          {inventorySubTab === 'stock' && (
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-gradient-to-tr from-teal-500 to-emerald-600 hover:from-teal-450 hover:to-emerald-550 text-white text-xs font-bold px-4 py-3.5 rounded-2xl flex items-center gap-2 shadow-md active:scale-97 transition-all shrink-0 cursor-pointer"
-            >
-              <PlusCircle className="h-4.5 w-4.5" />
-              <span>Add Item</span>
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Main filter, search and list block */}
       <div className="bg-slate-900/20 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl">
         {/* Search & Filter Toolbar */}
@@ -653,10 +599,10 @@ export default function Inventory({
 
       {/* ADD INVENTORY ITEM MODAL */}
       <AnimatePresence>
-        {isModalOpen && (
+        {isAddInventoryOpen && (
           <div 
             className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto"
-            onClick={() => setIsModalOpen(false)}
+            onClick={() => setIsAddInventoryOpen(false)}
           >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
@@ -673,7 +619,7 @@ export default function Inventory({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => setIsAddInventoryOpen(false)}
                   className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 text-xl font-bold cursor-pointer transition-colors"
                 >
                   <X className="h-4.5 w-4.5" />
@@ -702,17 +648,19 @@ export default function Inventory({
                       required
                       placeholder="Type a new category or select existing..."
                       value={categoryInput}
+                      disabled={isSubmitting}
                       onChange={(e) => {
                         setCategoryInput(e.target.value);
                         setShowCategoryDropdown(true);
                       }}
                       onFocus={() => setShowCategoryDropdown(true)}
-                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-teal-500/40 transition-colors pr-10"
+                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-teal-500/40 transition-colors pr-10 disabled:opacity-50"
                     />
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-200 transition-colors p-1"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-200 transition-colors p-1 disabled:opacity-50"
                     >
                       <ChevronDown className="h-4 w-4" />
                     </button>
@@ -766,8 +714,9 @@ export default function Inventory({
                     required
                     placeholder="e.g. Samsung S23 LCD Assembly, Kingston 8GB RAM"
                     value={itemName}
+                    disabled={isSubmitting}
                     onChange={(e) => setItemName(e.target.value)}
-                    className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-teal-500/40 transition-colors"
+                    className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-teal-500/40 transition-colors disabled:opacity-50"
                   />
                 </div>
 
@@ -781,8 +730,9 @@ export default function Inventory({
                       required
                       min={1}
                       value={qty}
+                      disabled={isSubmitting}
                       onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 0))}
-                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors font-mono font-semibold"
+                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors font-mono font-semibold disabled:opacity-50"
                     />
                   </div>
 
@@ -794,8 +744,9 @@ export default function Inventory({
                         type="date"
                         required
                         value={dateInput}
+                        disabled={isSubmitting}
                         onChange={(e) => setDateInput(e.target.value)}
-                        className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors font-sans pr-10"
+                        className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors font-sans pr-10 disabled:opacity-50"
                       />
                       <Calendar className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-450 pointer-events-none" />
                     </div>
@@ -893,8 +844,9 @@ export default function Inventory({
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
+                      disabled={transactionSubmitting}
                       onClick={() => setTransactionQty(prev => Math.max(1, prev - 1))}
-                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95"
+                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95 disabled:opacity-50"
                     >
                       -
                     </button>
@@ -903,13 +855,15 @@ export default function Inventory({
                       required
                       min={1}
                       value={transactionQty}
+                      disabled={transactionSubmitting}
                       onChange={(e) => setTransactionQty(Math.max(1, parseInt(e.target.value) || 0))}
-                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm font-mono font-bold text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors"
+                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm font-mono font-bold text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors disabled:opacity-50"
                     />
                     <button
                       type="button"
+                      disabled={transactionSubmitting}
                       onClick={() => setTransactionQty(prev => prev + 1)}
-                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95"
+                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95 disabled:opacity-50"
                     >
                       +
                     </button>
@@ -1009,8 +963,9 @@ export default function Inventory({
                     required
                     placeholder="e.g. Ko Phyo, Ma Thiri, Walk-in Client"
                     value={customerName}
+                    disabled={transactionSubmitting}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-teal-500/40 transition-colors font-medium"
+                    className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-teal-500/40 transition-colors font-medium disabled:opacity-50"
                   />
                 </div>
 
@@ -1020,8 +975,9 @@ export default function Inventory({
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
+                      disabled={transactionSubmitting}
                       onClick={() => setTransactionQty(prev => Math.max(1, prev - 1))}
-                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95"
+                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95 disabled:opacity-50"
                     >
                       -
                     </button>
@@ -1031,13 +987,15 @@ export default function Inventory({
                       min={1}
                       max={selectedItem.qty}
                       value={transactionQty}
+                      disabled={transactionSubmitting}
                       onChange={(e) => setTransactionQty(Math.min(selectedItem.qty, Math.max(1, parseInt(e.target.value) || 0)))}
-                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm font-mono font-bold text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors"
+                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm font-mono font-bold text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors disabled:opacity-50"
                     />
                     <button
                       type="button"
+                      disabled={transactionSubmitting}
                       onClick={() => setTransactionQty(prev => Math.min(selectedItem.qty, prev + 1))}
-                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95"
+                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95 disabled:opacity-50"
                     >
                       +
                     </button>
