@@ -109,3 +109,24 @@ export interface User {
   token?: string;
 }
 
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  qty: number;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventoryLog {
+  id: string;
+  itemName: string;
+  category: string;
+  actionType: string;
+  qty: number;
+  date: string;
+  username: string;
+  timestamp: string;
+}
+

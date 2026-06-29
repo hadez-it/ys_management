@@ -27,7 +27,7 @@ import {
   ChevronUp,
   ChevronRight
 } from 'lucide-react';
-import { ServiceJob, Invoice, JobStatus, DeviceType, UrgencyLevel, LocationCoords, DeletedJob, User, UserRole, ActivityLog } from './types.ts';
+import { ServiceJob, Invoice, JobStatus, DeviceType, UrgencyLevel, LocationCoords, DeletedJob, User, UserRole, ActivityLog, InventoryItem, InventoryLog } from './types.ts';
 import {
   formatMMK,
   MAP_CENTER_YANGON
@@ -42,6 +42,7 @@ import InvoiceGenerator from './components/InvoiceGenerator.tsx';
 import InvoiceView from './components/InvoiceView.tsx';
 import Login from './components/Login.tsx';
 import UserManagement from './components/UserManagement.tsx';
+import Inventory from './components/Inventory.tsx';
 
 export default function App() {
   // User Session Management
@@ -100,6 +101,33 @@ export default function App() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(true);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string } | null>(null);
+
+  // Inventory States
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
+  const [inventoryCategories, setInventoryCategories] = useState<string[]>([]);
+  const [inventorySubTab, setInventorySubTab] = useState<'stock' | 'logs'>('stock');
+  const [isAddInventoryOpen, setIsAddInventoryOpen] = useState(false);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+
+  const fetchInventoryData = () => {
+    if (!currentUser?.token) return;
+    setInventoryLoading(true);
+    
+    Promise.all([
+      authFetch('/api/inventory').then(res => res.json()),
+      authFetch('/api/inventory/logs').then(res => res.json()),
+      authFetch('/api/inventory/categories').then(res => res.json())
+    ]).then(([items, logs, categories]) => {
+      setInventoryItems(Array.isArray(items) ? items : []);
+      setInventoryLogs(Array.isArray(logs) ? logs : []);
+      setInventoryCategories(Array.isArray(categories) ? categories : []);
+    }).catch(err => {
+      console.error('Error fetching inventory data:', err);
+    }).finally(() => {
+      setInventoryLoading(false);
+    });
+  };
 
   // Routing and interactive view triggers
   const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users' | 'inventory'>('dashboard');
@@ -165,6 +193,13 @@ export default function App() {
         });
       });
   }, []);
+
+  // Fetch Inventory Data when logged in and active tab is inventory
+  useEffect(() => {
+    if (currentUser?.token && activeTab === 'inventory') {
+      fetchInventoryData();
+    }
+  }, [currentUser, activeTab]);
 
   // Load state from Backend APIs when user is logged-authorized
   useEffect(() => {
@@ -1098,49 +1133,18 @@ export default function App() {
                     <UserManagement currentUser={currentUser} />
                   )}
 
-                  {activeTab === 'inventory' && (
-                    <div className="space-y-6 text-left" id="inventory-tab-module">
-                      <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
-                        {/* Decorative background visual elements */}
-                        <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
-                        
-                        <div className="max-w-md mx-auto text-center py-10 space-y-5">
-                          <div className="mx-auto w-16 h-16 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
-                            <Package className="h-8 w-8 animate-pulse" />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <h3 className="text-lg font-extrabold text-white font-display">Inventory Management</h3>
-                            <p className="text-xs text-slate-400 leading-relaxed">
-                              This category is reserved for our retail parts ledger, supply chain logs, barcode registry, and automatic warehouse level notifications.
-                            </p>
-                          </div>
-
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-300 border border-teal-500/20 uppercase tracking-wider">
-                            <Sparkles className="h-3 w-3" /> Coming Soon
-                          </div>
-                        </div>
-
-                        {/* Interactive layout simulation to make it look premium and thought-out */}
-                        <div className="border-t border-white/5 pt-6 mt-6">
-                          <p className="text-xs font-bold text-slate-300 mb-4 tracking-wider uppercase">Planned Inventory Components</p>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-slate-950/40 border border-white/5 p-4 rounded-2xl space-y-2 hover:border-teal-500/20 transition-colors">
-                              <h4 className="text-xs font-bold text-teal-400">Parts Catalog</h4>
-                              <p className="text-[10px] text-slate-400 font-sans">Track dynamic spare parts inventory for smartphones, tablets, and laptops.</p>
-                            </div>
-                            <div className="bg-slate-950/40 border border-white/5 p-4 rounded-2xl space-y-2 hover:border-teal-500/20 transition-colors">
-                              <h4 className="text-xs font-bold text-teal-400">Reorder Triggers</h4>
-                              <p className="text-[10px] text-slate-400 font-sans">Automatic safety stock alert logs and technician purchase order generators.</p>
-                            </div>
-                            <div className="bg-slate-950/40 border border-white/5 p-4 rounded-2xl space-y-2 hover:border-teal-500/20 transition-colors">
-                              <h4 className="text-xs font-bold text-teal-400">Supplier Ledger</h4>
-                              <p className="text-[10px] text-slate-400 font-sans">Contact details, invoice settlement receipts, and lead-time tracking.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  {activeTab === 'inventory' && currentUser && (
+                    <Inventory
+                      currentUser={currentUser}
+                      authFetch={authFetch}
+                      inventoryItems={inventoryItems}
+                      inventoryLogs={inventoryLogs}
+                      inventoryCategories={inventoryCategories}
+                      inventorySubTab={inventorySubTab}
+                      setInventorySubTab={setInventorySubTab}
+                      fetchInventoryData={fetchInventoryData}
+                      inventoryLoading={inventoryLoading}
+                    />
                   )}
                 </motion.div>
               </AnimatePresence>
@@ -1405,6 +1409,74 @@ export default function App() {
                 </button>
               );
             })}
+          </div>
+        </nav>
+      )}
+
+      {/* RESPONSIVE BOTTOM NAVBAR FOR INVENTORY TABS */}
+      {activeTab === 'inventory' && (
+        <nav 
+          className={`fixed bottom-0 left-0 right-0 z-40 bg-[#050e12]/90 backdrop-blur-lg border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.15)] select-none transition-all duration-300 ${
+            isSidebarOpen ? 'lg:left-64' : 'lg:left-0'
+          }`} 
+          id="inventory-bottom-nav"
+        >
+          <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-around">
+            <button
+              type="button"
+              id="tab-btn-inventory-stock"
+              onClick={() => {
+                setInventorySubTab('stock');
+              }}
+              className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group ${
+                inventorySubTab === 'stock'
+                  ? 'text-teal-400 scale-102'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <div className={`p-1.5 rounded-xl transition-all ${
+                inventorySubTab === 'stock' ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20' : 'group-hover:bg-white/5'
+              }`}>
+                <Package className="h-4.5 w-4.5 shrink-0" />
+              </div>
+              <span className={`text-[9px] font-bold tracking-tight mt-0.5 transition-colors ${
+                inventorySubTab === 'stock' ? 'text-teal-300 font-bold' : 'text-slate-400'
+              }`}>
+                Stock
+              </span>
+
+              {inventorySubTab === 'stock' && (
+                <span className="absolute top-0 w-2 h-1 rounded-b-full bg-teal-400 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              id="tab-btn-inventory-logs"
+              onClick={() => {
+                setInventorySubTab('logs');
+              }}
+              className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group ${
+                inventorySubTab === 'logs'
+                  ? 'text-teal-400 scale-102'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <div className={`p-1.5 rounded-xl transition-all ${
+                inventorySubTab === 'logs' ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20' : 'group-hover:bg-white/5'
+              }`}>
+                <History className="h-4.5 w-4.5 shrink-0" />
+              </div>
+              <span className={`text-[9px] font-bold tracking-tight mt-0.5 transition-colors ${
+                inventorySubTab === 'logs' ? 'text-teal-300 font-bold' : 'text-slate-400'
+              }`}>
+                Logs
+              </span>
+
+              {inventorySubTab === 'logs' && (
+                <span className="absolute top-0 w-2 h-1 rounded-b-full bg-teal-400 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
+              )}
+            </button>
           </div>
         </nav>
       )}

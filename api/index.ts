@@ -230,6 +230,31 @@ const UserSchema = new mongoose.Schema({
 
 const UserModel = mongoose.models.User || mongoose.model("User", UserSchema);
 
+const InventoryItemSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  category: { type: String, required: true },
+  qty: { type: Number, required: true, default: 0 },
+  date: { type: String, required: true },
+  createdAt: { type: String, required: true },
+  updatedAt: { type: String, required: true }
+});
+
+const InventoryItemModel = mongoose.models.InventoryItem || mongoose.model("InventoryItem", InventoryItemSchema);
+
+const InventoryLogSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  itemName: { type: String, required: true },
+  category: { type: String, required: true },
+  actionType: { type: String, required: true }, // e.g., 'Add Item', 'Update Stock'
+  qty: { type: Number, required: true },
+  date: { type: String, required: true },
+  username: { type: String, required: true },
+  timestamp: { type: String, required: true }
+});
+
+const InventoryLogModel = mongoose.models.InventoryLog || mongoose.model("InventoryLog", InventoryLogSchema);
+
 // Initial fallback values to populate hybrid database (customizable via env variables to prevent hardcoded passwords)
 const INITIAL_USERS = [
   {
@@ -903,6 +928,114 @@ app.delete("/api/users/:id", authorizeAdmin, async (req, res) => {
     res.json({ success: true, message: "User deleted successfully" });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to delete user: " + err.message });
+  }
+});
+
+// INVENTORY API ENDPOINTS
+app.get("/api/inventory", async (req, res) => {
+  try {
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
+    }
+    const items = await InventoryItemModel.find().sort({ updatedAt: -1 }).lean();
+    res.json(items);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch inventory items: " + err.message });
+  }
+});
+
+app.post("/api/inventory", async (req, res) => {
+  try {
+    const { category, name, qty, date } = req.body;
+    if (!category || !name || qty === undefined || qty === null) {
+      res.status(400).json({ error: "Category, Item Name, and Quantity are required" });
+      return;
+    }
+
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
+    }
+
+    const cleanCategory = category.trim();
+    const cleanName = name.trim();
+    const quantity = Number(qty);
+    const targetDate = date || new Date().toISOString().split("T")[0];
+    const operator = req.headers["x-operator-username"] || req.query.username || "system";
+
+    // Check if item with exact name and category already exists
+    let item = await InventoryItemModel.findOne({ 
+      name: { $regex: new RegExp(`^${cleanName}$`, "i") },
+      category: { $regex: new RegExp(`^${cleanCategory}$`, "i") }
+    } as any);
+
+    let actionType = "Add Item";
+
+    if (item) {
+      // Update quantity
+      item.qty += quantity;
+      item.date = targetDate;
+      item.updatedAt = new Date().toISOString();
+      await item.save();
+      actionType = "Update Stock";
+    } else {
+      // Create new
+      item = new InventoryItemModel({
+        id: "inv-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+        name: cleanName,
+        category: cleanCategory,
+        qty: quantity,
+        date: targetDate,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      await item.save();
+    }
+
+    // Log the transaction
+    const logId = "invlog-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+    const newLog = new InventoryLogModel({
+      id: logId,
+      itemName: cleanName,
+      category: cleanCategory,
+      actionType: actionType,
+      qty: quantity,
+      date: targetDate,
+      username: String(operator),
+      timestamp: new Date().toISOString()
+    });
+    await newLog.save();
+
+    res.status(201).json({ item, log: newLog });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to add/update inventory item: " + err.message });
+  }
+});
+
+app.get("/api/inventory/logs", async (req, res) => {
+  try {
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
+    }
+    const logs = await InventoryLogModel.find().sort({ timestamp: -1 }).lean();
+    res.json(logs);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch inventory logs: " + err.message });
+  }
+});
+
+app.get("/api/inventory/categories", async (req, res) => {
+  try {
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
+    }
+    const categories = await (InventoryItemModel as any).distinct("category");
+    res.json(categories);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch categories: " + err.message });
   }
 });
 
