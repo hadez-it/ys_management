@@ -103,8 +103,16 @@ export default function App() {
 
   // Routing and interactive view triggers
   const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users' | 'inventory'>('dashboard');
-  const [isServiceExpanded, setIsServiceExpanded] = useState(true);
+  const [lastServiceTab, setLastServiceTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users'>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Track the last active service tab
+  useEffect(() => {
+    if (activeTab !== 'inventory') {
+      setLastServiceTab(activeTab as any);
+    }
+  }, [activeTab]);
   const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
   const [showDbStatusModal, setShowDbStatusModal] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
@@ -589,15 +597,17 @@ export default function App() {
     return (
       <div className="space-y-3">
         {/* Category 1: Service */}
-        <div className="space-y-1">
+        <div>
           <button
             type="button"
             onClick={() => {
-              setIsServiceExpanded(!isServiceExpanded);
+              setActiveTab(lastServiceTab);
+              setInvoiceWizardJob(null);
+              if (onItemClick) onItemClick();
             }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-97 text-left outline-none ${
+            className={`w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-97 text-left outline-none ${
               isServiceActive
-                ? 'bg-white/10 text-teal-300 border border-white/10'
+                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/25 shadow-[0_0_12px_rgba(20,184,166,0.15)] font-bold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
             }`}
           >
@@ -605,41 +615,8 @@ export default function App() {
               <Wrench className="h-4 w-4 shrink-0 text-teal-400" />
               <span>Service</span>
             </div>
-            {isServiceExpanded ? (
-              <ChevronUp className="h-4 w-4 text-slate-400" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-slate-400" />
-            )}
+            <ChevronRight className="h-4 w-4 text-slate-450 opacity-60" />
           </button>
-
-          {/* Service Sub-items */}
-          {isServiceExpanded && (
-            <div className="pl-3 border-l border-white/10 ml-5 mt-1 space-y-1.5">
-              {visibleTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isSelected = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(tab.id as any);
-                      setInvoiceWizardJob(null);
-                      if (onItemClick) onItemClick();
-                    }}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-150 cursor-pointer active:scale-97 text-left outline-none ${
-                      isSelected
-                        ? 'bg-teal-500/15 text-teal-300 font-bold border border-teal-500/25 shadow-[0_0_12px_rgba(20,184,166,0.1)]'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 shrink-0 text-slate-350" />
-                    <span className="truncate">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Category 2: Inventory */}
@@ -651,9 +628,9 @@ export default function App() {
               setInvoiceWizardJob(null);
               if (onItemClick) onItemClick();
             }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-97 text-left outline-none ${
+            className={`w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-97 text-left outline-none ${
               activeTab === 'inventory'
-                ? 'bg-white/10 text-teal-300 border border-white/10 shadow-[0_0_12px_rgba(20,184,166,0.1)]'
+                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/25 shadow-[0_0_12px_rgba(20,184,166,0.15)] font-bold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
             }`}
           >
@@ -661,7 +638,7 @@ export default function App() {
               <Package className="h-4 w-4 shrink-0 text-teal-400" />
               <span>Inventory</span>
             </div>
-            <ChevronRight className="h-4 w-4 text-slate-400 opacity-60" />
+            <ChevronRight className="h-4 w-4 text-slate-450 opacity-60" />
           </button>
         </div>
       </div>
@@ -679,7 +656,7 @@ export default function App() {
       </div>
       
       {/* DESKTOP SIDEBAR (Visible only on screens lg and up) */}
-      <aside className="hidden lg:flex lg:w-64 ios-glass-sidebar text-white flex-col shrink-0 fixed top-0 bottom-0 left-0 z-30 select-none" id="desktop-sidebar">
+      <aside className={`hidden lg:flex lg:w-64 ios-glass-sidebar text-white flex-col shrink-0 fixed top-0 bottom-0 left-0 z-30 select-none transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} id="desktop-sidebar">
         {/* Brand Banner */}
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
           <div className="bg-gradient-to-tr from-teal-500 to-emerald-600 text-slate-100 border border-white/20 p-2.5 rounded-xl flex items-center justify-center shadow-md">
@@ -738,7 +715,7 @@ export default function App() {
       </aside>
 
       {/* RIGHT SIDE MAIN CONTAINER */}
-      <div className="flex-1 lg:pl-64 flex flex-col h-screen overflow-hidden relative">
+      <div className={`flex-1 flex flex-col h-screen overflow-hidden relative transition-all duration-300 ${isSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'}`}>
         
         {/* RESPONSIVE FLUID HEADER */}
         <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 z-20 shrink-0 select-none" id="shop-header">
@@ -748,12 +725,18 @@ export default function App() {
             <div className="flex items-center gap-2.5 text-left">
               <button
                 type="button"
-                onClick={() => setIsMobileSidebarOpen(true)}
-                className="bg-gradient-to-tr from-teal-500 to-emerald-600 text-white p-2.5 rounded-xl flex items-center justify-center lg:hidden shrink-0 shadow-md cursor-pointer hover:from-teal-400 hover:to-emerald-500 active:scale-95 transition-all outline-none"
-                title="Open Navigation Menu"
-                id="mobile-menu-trigger-btn"
+                onClick={() => {
+                  if (window.innerWidth >= 1024) {
+                    setIsSidebarOpen(!isSidebarOpen);
+                  } else {
+                    setIsMobileSidebarOpen(true);
+                  }
+                }}
+                className="bg-gradient-to-tr from-teal-500 to-emerald-600 text-white p-2.5 rounded-xl flex items-center justify-center shrink-0 shadow-md cursor-pointer hover:from-teal-400 hover:to-emerald-500 active:scale-95 transition-all outline-none animate-pulse-slow"
+                title="Toggle Navigation Menu"
+                id="sidebar-toggle-btn"
               >
-                <Terminal className="h-4.5 w-4.5" />
+                <Menu className="h-4.5 w-4.5" />
               </button>
               <div>
                 <h2 className="text-sm lg:text-base font-extrabold tracking-tight text-white font-display">
@@ -1378,87 +1361,53 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* RESPONSIVE BOTTOM MOBILE NAVBAR (Invisible in wide viewports) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#050e12]/90 backdrop-blur-lg border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.15)] lg:hidden select-none" id="workspace-bottom-nav">
-        <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-around">
-          {/* Service Link */}
-          <button
-            type="button"
-            id="tab-btn-service"
-            onClick={() => {
-              setActiveTab('dashboard');
-              setInvoiceWizardJob(null);
-            }}
-            className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group ${
-              activeTab !== 'inventory'
-                ? 'text-teal-400 scale-102'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <div className={`p-1.5 rounded-xl transition-all ${
-              activeTab !== 'inventory' ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20' : 'group-hover:bg-white/5'
-            }`}>
-              <Wrench className="h-4.5 w-4.5 shrink-0" />
-            </div>
-            <span className={`text-[9px] font-bold tracking-tight mt-0.5 transition-colors ${
-              activeTab !== 'inventory' ? 'text-teal-300 font-bold' : 'text-slate-400'
-            }`}>
-              Service
-            </span>
+      {/* RESPONSIVE BOTTOM NAVBAR FOR SERVICE SUB-MENU TABS */}
+      {activeTab !== 'inventory' && (
+        <nav 
+          className={`fixed bottom-0 left-0 right-0 z-40 bg-[#050e12]/90 backdrop-blur-lg border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.15)] select-none transition-all duration-300 ${
+            isSidebarOpen ? 'lg:left-64' : 'lg:left-0'
+          }`} 
+          id="workspace-bottom-nav"
+        >
+          <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-around">
+            {visibleTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isSelected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  id={`tab-btn-${tab.id}`}
+                  onClick={() => {
+                    setActiveTab(tab.id as any);
+                    setInvoiceWizardJob(null);
+                  }}
+                  className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group ${
+                    isSelected
+                      ? 'text-teal-400 scale-102'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-xl transition-all ${
+                    isSelected ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20' : 'group-hover:bg-white/5'
+                  }`}>
+                    <Icon className="h-4.5 w-4.5 shrink-0" />
+                  </div>
+                  <span className={`text-[9px] font-bold tracking-tight mt-0.5 transition-colors ${
+                    isSelected ? 'text-teal-300 font-bold' : 'text-slate-400'
+                  }`}>
+                    {tab.label.split(' ')[0]}
+                  </span>
 
-            {activeTab !== 'inventory' && (
-              <span className="absolute top-0 w-2 h-1 rounded-b-full bg-teal-450 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
-            )}
-          </button>
-
-          {/* Inventory Link */}
-          <button
-            type="button"
-            id="tab-btn-inventory"
-            onClick={() => {
-              setActiveTab('inventory');
-              setInvoiceWizardJob(null);
-            }}
-            className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group ${
-              activeTab === 'inventory'
-                ? 'text-teal-400 scale-102'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <div className={`p-1.5 rounded-xl transition-all ${
-              activeTab === 'inventory' ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20' : 'group-hover:bg-white/5'
-            }`}>
-              <Package className="h-4.5 w-4.5 shrink-0" />
-            </div>
-            <span className={`text-[9px] font-bold tracking-tight mt-0.5 transition-colors ${
-              activeTab === 'inventory' ? 'text-teal-300 font-bold' : 'text-slate-400'
-            }`}>
-              Inventory
-            </span>
-
-            {activeTab === 'inventory' && (
-              <span className="absolute top-0 w-2 h-1 rounded-b-full bg-teal-450 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
-            )}
-          </button>
-
-          {/* Menu Link (Opens drawer) */}
-          <button
-            type="button"
-            id="tab-btn-menu"
-            onClick={() => {
-              setIsMobileSidebarOpen(true);
-            }}
-            className="flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group text-slate-400 hover:text-slate-200"
-          >
-            <div className="p-1.5 rounded-xl transition-all group-hover:bg-white/5">
-              <Menu className="h-4.5 w-4.5 shrink-0" />
-            </div>
-            <span className="text-[9px] font-bold tracking-tight mt-0.5 text-slate-400">
-              Menu
-            </span>
-          </button>
-        </div>
-      </nav>
+                  {isSelected && (
+                    <span className="absolute top-0 w-2 h-1 rounded-b-full bg-teal-400 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
