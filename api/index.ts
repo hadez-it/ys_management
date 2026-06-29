@@ -1044,17 +1044,16 @@ app.patch("/api/inventory/:id", async (req, res) => {
 
     // Log the change
     const operator = req.headers["x-operator-username"] || req.query.username || "system";
+    const targetDate = new Date().toISOString().split("T")[0];
     const newLog = new InventoryLogModel({
       id: "log-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
-      itemId: item.id,
       itemName: item.name,
-      itemCategory: item.category,
-      action: "Edit Item",
-      qtyChange: 0,
-      currentQty: item.qty,
-      operator: String(operator),
-      timestamp: new Date().toISOString(),
-      notes: `Changed from ${oldName} (${oldCategory}) to ${item.name} (${item.category})`
+      category: item.category,
+      actionType: "Edit Item",
+      qty: 0,
+      date: targetDate,
+      username: String(operator),
+      timestamp: new Date().toISOString()
     });
     await newLog.save();
 

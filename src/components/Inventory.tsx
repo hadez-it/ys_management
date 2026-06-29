@@ -197,6 +197,8 @@ export default function Inventory({
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
+  const [logStartDate, setLogStartDate] = useState('');
+  const [logEndDate, setLogEndDate] = useState('');
 
   // Sync category input if a category is selected
   const handleSelectCategory = (cat: string) => {
@@ -275,12 +277,26 @@ export default function Inventory({
   // Filtered logs
   const filteredLogs = inventoryLogs.filter(log => {
     const queryTokens = searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
-    return queryTokens.length === 0 || queryTokens.every(token => {
+    const matchesSearch = queryTokens.length === 0 || queryTokens.every(token => {
       return (log.itemName || '').toLowerCase().includes(token) || 
              (log.category || '').toLowerCase().includes(token) ||
              (log.actionType || '').toLowerCase().includes(token) ||
              (log.username || '').toLowerCase().includes(token);
     });
+
+    let matchesStartDate = true;
+    if (logStartDate) {
+      const logDateOnly = log.date ? log.date.split('T')[0] : '';
+      matchesStartDate = logDateOnly >= logStartDate;
+    }
+
+    let matchesEndDate = true;
+    if (logEndDate) {
+      const logDateOnly = log.date ? log.date.split('T')[0] : '';
+      matchesEndDate = logDateOnly <= logEndDate;
+    }
+
+    return matchesSearch && matchesStartDate && matchesEndDate;
   });
 
   // Format date helper
@@ -327,6 +343,41 @@ export default function Inventory({
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
               </div>
+            </div>
+          )}
+
+          {inventorySubTab === 'logs' && (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 bg-slate-950/40 px-3 py-2 rounded-2xl border border-white/5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Start:</span>
+                <input
+                  type="date"
+                  value={logStartDate}
+                  onChange={(e) => setLogStartDate(e.target.value)}
+                  className="bg-transparent border-0 text-xs text-slate-200 focus:outline-none focus:ring-0 w-28 [color-scheme:dark]"
+                />
+              </div>
+              <div className="flex items-center gap-2 bg-slate-950/40 px-3 py-2 rounded-2xl border border-white/5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">End:</span>
+                <input
+                  type="date"
+                  value={logEndDate}
+                  onChange={(e) => setLogEndDate(e.target.value)}
+                  className="bg-transparent border-0 text-xs text-slate-200 focus:outline-none focus:ring-0 w-28 [color-scheme:dark]"
+                />
+              </div>
+              {(logStartDate || logEndDate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLogStartDate('');
+                    setLogEndDate('');
+                  }}
+                  className="px-3 py-2 text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15 hover:border-rose-500/30 rounded-xl cursor-pointer transition-all active:scale-95"
+                >
+                  Clear Range
+                </button>
+              )}
             </div>
           )}
         </div>
