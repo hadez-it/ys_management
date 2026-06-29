@@ -80,6 +80,12 @@ export default function App() {
     return fetch(url, {
       ...options,
       headers,
+    }).then((res) => {
+      if (res.status === 401 || res.status === 403) {
+        // Token is invalid/expired; log out automatically to prevent stale state
+        handleLogout();
+      }
+      return res;
     });
   };
 
@@ -87,6 +93,7 @@ export default function App() {
   const [jobs, setJobs] = useState<ServiceJob[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [dataLoading, setDataLoading] = useState<boolean>(true);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string } | null>(null);
 
   // Routing and interactive view triggers
@@ -150,35 +157,34 @@ export default function App() {
       setJobs([]);
       setInvoices([]);
       setActivityLogs([]);
+      setDataLoading(false);
       return;
     }
 
-    const fetchJobs = () => {
-      authFetch('/api/jobs')
-        .then((res) => {
-          if (!res.ok) throw new Error();
-          return res.json();
-        })
-        .then((data: ServiceJob[]) => {
-          const dataArray = Array.isArray(data) ? data : [];
-          const now = new Date();
-          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
-          const filtered = dataArray.filter((job) => {
-            if (!job.createdAt) return true;
-            const jobDate = new Date(job.createdAt);
-            return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
-          });
-          setJobs(filtered);
-        })
-        .catch((err) => {
-          console.error('Error fetching jobs online:', err.message || err);
+    setDataLoading(true);
+
+    const p1 = authFetch('/api/jobs')
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data: ServiceJob[]) => {
+        const dataArray = Array.isArray(data) ? data : [];
+        const now = new Date();
+        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
+        const filtered = dataArray.filter((job) => {
+          if (!job.createdAt) return true;
+          const jobDate = new Date(job.createdAt);
+          return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
         });
-    };
+        setJobs(filtered);
+      })
+      .catch((err) => {
+        console.error('Error fetching jobs online:', err.message || err);
+      });
 
-    fetchJobs();
-
-    authFetch('/api/invoices')
+    const p2 = authFetch('/api/invoices')
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -191,23 +197,25 @@ export default function App() {
         console.error('Error fetching invoices online:', err.message || err);
       });
 
-    // Fetch activity logs helper
-    const fetchActivityLogsOnStart = () => {
-      authFetch('/api/activity-logs')
-        .then((res) => {
-          if (!res.ok) throw new Error();
-          return res.json();
-        })
-        .then((data) => {
-          const logsArray = Array.isArray(data) ? data : [];
-          setActivityLogs(logsArray);
-        })
-        .catch((err) => {
-          console.error('Error fetching activity logs online:', err.message || err);
-        });
-    };
+    const p3 = authFetch('/api/activity-logs')
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) => {
+        const logsArray = Array.isArray(data) ? data : [];
+        setActivityLogs(logsArray);
+      })
+      .catch((err) => {
+        console.error('Error fetching activity logs online:', err.message || err);
+      });
 
-    fetchActivityLogsOnStart();
+    Promise.allSettled([p1, p2, p3]).finally(() => {
+      // Small artificial delay for polished, high-fidelity skeleton animation
+      setTimeout(() => {
+        setDataLoading(false);
+      }, 600);
+    });
 
     // Poll jobs endpoint every 8 seconds for a near-realtime dynamic auto-update
     const intervalId = setInterval(() => {
@@ -761,26 +769,95 @@ export default function App() {
                 >
                   {activeTab === 'dashboard' && (
                     <div className="space-y-6" id="dashboard-tab-module">
-                      <DashboardStats
-                        jobs={jobs}
-                        invoices={invoices}
-                        onSelectedStatusFilter={handleOpenStatusFilterFromDashboard}
-                      />
+                      {dataLoading ? (
+                        <div className="space-y-6 animate-pulse">
+                          {/* Main metric row skeleton */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+                            {[1, 2, 3, 4].map((i) => (
+                              <div key={i} className="bg-slate-900/40 backdrop-blur-md border border-white/5 p-4 md:p-5 rounded-3xl h-28 md:h-32 flex flex-col justify-between">
+                                <div className="space-y-2">
+                                  <div className="h-3.5 bg-white/10 rounded-full w-20" />
+                                  <div className="h-6 bg-white/10 rounded-lg w-12" />
+                                </div>
+                                <div className="h-2.5 bg-white/5 rounded-full w-16" />
+                              </div>
+                            ))}
+                          </div>
+                          {/* Graph and sub-tables skeleton */}
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2 bg-slate-900/40 border border-white/5 p-5 md:p-6 rounded-3xl h-80 flex flex-col justify-between">
+                              <div className="space-y-2">
+                                <div className="h-4 bg-white/10 rounded-full w-32" />
+                                <div className="h-3 bg-white/5 rounded-full w-48" />
+                              </div>
+                              <div className="h-44 bg-white/5 rounded-2xl w-full" />
+                            </div>
+                            <div className="bg-slate-900/40 border border-white/5 p-5 md:p-6 rounded-3xl h-80 flex flex-col justify-between">
+                              <div className="space-y-2">
+                                <div className="h-4 bg-white/10 rounded-full w-24" />
+                                <div className="h-3 bg-white/5 rounded-full w-32" />
+                              </div>
+                              <div className="space-y-3 flex-1 mt-6">
+                                {[1, 2, 3].map((i) => (
+                                  <div key={i} className="flex justify-between items-center py-1">
+                                    <div className="h-3.5 bg-white/10 rounded-full w-20" />
+                                    <div className="h-3.5 bg-white/5 rounded-full w-12" />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <DashboardStats
+                          jobs={jobs}
+                          invoices={invoices}
+                          onSelectedStatusFilter={handleOpenStatusFilterFromDashboard}
+                        />
+                      )}
                     </div>
                   )}
 
                   {activeTab === 'queue' && (
                     <div id="dispatcher-queue-tab-module">
-                      <JobList
-                        jobs={jobs}
-                        onUpdateJobStatus={handleUpdateJobStatus}
-                        onUpdateJobPriority={handleUpdateJobPriority}
-                        onOpenInvoiceWizard={handleOpenInvoiceWizard}
-                        onViewInvoice={handleViewInvoiceById}
-                        onDeleteJob={handleDeleteJob}
-                        onEditJob={handleEditJob}
-                        currentUser={currentUser || undefined}
-                      />
+                      {dataLoading ? (
+                        <div className="space-y-4 animate-pulse">
+                          {/* Quick filters line */}
+                          <div className="flex gap-2 pb-1 overflow-x-auto">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                              <div key={i} className="h-8 bg-white/10 rounded-xl w-16 md:w-20 shrink-0" />
+                            ))}
+                          </div>
+                          {/* Tickets skeletons */}
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="bg-slate-900/40 border border-white/5 p-5 rounded-3xl space-y-4">
+                              <div className="flex justify-between items-start">
+                                <div className="space-y-2.5 w-2/3">
+                                  <div className="h-4.5 bg-white/10 rounded-full w-3/4" />
+                                  <div className="h-3 bg-white/5 rounded-full w-1/2" />
+                                </div>
+                                <div className="h-6 bg-white/10 rounded-full w-16" />
+                              </div>
+                              <div className="h-px bg-white/5" />
+                              <div className="flex justify-between items-center pt-1">
+                                <div className="h-3.5 bg-white/5 rounded-full w-28" />
+                                <div className="h-6 bg-white/10 rounded-lg w-24" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <JobList
+                          jobs={jobs}
+                          onUpdateJobStatus={handleUpdateJobStatus}
+                          onUpdateJobPriority={handleUpdateJobPriority}
+                          onOpenInvoiceWizard={handleOpenInvoiceWizard}
+                          onViewInvoice={handleViewInvoiceById}
+                          onDeleteJob={handleDeleteJob}
+                          onEditJob={handleEditJob}
+                          currentUser={currentUser || undefined}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -793,55 +870,76 @@ export default function App() {
                         <p className="text-xs text-slate-400">Review final transaction logs, KBZPay entries, and invoices details.</p>
                       </div>
 
-                      <div className="border border-white/5 rounded-2xl overflow-x-auto" id="historic-invoices-register">
-                        <table className="w-full text-xs text-left">
-                          <thead className="bg-white/5 text-slate-350 font-bold uppercase tracking-wider text-[10px] border-b border-white/5 select-none">
-                            <tr>
-                              <th className="p-4">Ref Number</th>
-                              <th className="p-4">Customer Details</th>
-                              <th className="p-4">Payment Method</th>
-                              <th className="p-4 text-right">Settled Amount</th>
-                              <th className="p-4 text-center">Status</th>
-                              <th className="p-4 text-center w-28">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-white/5 font-sans">
-                            {invoices.map((inv) => (
-                              <tr key={inv.id} className="hover:bg-white/5 transition-colors">
-                                <td className="p-4 font-mono font-bold text-teal-400">{inv.id}</td>
-                                <td className="p-4">
-                                  <p className="font-bold text-slate-100">{inv.customerName}</p>
-                                  <p className="text-[10px] text-slate-400 font-mono">{inv.customerPhone}</p>
-                                </td>
-                                <td className="p-4 font-semibold text-slate-300">{inv.paymentMethod}</td>
-                                <td className="p-4 text-right font-extrabold text-slate-100 font-display">{formatMMK(inv.total)}</td>
-                                <td className="p-4 text-center">
-                                  <span className="inline-flex text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold select-none">
-                                    Paid
-                                  </span>
-                                </td>
-                                <td className="p-4 text-center">
-                                  <button
-                                    type="button"
-                                    id={`view-registered-inv-${inv.id}`}
-                                    onClick={() => setViewingInvoice(inv)}
-                                    className="text-xs text-teal-400 hover:text-teal-300 font-bold cursor-pointer transition-colors"
-                                  >
-                                    View Invoice
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            {invoices.length === 0 && (
+                      {dataLoading ? (
+                        <div className="space-y-4 animate-pulse">
+                          <div className="border border-white/5 rounded-2xl overflow-hidden">
+                            <div className="bg-white/5 h-10 w-full" />
+                            <div className="divide-y divide-white/5">
+                              {[1, 2, 3, 4].map((i) => (
+                                <div key={i} className="p-4 flex justify-between items-center">
+                                  <div className="space-y-2">
+                                    <div className="h-4 bg-white/10 rounded-full w-24" />
+                                    <div className="h-3 bg-white/5 rounded-full w-16" />
+                                  </div>
+                                  <div className="h-4 bg-white/10 rounded-full w-20" />
+                                  <div className="h-4 bg-white/10 rounded-full w-24" />
+                                  <div className="h-6 bg-white/10 rounded-lg w-20" />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="border border-white/5 rounded-2xl overflow-x-auto" id="historic-invoices-register">
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-white/5 text-slate-350 font-bold uppercase tracking-wider text-[10px] border-b border-white/5 select-none">
                               <tr>
-                                <td colSpan={6} className="py-12 text-center text-slate-400 italic">
-                                  No settlements logged yet.
-                                </td>
+                                <th className="p-4">Ref Number</th>
+                                <th className="p-4">Customer Details</th>
+                                <th className="p-4">Payment Method</th>
+                                <th className="p-4 text-right">Settled Amount</th>
+                                <th className="p-4 text-center">Status</th>
+                                <th className="p-4 text-center w-28">Action</th>
                               </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody className="divide-y divide-white/5 font-sans">
+                              {invoices.map((inv) => (
+                                <tr key={inv.id} className="hover:bg-white/5 transition-colors">
+                                  <td className="p-4 font-mono font-bold text-teal-400">{inv.id}</td>
+                                  <td className="p-4">
+                                    <p className="font-bold text-slate-100">{inv.customerName}</p>
+                                    <p className="text-[10px] text-slate-400 font-mono">{inv.customerPhone}</p>
+                                  </td>
+                                  <td className="p-4 font-semibold text-slate-300">{inv.paymentMethod}</td>
+                                  <td className="p-4 text-right font-extrabold text-slate-100 font-display">{formatMMK(inv.total)}</td>
+                                  <td className="p-4 text-center">
+                                    <span className="inline-flex text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold select-none">
+                                      Paid
+                                    </span>
+                                  </td>
+                                  <td className="p-4 text-center">
+                                    <button
+                                      type="button"
+                                      id={`view-registered-inv-${inv.id}`}
+                                      onClick={() => setViewingInvoice(inv)}
+                                      className="text-xs text-teal-400 hover:text-teal-300 font-bold cursor-pointer transition-colors"
+                                    >
+                                      View Invoice
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {invoices.length === 0 && (
+                                <tr>
+                                  <td colSpan={6} className="py-12 text-center text-slate-400 italic">
+                                    No settlements logged yet.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -862,59 +960,74 @@ export default function App() {
 
                         {/* Terminal Log Output Body */}
                         <div className="bg-slate-950/60 backdrop-blur-sm p-4 min-h-[350px] max-h-[550px] overflow-y-auto space-y-2 select-text custom-scrollbar">
-                          {activityLogs.map((log) => {
-                            const dateText = log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              second: '2-digit',
-                              hour12: false,
-                              timeZone: 'Asia/Yangon',
-                            }) : '-';
-                            
-                            let level = 'INFO';
-                            let levelColor = 'text-sky-400 font-bold';
-                            if (log.actionType === 'Deleted') {
-                              level = 'FATAL';
-                              levelColor = 'text-rose-500 font-semibold';
-                            } else if (log.actionType === 'Canceled' || log.actionType === 'Cancelled') {
-                              level = 'WARN ';
-                              levelColor = 'text-amber-500 font-semibold';
-                            } else if (log.actionType === 'Completed') {
-                              level = 'DONE ';
-                              levelColor = 'text-emerald-400 font-semibold';
-                            } else if (log.actionType === 'Created') {
-                              level = 'NEW  ';
-                              levelColor = 'text-lime-400 font-semibold';
-                            }
-
-                            return (
-                              <div key={log.id || ('log-' + Math.random())} className="hover:bg-slate-900/60 py-0.5 px-2 rounded-md flex flex-col md:flex-row md:items-start gap-1 select-text transition-colors duration-150">
-                                <span className="text-slate-500 shrink-0 font-medium">[{dateText}]</span>
-                                <span className={`shrink-0 ${levelColor}`}>[{level}]</span>
-                                <span className="text-teal-400 shrink-0">@{log.username || 'system'}</span>
-                                <div className="flex-1 md:pl-1 text-slate-300">
-                                  <span className="text-zinc-400 font-medium uppercase text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800/40 mr-1.5 shrink-0 inline-block align-middle">{log.actionType}</span>
-                                  <span className="text-amber-300 font-bold mr-1.5">[TICKET #{log.jobId}]</span>
-                                  {log.customerName && (
-                                    <span className="text-slate-100 font-semibold mr-1">
-                                      {log.customerName} ({log.deviceType || 'Device'}) &raquo;
-                                    </span>
-                                  )}
-                                  <span className="text-slate-400 font-normal italic select-text pl-1">
-                                    {log.details || 'No additional activity notes provided.'}
-                                  </span>
+                          {dataLoading ? (
+                            <div className="space-y-3.5 animate-pulse">
+                              {[1, 2, 3, 4, 5, 6].map((i) => (
+                                <div key={i} className="flex gap-3">
+                                  <div className="h-4 bg-white/10 rounded-full w-24 shrink-0" />
+                                  <div className="h-4 bg-white/5 rounded-full w-12 shrink-0" />
+                                  <div className="h-4 bg-white/5 rounded-full w-16 shrink-0" />
+                                  <div className="h-4 bg-white/10 rounded-full w-full" />
                                 </div>
-                              </div>
-                            );
-                          })}
-
-                          {activityLogs.length === 0 && (
-                            <div className="py-20 text-center text-slate-500 italic select-none">
-                              $ tail -n 100 activity.log<br />
-                              <span className="text-slate-600">No logs found in registry. Performing actions on tickets will populate live audit logs here.</span>
+                              ))}
                             </div>
+                          ) : (
+                            <>
+                              {activityLogs.map((log) => {
+                                const dateText = log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                  second: '2-digit',
+                                  hour12: false,
+                                  timeZone: 'Asia/Yangon',
+                                }) : '-';
+                                
+                                let level = 'INFO';
+                                let levelColor = 'text-sky-400 font-bold';
+                                if (log.actionType === 'Deleted') {
+                                  level = 'FATAL';
+                                  levelColor = 'text-rose-500 font-semibold';
+                                } else if (log.actionType === 'Canceled' || log.actionType === 'Cancelled') {
+                                  level = 'WARN ';
+                                  levelColor = 'text-amber-500 font-semibold';
+                                } else if (log.actionType === 'Completed') {
+                                  level = 'DONE ';
+                                  levelColor = 'text-emerald-400 font-semibold';
+                                } else if (log.actionType === 'Created') {
+                                  level = 'NEW  ';
+                                  levelColor = 'text-lime-400 font-semibold';
+                                }
+
+                                return (
+                                  <div key={log.id || ('log-' + Math.random())} className="hover:bg-slate-900/60 py-0.5 px-2 rounded-md flex flex-col md:flex-row md:items-start gap-1 select-text transition-colors duration-150">
+                                    <span className="text-slate-500 shrink-0 font-medium">[{dateText}]</span>
+                                    <span className={`shrink-0 ${levelColor}`}>[{level}]</span>
+                                    <span className="text-teal-400 shrink-0">@{log.username || 'system'}</span>
+                                    <div className="flex-1 md:pl-1 text-slate-300">
+                                      <span className="text-zinc-400 font-medium uppercase text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800/40 mr-1.5 shrink-0 inline-block align-middle">{log.actionType}</span>
+                                      <span className="text-amber-300 font-bold mr-1.5">[TICKET #{log.jobId}]</span>
+                                      {log.customerName && (
+                                        <span className="text-slate-100 font-semibold mr-1">
+                                          {log.customerName} ({log.deviceType || 'Device'}) &raquo;
+                                        </span>
+                                      )}
+                                      <span className="text-slate-400 font-normal italic select-text pl-1">
+                                        {log.details || 'No additional activity notes provided.'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              {activityLogs.length === 0 && (
+                                <div className="py-20 text-center text-slate-500 italic select-none">
+                                  $ tail -n 100 activity.log<br />
+                                  <span className="text-slate-600">No logs found in registry. Performing actions on tickets will populate live audit logs here.</span>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

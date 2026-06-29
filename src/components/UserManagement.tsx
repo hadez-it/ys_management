@@ -379,9 +379,22 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
       {/* USER LIST CARDS */}
       {loading ? (
-        <div className="py-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
-          <RefreshCw className="h-5 w-5 animate-spin text-slate-400" />
-          <span className="font-semibold">Loading users database...</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-pulse">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-start justify-between">
+              <div className="flex items-start gap-3 w-full">
+                <div className="h-9 w-9 rounded-xl bg-white/10 shrink-0" />
+                <div className="space-y-2 flex-1 pt-0.5">
+                  <div className="h-4 bg-white/10 rounded-full w-24" />
+                  <div className="h-3 bg-white/5 rounded-full w-16" />
+                  <div className="pt-2 flex gap-2">
+                    <div className="h-5 bg-white/10 rounded-full w-20" />
+                    <div className="h-5 bg-white/5 rounded-full w-24" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3" id="user-accounts-grid">
