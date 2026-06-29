@@ -20,7 +20,12 @@ import {
   LogOut,
   Calendar,
   Layers3,
-  Terminal
+  Terminal,
+  Package,
+  Menu,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight
 } from 'lucide-react';
 import { ServiceJob, Invoice, JobStatus, DeviceType, UrgencyLevel, LocationCoords, DeletedJob, User, UserRole, ActivityLog } from './types.ts';
 import {
@@ -97,7 +102,9 @@ export default function App() {
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string } | null>(null);
 
   // Routing and interactive view triggers
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users' | 'inventory'>('dashboard');
+  const [isServiceExpanded, setIsServiceExpanded] = useState(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
   const [showDbStatusModal, setShowDbStatusModal] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
@@ -577,6 +584,90 @@ export default function App() {
     return tab.id === 'dashboard' || tab.id === 'queue';
   });
 
+  const renderNavItems = (onItemClick?: () => void) => {
+    const isServiceActive = activeTab !== 'inventory';
+    return (
+      <div className="space-y-3">
+        {/* Category 1: Service */}
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => {
+              setIsServiceExpanded(!isServiceExpanded);
+            }}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-97 text-left outline-none ${
+              isServiceActive
+                ? 'bg-white/10 text-teal-300 border border-white/10'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Wrench className="h-4 w-4 shrink-0 text-teal-400" />
+              <span>Service</span>
+            </div>
+            {isServiceExpanded ? (
+              <ChevronUp className="h-4 w-4 text-slate-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-slate-400" />
+            )}
+          </button>
+
+          {/* Service Sub-items */}
+          {isServiceExpanded && (
+            <div className="pl-3 border-l border-white/10 ml-5 mt-1 space-y-1.5">
+              {visibleTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isSelected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setInvoiceWizardJob(null);
+                      if (onItemClick) onItemClick();
+                    }}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-150 cursor-pointer active:scale-97 text-left outline-none ${
+                      isSelected
+                        ? 'bg-teal-500/15 text-teal-300 font-bold border border-teal-500/25 shadow-[0_0_12px_rgba(20,184,166,0.1)]'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0 text-slate-350" />
+                    <span className="truncate">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Category 2: Inventory */}
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('inventory');
+              setInvoiceWizardJob(null);
+              if (onItemClick) onItemClick();
+            }}
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-97 text-left outline-none ${
+              activeTab === 'inventory'
+                ? 'bg-white/10 text-teal-300 border border-white/10 shadow-[0_0_12px_rgba(20,184,166,0.1)]'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Package className="h-4 w-4 shrink-0 text-teal-400" />
+              <span>Inventory</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-slate-400 opacity-60" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="h-screen bg-[#050e12] text-slate-100 font-sans antialiased flex flex-col lg:flex-row overflow-hidden relative" id="app-viewport">
       
@@ -603,28 +694,7 @@ export default function App() {
 
         {/* Sidebar Nav Items */}
         <nav className="p-4 flex-1 space-y-1 overflow-y-auto">
-          {visibleTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isSelected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab.id as any);
-                  setInvoiceWizardJob(null);
-                }}
-                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer active:scale-97 ${
-                  isSelected
-                    ? 'bg-white/15 text-white font-bold border border-white/20 shadow-[0_0_12px_rgba(255,255,255,0.05)] backdrop-blur-md'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          {renderNavItems()}
         </nav>
 
         {/* Bottom Profile Details */}
@@ -676,15 +746,22 @@ export default function App() {
             
             {/* Title / Mobile Brand */}
             <div className="flex items-center gap-2.5 text-left">
-              <div className="bg-gradient-to-tr from-teal-500 to-emerald-600 text-white p-2.5 rounded-xl flex items-center justify-center lg:hidden shrink-0 shadow-md">
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="bg-gradient-to-tr from-teal-500 to-emerald-600 text-white p-2.5 rounded-xl flex items-center justify-center lg:hidden shrink-0 shadow-md cursor-pointer hover:from-teal-400 hover:to-emerald-500 active:scale-95 transition-all outline-none"
+                title="Open Navigation Menu"
+                id="mobile-menu-trigger-btn"
+              >
                 <Terminal className="h-4.5 w-4.5" />
-              </div>
+              </button>
               <div>
                 <h2 className="text-sm lg:text-base font-extrabold tracking-tight text-white font-display">
                   {activeTab === 'dashboard' ? 'Overview Stats' :
                    activeTab === 'queue' ? 'Dispatching Queue' :
                    activeTab === 'invoices' ? 'Billing History' :
-                   activeTab === 'deleted' ? 'Activity Log History' : 'Team Directory'}
+                   activeTab === 'deleted' ? 'Activity Log History' :
+                   activeTab === 'inventory' ? 'Inventory Center' : 'Team Directory'}
                 </h2>
                 <p className="text-[10px] text-teal-400 font-bold tracking-wider uppercase hidden sm:block">
                   YS SVC Dispatch Hub
@@ -1037,6 +1114,51 @@ export default function App() {
                   {activeTab === 'users' && (
                     <UserManagement currentUser={currentUser} />
                   )}
+
+                  {activeTab === 'inventory' && (
+                    <div className="space-y-6 text-left" id="inventory-tab-module">
+                      <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+                        {/* Decorative background visual elements */}
+                        <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
+                        
+                        <div className="max-w-md mx-auto text-center py-10 space-y-5">
+                          <div className="mx-auto w-16 h-16 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
+                            <Package className="h-8 w-8 animate-pulse" />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <h3 className="text-lg font-extrabold text-white font-display">Inventory Management</h3>
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                              This category is reserved for our retail parts ledger, supply chain logs, barcode registry, and automatic warehouse level notifications.
+                            </p>
+                          </div>
+
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-300 border border-teal-500/20 uppercase tracking-wider">
+                            <Sparkles className="h-3 w-3" /> Coming Soon
+                          </div>
+                        </div>
+
+                        {/* Interactive layout simulation to make it look premium and thought-out */}
+                        <div className="border-t border-white/5 pt-6 mt-6">
+                          <p className="text-xs font-bold text-slate-300 mb-4 tracking-wider uppercase">Planned Inventory Components</p>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-slate-950/40 border border-white/5 p-4 rounded-2xl space-y-2 hover:border-teal-500/20 transition-colors">
+                              <h4 className="text-xs font-bold text-teal-400">Parts Catalog</h4>
+                              <p className="text-[10px] text-slate-400 font-sans">Track dynamic spare parts inventory for smartphones, tablets, and laptops.</p>
+                            </div>
+                            <div className="bg-slate-950/40 border border-white/5 p-4 rounded-2xl space-y-2 hover:border-teal-500/20 transition-colors">
+                              <h4 className="text-xs font-bold text-teal-400">Reorder Triggers</h4>
+                              <p className="text-[10px] text-slate-400 font-sans">Automatic safety stock alert logs and technician purchase order generators.</p>
+                            </div>
+                            <div className="bg-slate-950/40 border border-white/5 p-4 rounded-2xl space-y-2 hover:border-teal-500/20 transition-colors">
+                              <h4 className="text-xs font-bold text-teal-400">Supplier Ledger</h4>
+                              <p className="text-[10px] text-slate-400 font-sans">Contact details, invoice settlement receipts, and lead-time tracking.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -1159,44 +1281,182 @@ export default function App() {
         </div>
       )}
 
+      {/* MOBILE SIDEBAR DRAWER (AnimatePresence slide-out) */}
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs z-45 lg:hidden"
+            />
+            
+            {/* Drawer Content */}
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 bottom-0 left-0 w-72 bg-[#050e12] border-r border-white/10 text-white flex flex-col z-50 lg:hidden shadow-2xl select-none"
+              id="mobile-sidebar"
+            >
+              {/* Brand Banner */}
+              <div className="p-5 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-gradient-to-tr from-teal-500 to-emerald-600 text-slate-100 border border-white/20 p-2 rounded-xl flex items-center justify-center">
+                    <Terminal className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h1 className="text-xs font-black uppercase tracking-widest font-display text-white">
+                      Yangon Store
+                    </h1>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-white/5 text-xl font-bold cursor-pointer transition-colors"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Sidebar Content (Scrollable) */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {renderNavItems(() => setIsMobileSidebarOpen(false))}
+              </div>
+
+              {/* Bottom Profile Details */}
+              <div className="p-4 border-t border-white/5 bg-white/2 flex flex-col gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8.5 w-8.5 rounded-full bg-teal-500/20 border border-teal-500/30 flex items-center justify-center font-black text-xs text-teal-300 uppercase tracking-wider shrink-0 select-none">
+                    {currentUser?.name[0]}
+                  </div>
+                  <div className="flex-1 min-w-0 pr-1 text-left">
+                    <p className="text-xs font-bold text-white truncate leading-none mb-1">{currentUser?.name}</p>
+                    <span className="text-[9px] font-extrabold uppercase bg-white/5 border border-white/10 text-slate-400 px-1.5 py-0.5 rounded">
+                      {currentUser?.role.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileSidebarOpen(false);
+                      handleLogout();
+                    }}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 border border-white/10 hover:border-rose-500/30 hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 text-xs font-bold py-2 px-3 rounded-lg transition-all cursor-pointer active:scale-95"
+                  >
+                    <LogOut className="h-3.5 w-3.5" /> Log Out
+                  </button>
+                  {dbStatus && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setIsMobileSidebarOpen(false);
+                        setShowDbStatusModal(true);
+                      }}
+                      className={`flex items-center justify-center h-8 w-8 rounded-lg border shrink-0 cursor-pointer hover:opacity-80 active:scale-95 transition-all outline-none ${
+                        dbStatus.connected ? 'border-emerald-500/30 bg-emerald-500/10 focus:ring-1 focus:ring-emerald-500' : 'border-amber-500/30 bg-amber-500/10 focus:ring-1 focus:ring-amber-500'
+                      }`}
+                      title={dbStatus.connected ? `DB Live Status Verified: ${dbStatus.uriUsed} (Click for details)` : (dbStatus.error ? `DB Connection Failed: ${dbStatus.error} (Click for details)` : `${dbStatus.modeMessage || "Local Offline Mode"} (Click for details)`)}
+                    >
+                      <span className={`h-2.5 w-2.5 rounded-full ${
+                        dbStatus.connected ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.7)]' : 'bg-amber-400 animate-pulse'
+                      }`} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* RESPONSIVE BOTTOM MOBILE NAVBAR (Invisible in wide viewports) */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#050e12]/90 backdrop-blur-lg border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.15)] lg:hidden select-none" id="workspace-bottom-nav">
         <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-around">
-          {visibleTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isSelected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                id={`tab-btn-${tab.id}`}
-                onClick={() => {
-                  setActiveTab(tab.id as any);
-                  setInvoiceWizardJob(null);
-                }}
-                className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group ${
-                  isSelected
-                    ? 'text-teal-400 scale-102'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <div className={`p-1.5 rounded-xl transition-all ${
-                  isSelected ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20' : 'group-hover:bg-white/5'
-                }`}>
-                  <Icon className="h-4.5 w-4.5 shrink-0" />
-                </div>
-                <span className={`text-[9px] font-bold tracking-tight mt-0.5 transition-colors ${
-                  isSelected ? 'text-teal-300 font-bold' : 'text-slate-400'
-                }`}>
-                  {tab.label.split(' ')[0]}
-                </span>
+          {/* Service Link */}
+          <button
+            type="button"
+            id="tab-btn-service"
+            onClick={() => {
+              setActiveTab('dashboard');
+              setInvoiceWizardJob(null);
+            }}
+            className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group ${
+              activeTab !== 'inventory'
+                ? 'text-teal-400 scale-102'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${
+              activeTab !== 'inventory' ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20' : 'group-hover:bg-white/5'
+            }`}>
+              <Wrench className="h-4.5 w-4.5 shrink-0" />
+            </div>
+            <span className={`text-[9px] font-bold tracking-tight mt-0.5 transition-colors ${
+              activeTab !== 'inventory' ? 'text-teal-300 font-bold' : 'text-slate-400'
+            }`}>
+              Service
+            </span>
 
-                {isSelected && (
-                  <span className="absolute top-0 w-2 h-1 rounded-b-full bg-teal-450 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
-                )}
-              </button>
-            );
-          })}
+            {activeTab !== 'inventory' && (
+              <span className="absolute top-0 w-2 h-1 rounded-b-full bg-teal-450 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
+            )}
+          </button>
+
+          {/* Inventory Link */}
+          <button
+            type="button"
+            id="tab-btn-inventory"
+            onClick={() => {
+              setActiveTab('inventory');
+              setInvoiceWizardJob(null);
+            }}
+            className={`flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group ${
+              activeTab === 'inventory'
+                ? 'text-teal-400 scale-102'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${
+              activeTab === 'inventory' ? 'bg-teal-500/15 text-teal-300 border border-teal-500/20' : 'group-hover:bg-white/5'
+            }`}>
+              <Package className="h-4.5 w-4.5 shrink-0" />
+            </div>
+            <span className={`text-[9px] font-bold tracking-tight mt-0.5 transition-colors ${
+              activeTab === 'inventory' ? 'text-teal-300 font-bold' : 'text-slate-400'
+            }`}>
+              Inventory
+            </span>
+
+            {activeTab === 'inventory' && (
+              <span className="absolute top-0 w-2 h-1 rounded-b-full bg-teal-450 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
+            )}
+          </button>
+
+          {/* Menu Link (Opens drawer) */}
+          <button
+            type="button"
+            id="tab-btn-menu"
+            onClick={() => {
+              setIsMobileSidebarOpen(true);
+            }}
+            className="flex-1 relative flex flex-col items-center justify-center py-1 rounded-xl cursor-pointer transition-all outline-none group text-slate-400 hover:text-slate-200"
+          >
+            <div className="p-1.5 rounded-xl transition-all group-hover:bg-white/5">
+              <Menu className="h-4.5 w-4.5 shrink-0" />
+            </div>
+            <span className="text-[9px] font-bold tracking-tight mt-0.5 text-slate-400">
+              Menu
+            </span>
+          </button>
         </div>
       </nav>
     </div>
