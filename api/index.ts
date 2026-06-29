@@ -1013,6 +1013,77 @@ app.post("/api/inventory", async (req, res) => {
   }
 });
 
+app.post("/api/inventory/transaction", async (req, res) => {
+  try {
+    const { itemId, type, qty, customerName, date } = req.body;
+    if (!itemId || !type || !qty || qty <= 0) {
+      res.status(400).json({ error: "Item ID, transaction type, and valid quantity are required." });
+      return;
+    }
+
+    if (!mongoConnected) {
+      res.status(503).json({ error: "Database Offline: Live MongoDB connection is required." });
+      return;
+    }
+
+    const item = await InventoryItemModel.findOne({ id: itemId } as any);
+    if (!item) {
+      res.status(404).json({ error: "Inventory item not found." });
+      return;
+    }
+
+    const quantity = Number(qty);
+    const targetDate = date || new Date().toISOString().split("T")[0];
+    const operator = req.headers["x-operator-username"] || req.query.username || "system";
+    
+    let actionType = "";
+    let qtyImpact = 0;
+
+    if (type === "fill") {
+      item.qty += quantity;
+      actionType = "Fill Stock";
+      qtyImpact = quantity;
+    } else if (type === "sell") {
+      if (!customerName || !customerName.trim()) {
+        res.status(400).json({ error: "Customer name is required for selling items." });
+        return;
+      }
+      if (item.qty < quantity) {
+        res.status(400).json({ error: `Insufficient stock. Only ${item.qty} items available.` });
+        return;
+      }
+      item.qty -= quantity;
+      actionType = `Sell: ${customerName.trim()}`;
+      qtyImpact = -quantity;
+    } else {
+      res.status(400).json({ error: "Invalid transaction type. Must be 'fill' or 'sell'." });
+      return;
+    }
+
+    item.date = targetDate;
+    item.updatedAt = new Date().toISOString();
+    await item.save();
+
+    // Create log
+    const logId = "invlog-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+    const newLog = new InventoryLogModel({
+      id: logId,
+      itemName: item.name,
+      category: item.category,
+      actionType: actionType,
+      qty: qtyImpact,
+      date: targetDate,
+      username: String(operator),
+      timestamp: new Date().toISOString()
+    });
+    await newLog.save();
+
+    res.json({ item, log: newLog });
+  } catch (err: any) {
+    res.status(500).json({ error: "Transaction failed: " + err.message });
+  }
+});
+
 app.get("/api/inventory/logs", async (req, res) => {
   try {
     if (!mongoConnected) {

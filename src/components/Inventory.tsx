@@ -11,7 +11,13 @@ import {
   ArrowRightLeft,
   X,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  Plus,
+  ShoppingBag,
+  TrendingUp,
+  TrendingDown,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import { InventoryItem, InventoryLog, User } from '../types';
 
@@ -43,6 +49,76 @@ export default function Inventory({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Transaction states for Fill & Sell functions
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [isFillModalOpen, setIsFillModalOpen] = useState(false);
+  const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [transactionQty, setTransactionQty] = useState<number>(1);
+  const [customerName, setCustomerName] = useState('');
+  const [transactionSubmitting, setTransactionSubmitting] = useState(false);
+  const [transactionError, setTransactionError] = useState('');
+  const [transactionSuccess, setTransactionSuccess] = useState('');
+
+  const handleTransactionSubmit = (e: React.FormEvent, type: 'fill' | 'sell') => {
+    e.preventDefault();
+    if (!selectedItem) return;
+    if (transactionQty <= 0) {
+      setTransactionError('Quantity must be greater than 0.');
+      return;
+    }
+    if (type === 'sell' && !customerName.trim()) {
+      setTransactionError('Customer name is required.');
+      return;
+    }
+    if (type === 'sell' && selectedItem.qty < transactionQty) {
+      setTransactionError(`Only ${selectedItem.qty} items are currently in stock.`);
+      return;
+    }
+
+    setTransactionSubmitting(true);
+    setTransactionError('');
+    setTransactionSuccess('');
+
+    authFetch('/api/inventory/transaction', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        itemId: selectedItem.id,
+        type,
+        qty: transactionQty,
+        customerName: type === 'sell' ? customerName.trim() : undefined
+      })
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || `Failed to process ${type} transaction`);
+        }
+        return data;
+      })
+      .then(() => {
+        setTransactionSuccess(`Successfully updated inventory!`);
+        fetchInventoryData();
+        setTimeout(() => {
+          setIsFillModalOpen(false);
+          setIsSellModalOpen(false);
+          setSelectedItem(null);
+          setTransactionQty(1);
+          setCustomerName('');
+          setTransactionSuccess('');
+        }, 1500);
+      })
+      .catch((err) => {
+        setTransactionError(err.message || 'An error occurred during the transaction.');
+      })
+      .finally(() => {
+        setTransactionSubmitting(false);
+      });
+  };
 
   // Form states
   const [categoryInput, setCategoryInput] = useState('');
@@ -275,7 +351,8 @@ export default function Inventory({
                           <th className="pb-3">Category</th>
                           <th className="pb-3">Quantity</th>
                           <th className="pb-3">Date Registered</th>
-                          <th className="pb-3 pr-4 text-right">Last Updated</th>
+                          <th className="pb-3">Last Updated</th>
+                          <th className="pb-3 pr-4 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5 text-xs">
@@ -311,8 +388,39 @@ export default function Inventory({
                             <td className="py-4 text-slate-400 font-sans">
                               {formatDate(item.date)}
                             </td>
-                            <td className="py-4 pr-4 text-right text-slate-400 font-sans">
+                            <td className="py-4 text-slate-400 font-sans">
                               {formatDate(item.updatedAt)}
+                            </td>
+                            <td className="py-4 pr-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedItem(item);
+                                    setTransactionQty(1);
+                                    setIsFillModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+                                  title="Fill Stock"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  <span>Fill</span>
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedItem(item);
+                                    setTransactionQty(1);
+                                    setCustomerName('');
+                                    setIsSellModalOpen(true);
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/20 hover:bg-amber-500/20 transition-all font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+                                  title="Sell Item"
+                                >
+                                  <ShoppingBag className="h-3 w-3" />
+                                  <span>Sell</span>
+                                </button>
+                              </div>
                             </td>
                           </motion.tr>
                         ))}
@@ -321,46 +429,97 @@ export default function Inventory({
 
                     {/* MOBILE CARD GRID VIEW */}
                     <div className="grid grid-cols-1 gap-4 md:hidden pb-12">
-                      {filteredItems.map((item, index) => (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.02 }}
-                          className="bg-slate-950/40 border border-white/10 rounded-2xl p-4 space-y-3 shadow-lg"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1.5">
-                              <h4 className="font-bold text-white text-sm leading-snug flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-                                {item.name}
-                              </h4>
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-500/10 text-teal-300 border border-teal-500/15">
-                                <Layers className="h-2.5 w-2.5" />
-                                {item.category}
+                      {filteredItems.map((item, index) => {
+                        const isExpanded = activeCardId === item.id;
+                        return (
+                          <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.02 }}
+                            onClick={() => setActiveCardId(isExpanded ? null : item.id)}
+                            className={`bg-slate-950/45 border rounded-3xl p-4.5 space-y-3.5 shadow-lg transition-all duration-250 cursor-pointer ${
+                              isExpanded 
+                                ? 'border-teal-500/30 bg-slate-900/30 ring-1 ring-teal-500/10' 
+                                : 'border-white/10 hover:border-white/15'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-1.5">
+                                <h4 className="font-extrabold text-white text-sm leading-snug flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+                                  {item.name}
+                                </h4>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-500/10 text-teal-300 border border-teal-500/15">
+                                  <Layers className="h-2.5 w-2.5" />
+                                  {item.category}
+                                </span>
+                              </div>
+                              <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-extrabold shrink-0 ${
+                                item.qty < 5 
+                                  ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' 
+                                  : 'bg-slate-950/60 text-slate-300 border border-white/5'
+                              }`}>
+                                {item.qty} pcs
                               </span>
                             </div>
-                            <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-extrabold shrink-0 ${
-                              item.qty < 5 
-                                ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' 
-                                : 'bg-slate-950/60 text-slate-300 border border-white/5'
-                            }`}>
-                              {item.qty} pcs
-                            </span>
-                          </div>
-                          
-                          <div className="border-t border-white/5 pt-3 flex flex-col gap-1.5 text-[10px] text-slate-400 font-sans">
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-500">Registered Date:</span>
-                              <span className="font-medium text-slate-300">{formatDate(item.date)}</span>
+                            
+                            <div className="border-t border-white/5 pt-3.5 flex flex-col gap-2 text-[10px] text-slate-400 font-sans">
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-500">Registered Date:</span>
+                                <span className="font-medium text-slate-300">{formatDate(item.date)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-500">Last Updated:</span>
+                                <span className="font-medium text-slate-300">{formatDate(item.updatedAt)}</span>
+                              </div>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-500">Last Updated:</span>
-                              <span className="font-medium text-slate-300">{formatDate(item.updatedAt)}</span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
+
+                            {/* Actions overlay / panel inside card when clicked */}
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="overflow-hidden border-t border-white/5 pt-3.5 mt-3.5"
+                                  onClick={(e) => e.stopPropagation()} // Prevent collapse when interacting with the actions panel
+                                >
+                                  <p className="text-[9px] font-extrabold text-slate-500 uppercase tracking-wider mb-2.5">Stock Management Operations</p>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedItem(item);
+                                        setTransactionQty(1);
+                                        setIsFillModalOpen(true);
+                                      }}
+                                      className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/30 transition-all font-bold text-xs cursor-pointer active:scale-97"
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                      <span>Fill Stock</span>
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedItem(item);
+                                        setTransactionQty(1);
+                                        setCustomerName('');
+                                        setIsSellModalOpen(true);
+                                      }}
+                                      className="flex items-center justify-center gap-2 py-3 px-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:border-amber-500/30 transition-all font-bold text-xs cursor-pointer active:scale-97"
+                                    >
+                                      <ShoppingBag className="h-4 w-4" />
+                                      <span>Sell Item</span>
+                                    </button>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   </>
                 )}
@@ -659,6 +818,248 @@ export default function Inventory({
                       <>
                         <PlusCircle className="h-4.5 w-4.5" />
                         <span>Confirm and Register Stock</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* FILL STOCK MODAL */}
+      <AnimatePresence>
+        {isFillModalOpen && selectedItem && (
+          <div 
+            className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto"
+            onClick={() => {
+              setIsFillModalOpen(false);
+              setSelectedItem(null);
+            }}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#050e12]/95 backdrop-blur-xl w-full max-w-md rounded-3xl shadow-2xl border border-white/10 flex flex-col overflow-visible text-slate-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-white/5 px-6 py-4 border-b border-white/5 flex items-center justify-between shrink-0 text-left select-none rounded-t-3xl">
+                <div className="flex items-center gap-2">
+                  <PlusCircle className="h-5 w-5 text-emerald-400" />
+                  <h3 className="font-extrabold text-white text-sm font-display tracking-wide uppercase">Fill Item Stock</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFillModalOpen(false);
+                    setSelectedItem(null);
+                  }}
+                  className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 text-xl font-bold cursor-pointer transition-colors"
+                >
+                  <X className="h-4.5 w-4.5" />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={(e) => handleTransactionSubmit(e, 'fill')} className="p-6 space-y-4 text-left">
+                <div className="bg-slate-950/50 border border-white/5 rounded-2xl p-4.5">
+                  <span className="text-[10px] text-teal-400/80 font-semibold uppercase block mb-1">{selectedItem.category}</span>
+                  <h4 className="font-bold text-white text-sm">{selectedItem.name}</h4>
+                  <p className="text-xs text-slate-400 mt-2 flex items-center gap-2">
+                    <span>Current Stock:</span>
+                    <span className="font-mono font-bold text-slate-200 bg-slate-900 px-2 py-0.5 rounded-md border border-white/5">
+                      {selectedItem.qty} pcs
+                    </span>
+                  </p>
+                </div>
+
+                {transactionError && (
+                  <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-4 py-3 rounded-2xl">
+                    {transactionError}
+                  </div>
+                )}
+                {transactionSuccess && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-3 rounded-2xl">
+                    {transactionSuccess}
+                  </div>
+                )}
+
+                {/* QUANTITY TO FILL */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-extrabold text-slate-350 uppercase tracking-wider block">Quantity to Fill</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setTransactionQty(prev => Math.max(1, prev - 1))}
+                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      required
+                      min={1}
+                      value={transactionQty}
+                      onChange={(e) => setTransactionQty(Math.max(1, parseInt(e.target.value) || 0))}
+                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm font-mono font-bold text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setTransactionQty(prev => prev + 1)}
+                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* SUBMIT BUTTON */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={transactionSubmitting}
+                    className="w-full bg-gradient-to-tr from-emerald-500 to-teal-600 hover:from-emerald-450 hover:to-teal-550 text-white text-xs font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-97 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {transactionSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Updating Database Stock...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4.5 w-4.5" />
+                        <span>Confirm and Fill Stock</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* SELL INVENTORY ITEM MODAL */}
+      <AnimatePresence>
+        {isSellModalOpen && selectedItem && (
+          <div 
+            className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 sm:pt-4 bg-slate-950/60 backdrop-blur-xs animate-fade-in sm:items-center overflow-y-auto"
+            onClick={() => {
+              setIsSellModalOpen(false);
+              setSelectedItem(null);
+            }}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#050e12]/95 backdrop-blur-xl w-full max-w-md rounded-3xl shadow-2xl border border-white/10 flex flex-col overflow-visible text-slate-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-white/5 px-6 py-4 border-b border-white/5 flex items-center justify-between shrink-0 text-left select-none rounded-t-3xl">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="h-5 w-5 text-amber-400" />
+                  <h3 className="font-extrabold text-white text-sm font-display tracking-wide uppercase">Sell Stock Item</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSellModalOpen(false);
+                    setSelectedItem(null);
+                  }}
+                  className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-xl hover:bg-white/5 text-xl font-bold cursor-pointer transition-colors"
+                >
+                  <X className="h-4.5 w-4.5" />
+                </button>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={(e) => handleTransactionSubmit(e, 'sell')} className="p-6 space-y-4 text-left">
+                <div className="bg-slate-950/50 border border-white/5 rounded-2xl p-4.5">
+                  <span className="text-[10px] text-teal-400/80 font-semibold uppercase block mb-1">{selectedItem.category}</span>
+                  <h4 className="font-bold text-white text-sm">{selectedItem.name}</h4>
+                  <p className="text-xs text-slate-400 mt-2 flex items-center gap-2">
+                    <span>Available Stock:</span>
+                    <span className="font-mono font-bold text-slate-200 bg-slate-900 px-2 py-0.5 rounded-md border border-white/5">
+                      {selectedItem.qty} pcs
+                    </span>
+                  </p>
+                </div>
+
+                {transactionError && (
+                  <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-4 py-3 rounded-2xl">
+                    {transactionError}
+                  </div>
+                )}
+                {transactionSuccess && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-3 rounded-2xl">
+                    {transactionSuccess}
+                  </div>
+                )}
+
+                {/* CUSTOMER NAME */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-extrabold text-slate-350 uppercase tracking-wider block">Customer Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Ko Phyo, Ma Thiri, Walk-in Client"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-slate-100 placeholder-slate-550 focus:outline-none focus:border-teal-500/40 transition-colors font-medium"
+                  />
+                </div>
+
+                {/* QUANTITY TO SELL */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-extrabold text-slate-350 uppercase tracking-wider block">Quantity to Remove / Sell</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setTransactionQty(prev => Math.max(1, prev - 1))}
+                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      required
+                      min={1}
+                      max={selectedItem.qty}
+                      value={transactionQty}
+                      onChange={(e) => setTransactionQty(Math.min(selectedItem.qty, Math.max(1, parseInt(e.target.value) || 0)))}
+                      className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3.5 text-center text-sm font-mono font-bold text-slate-100 focus:outline-none focus:border-teal-500/40 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setTransactionQty(prev => Math.min(selectedItem.qty, prev + 1))}
+                      className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 cursor-pointer text-lg font-bold transition-all shrink-0 select-none active:scale-95"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* SUBMIT BUTTON */}
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={transactionSubmitting}
+                    className="w-full bg-gradient-to-tr from-amber-500 to-orange-600 hover:from-amber-450 hover:to-orange-550 text-white text-xs font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-md active:scale-97 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {transactionSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Processing Sale...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="h-4.5 w-4.5" />
+                        <span>Confirm and Register Sale</span>
                       </>
                     )}
                   </button>
