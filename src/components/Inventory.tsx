@@ -264,18 +264,23 @@ export default function Inventory({
 
   // Filtered items
   const filteredItems = inventoryItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          item.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const queryTokens = searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const matchesSearch = queryTokens.length === 0 || queryTokens.every(token => {
+      return item.name.toLowerCase().includes(token) || item.category.toLowerCase().includes(token);
+    });
     const matchesCategory = selectedCategoryFilter === 'All' || item.category === selectedCategoryFilter;
     return matchesSearch && matchesCategory;
   });
 
   // Filtered logs
   const filteredLogs = inventoryLogs.filter(log => {
-    return log.itemName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           log.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           log.actionType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           log.username.toLowerCase().includes(searchQuery.toLowerCase());
+    const queryTokens = searchQuery.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    return queryTokens.length === 0 || queryTokens.every(token => {
+      return (log.itemName || '').toLowerCase().includes(token) || 
+             (log.category || '').toLowerCase().includes(token) ||
+             (log.actionType || '').toLowerCase().includes(token) ||
+             (log.username || '').toLowerCase().includes(token);
+    });
   });
 
   // Format date helper
