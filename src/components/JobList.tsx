@@ -236,6 +236,10 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
     return new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime();
   };
 
+  const sortJobsByRecentDateFirst = (a: ServiceJob, b: ServiceJob) => {
+    return new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
+  };
+
   const selectedJob = jobs.find(j => j.id === selectedJobId) || null;
 
   // Filters logic
@@ -371,7 +375,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
   const todayJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Today').sort(sortJobsInQueue);
   const tomorrowJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Tomorrow').sort(sortJobsInQueue);
   const upcomingJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Upcoming').sort(sortJobsInQueue);
-  const archiveJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Archive').sort(sortJobsInQueue);
+  const archiveJobs = tabFilteredJobs.filter(j => getJobCategory(j) === 'Archive').sort(sortJobsByRecentDateFirst);
 
   const groupJobsByDateString = (jobsList: ServiceJob[]) => {
     const groups: { [key: string]: ServiceJob[] } = {};
@@ -408,6 +412,14 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
       if (dateA === 'Other Date') return 1;
       if (dateB === 'Other Date') return -1;
       return new Date(dateA).getTime() - new Date(dateB).getTime();
+    });
+  };
+
+  const getSortedDateGroupsDesc = (grouped: { [key: string]: ServiceJob[] }) => {
+    return Object.entries(grouped).sort(([dateA], [dateB]) => {
+      if (dateA === 'Other Date') return 1;
+      if (dateB === 'Other Date') return -1;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
     });
   };
 
@@ -763,7 +775,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                       </span>
                     </div>
                     <div className="space-y-5 divide-y divide-white/5">
-                      {getSortedDateGroups(groupJobsByDateString(archiveJobs)).map(([dateKey, jobsForDate], idx) => (
+                      {getSortedDateGroupsDesc(groupJobsByDateString(archiveJobs)).map(([dateKey, jobsForDate], idx) => (
                         <div key={dateKey} className={`${idx > 0 ? 'pt-4' : ''} space-y-3`}>
                           <div className="flex items-center gap-1.5 px-0.5">
                             <span className="text-[10px] font-bold text-slate-400 bg-white/5 px-2.5 py-0.5 rounded-lg border border-white/10 font-mono tracking-wide">
