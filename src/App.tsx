@@ -135,12 +135,34 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Track the last active service tab
+  // Navigation History Stack for Back button support
+  const [navHistory, setNavHistory] = useState<{ activeTab: string; inventorySubTab: 'stock' | 'logs' }[]>([]);
+  const isBackTransitionRef = React.useRef(false);
+  const lastStateRef = React.useRef({ activeTab: 'dashboard', inventorySubTab: 'stock' as const });
+
+  // Handle back-confirm
+  const [exitConfirmActive, setExitConfirmActive] = useState(false);
+
+  // Track navigation changes for the Back gesture/button
   useEffect(() => {
+    const prevState = lastStateRef.current;
+    const currState = { activeTab, inventorySubTab };
+
+    if (prevState.activeTab !== currState.activeTab || prevState.inventorySubTab !== currState.inventorySubTab) {
+      if (isBackTransitionRef.current) {
+        isBackTransitionRef.current = false;
+      } else {
+        // Push the previous state into the stack
+        setNavHistory((prev) => [...prev, prevState]);
+      }
+      lastStateRef.current = currState;
+    }
+
     if (activeTab !== 'inventory') {
       setLastServiceTab(activeTab as any);
     }
-  }, [activeTab]);
+  }, [activeTab, inventorySubTab]);
+
   const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
   const [showDbStatusModal, setShowDbStatusModal] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
@@ -148,6 +170,83 @@ export default function App() {
   // Specific wizard triggers
   const [invoiceWizardJob, setInvoiceWizardJob] = useState<ServiceJob | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+
+  // Back action implementation
+  const handleBack = React.useCallback(() => {
+    // If any modal is open, close it first
+    if (isNewTicketModalOpen) {
+      setIsNewTicketModalOpen(false);
+      return;
+    }
+    if (viewingInvoice) {
+      setViewingInvoice(null);
+      return;
+    }
+    if (showDbStatusModal) {
+      setShowDbStatusModal(false);
+      return;
+    }
+    if (invoiceWizardJob) {
+      setInvoiceWizardJob(null);
+      return;
+    }
+
+    if (navHistory.length > 0) {
+      const prevState = navHistory[navHistory.length - 1];
+      setNavHistory((prev) => prev.slice(0, -1));
+      isBackTransitionRef.current = true;
+      setActiveTab(prevState.activeTab as any);
+      setInventorySubTab(prevState.inventorySubTab);
+      setExitConfirmActive(false);
+    } else {
+      if (exitConfirmActive) {
+        window.close();
+        window.location.href = 'about:blank';
+      } else {
+        setExitConfirmActive(true);
+      }
+    }
+  }, [
+    navHistory,
+    exitConfirmActive,
+    isNewTicketModalOpen,
+    viewingInvoice,
+    showDbStatusModal,
+    invoiceWizardJob,
+    setInventorySubTab
+  ]);
+
+  const handleBackRef = React.useRef(handleBack);
+  useEffect(() => {
+    handleBackRef.current = handleBack;
+  }, [handleBack]);
+
+  // Handle hardware/browser Back Button
+  useEffect(() => {
+    // Push a dummy state to history so there is always a state to pop from
+    window.history.pushState(null, '', window.location.pathname);
+
+    const handlePopState = () => {
+      // Re-push a dummy state to keep the back button interceptable next time
+      window.history.pushState(null, '', window.location.pathname);
+      handleBackRef.current();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // Handle exit confirmation auto-timeout
+  useEffect(() => {
+    if (exitConfirmActive) {
+      const t = setTimeout(() => {
+        setExitConfirmActive(false);
+      }, 2500);
+      return () => clearTimeout(t);
+    }
+  }, [exitConfirmActive]);
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isWiping, setIsWiping] = useState(false);
 
@@ -1487,6 +1586,14 @@ export default function App() {
             </button>
           </div>
         </nav>
+      )}
+
+      {/* DOUBLE PRESS BACK TO EXIT CONFIRMATION TOAST */}
+      {exitConfirmActive && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/95 backdrop-blur-md border border-white/10 text-white text-xs font-semibold py-3 px-5 rounded-full shadow-2xl flex items-center gap-2.5 animate-bounce shadow-teal-500/10 select-none">
+          <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+          <span>Press back again to exit the application</span>
+        </div>
       )}
     </div>
   );
