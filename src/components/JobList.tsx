@@ -39,13 +39,27 @@ interface JobListProps {
   onDeleteJob?: (jobId: string, reason: string) => void;
   onEditJob?: (jobId: string, updatedJobData: any) => void;
   currentUser?: User;
+  statusFilter?: string;
 }
 
-export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, onOpenInvoiceWizard, onViewInvoice, onDeleteJob, onEditJob, currentUser }: JobListProps) {
+export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, onOpenInvoiceWizard, onViewInvoice, onDeleteJob, onEditJob, currentUser, statusFilter }: JobListProps) {
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'upcoming' | 'repairing' | 'completed'>('upcoming');
+
+  React.useEffect(() => {
+    if (statusFilter) {
+      if (statusFilter === 'Repairing' || statusFilter === 'ServiceInProgress') {
+        setActiveTab('repairing');
+      } else if (statusFilter === 'Completed' || statusFilter === 'Cancelled') {
+        setActiveTab('completed');
+      } else if (statusFilter === 'Upcoming' || statusFilter === 'Overdue' || statusFilter === 'All') {
+        setActiveTab('upcoming');
+      }
+    }
+  }, [statusFilter]);
+
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
   const [mobileView, setMobileView] = useState<'list' | 'details'>('list');
   

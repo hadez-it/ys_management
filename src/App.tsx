@@ -1071,6 +1071,7 @@ export default function App() {
                           onDeleteJob={handleDeleteJob}
                           onEditJob={handleEditJob}
                           currentUser={currentUser || undefined}
+                          statusFilter={statusFilter}
                         />
                       )}
                     </div>
