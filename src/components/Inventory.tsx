@@ -60,6 +60,24 @@ export default function Inventory({
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+
+  // Capture Android / mobile browser back button to close open modals instead of changing tabs
+  const isAnyModalOpen = isFillModalOpen || isSellModalOpen || isEditModalOpen;
+  React.useEffect(() => {
+    const handleBackIntercept = (e: Event) => {
+      if (isAnyModalOpen) {
+        e.preventDefault(); // Prevent standard back tab navigation in App
+        setIsFillModalOpen(false);
+        setIsSellModalOpen(false);
+        setIsEditModalOpen(false);
+        setSelectedItem(null);
+      }
+    };
+    window.addEventListener('app-back-intercept', handleBackIntercept);
+    return () => {
+      window.removeEventListener('app-back-intercept', handleBackIntercept);
+    };
+  }, [isAnyModalOpen]);
   const [transactionQty, setTransactionQty] = useState<number>(1);
   const [customerName, setCustomerName] = useState('');
   const [transactionSubmitting, setTransactionSubmitting] = useState(false);

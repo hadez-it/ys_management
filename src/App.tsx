@@ -178,6 +178,10 @@ export default function App() {
       setIsNewTicketModalOpen(false);
       return;
     }
+    if (isAddInventoryOpen) {
+      setIsAddInventoryOpen(false);
+      return;
+    }
     if (viewingInvoice) {
       setViewingInvoice(null);
       return;
@@ -210,6 +214,7 @@ export default function App() {
     navHistory,
     exitConfirmActive,
     isNewTicketModalOpen,
+    isAddInventoryOpen,
     viewingInvoice,
     showDbStatusModal,
     invoiceWizardJob,
@@ -229,6 +234,16 @@ export default function App() {
     const handlePopState = () => {
       // Re-push a dummy state to keep the back button interceptable next time
       window.history.pushState(null, '', window.location.pathname);
+      
+      // Dispatch a custom cancelable event
+      const backEvent = new CustomEvent('app-back-intercept', { cancelable: true });
+      const wasInterrupted = !window.dispatchEvent(backEvent);
+
+      if (wasInterrupted) {
+        // A modal or component intercepted and handled it! Do absolutely nothing else.
+        return;
+      }
+
       handleBackRef.current();
     };
 

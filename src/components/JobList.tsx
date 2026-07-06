@@ -143,40 +143,22 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
 
   // Capture Android / mobile browser back button to close open modals instead of exiting page completely
   const isAnyModalOpen = isModalOpen || !!prioritySettingJob || isDeleteConfirmOpen || isEditFormOpen;
-  const didPushStateRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (isAnyModalOpen) {
-      if (!didPushStateRef.current) {
-        window.history.pushState({ modalActive: true }, '');
-        didPushStateRef.current = true;
-      }
-    } else {
-      if (didPushStateRef.current) {
-        didPushStateRef.current = false;
-        if (window.history.state && window.history.state.modalActive) {
-          window.history.back();
-        }
-      }
-    }
-  }, [isAnyModalOpen]);
-
-  React.useEffect(() => {
-    const handlePopState = () => {
-      if (didPushStateRef.current) {
-        didPushStateRef.current = false;
+    const handleBackIntercept = (e: Event) => {
+      if (isAnyModalOpen) {
+        e.preventDefault(); // Prevent standard back tab navigation in App
         setIsModalOpen(false);
         setPrioritySettingJob(null);
         setIsDeleteConfirmOpen(false);
         setIsEditFormOpen(false);
       }
     };
-
-    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('app-back-intercept', handleBackIntercept);
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('app-back-intercept', handleBackIntercept);
     };
-  }, []);
+  }, [isAnyModalOpen]);
 
   // Touch hold state refs to differentiate tap vs long touch on mobile
   const touchTimerRef = React.useRef<any>(null);
