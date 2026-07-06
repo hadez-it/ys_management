@@ -1190,12 +1190,13 @@ app.post("/api/parse-ticket", async (req, res) => {
       "Your objective is to carefully extract structured information from raw, messy text requests, " +
       "which are often written in English, Burmese, or a hybrid of both, and return it in a clean " +
       "structured JSON schema.\n\n" +
+      "CRITICAL RULE: DO NOT translate any Burmese text into English. If the user writes names, issues, descriptions, or addresses in Burmese, you MUST keep them exactly as-is in Burmese unicode. Absolutely no translation to English for Burmese terms or sentences.\n\n" +
       "Guidelines for extraction:\n" +
-      "1. Customer Name (customerName): Cleanly extract the name. If a company and a person name are both mentioned, extract both or prioritize the name/company (e.g. 'BMN' or 'BMN Co').\n" +
+      "1. Customer Name (customerName): Cleanly extract the name. If a company and a person name are both mentioned, extract both or prioritize the name/company (e.g. 'BMN' or 'BMN Co'). Keep it in Burmese if written in Burmese.\n" +
       "2. Customer Phone (customerPhone): Extract physical phone numbers cleanly (e.g. '09 767069833' or '09767069833'). Replace spaces/hyphens with a clean sequence or keep standard format.\n" +
       "3. Device Type (deviceType): Categorize general device type (e.g. 'PC', 'Laptop', 'Printer', 'CCTV', 'AC'). Be concise. If it says 'Pc update', output 'PC' or 'Laptop'.\n" +
-      "4. Device Issue (deviceIssue): Extract description, including requests like upgrading programs, SSD, hardware installations, pricing mentioned (e.g., 'Traveling 10000, Service 30000 1 Pc ပြောထားပါတယ်။ Pc update လုပ်ချင်တာပါ'). Include any specific remarks or notes in Burmese/English if relevant so technician has full context. Keep it highly detailed and comprehensive.\n" +
-      "5. Location / Address (locationText): Combine building numbers, condo name, streets, township, e.g. 'Shwe Hinthar Condo B, 6 မိုင်ခွဲ, Yangon' or standard descriptive Yangon addresses.\n" +
+      "4. Device Issue (deviceIssue): Extract description, including requests like upgrading programs, SSD, hardware installations, pricing mentioned (e.g., 'Traveling 10000, Service 30000 1 Pc ပြောထားပါတယ်။ Pc update လုပ်ချင်တာပါ'). Include any specific remarks or notes. Do NOT translate from Burmese to English; preserve the Burmese text exactly as-is so technician has full context. Keep it highly detailed and comprehensive.\n" +
+      "5. Location / Address (locationText): Combine building numbers, condo name, streets, township, e.g. 'Shwe Hinthar Condo B, 6 မိုင်ခွဲ, Yangon' or standard descriptive Yangon addresses. If the address is in Burmese, preserve the Burmese text exactly as-is without translating.\n" +
       "6. Date (selectedDate): Look at date indicators like relative expressions ('Monday', 'tomorrow', 'today', 'Sunday'). Utilize the referenceDate: " + (referenceDate || new Date().toISOString().split('T')[0]) + " to accurately calculate the correct date target as YYYY-MM-DD. For example, if referenceDate is 2026-06-14 (Sunday), 'Monday' corresponds to 2026-06-15. If no date is found, default to referenceDate.\n" +
       "7. Time Slot (selectedTime): Must be strictly matched to one of: '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', or 'none'. Match based on hour preferences if mentioned (e.g. '1 PM' -> '13:00', '10 AM' -> '10:00'). If unspecified, return 'none'.\n" +
       "8. Urgency (urgency): Set urgency based on keywords or high priority. Must be strictly one of: 'Low', 'Medium', 'High', 'Critical'. Default to 'Medium'.";
@@ -1222,11 +1223,11 @@ app.post("/api/parse-ticket", async (req, res) => {
             responseSchema: {
               type: Type.OBJECT,
               properties: {
-                customerName: { type: Type.STRING, description: "Bilingual or English customer name cleanly extracted from text. If unspecified, return empty string." },
+                customerName: { type: Type.STRING, description: "Bilingual or English customer name cleanly extracted from text. If written in Burmese, preserve the Burmese text and DO NOT translate to English. If unspecified, return empty string." },
                 customerPhone: { type: Type.STRING, description: "Bilingual phone number. Cleaned and formatted. If unspecified, return empty string." },
                 deviceType: { type: Type.STRING, description: "Device category (e.g., PC, Laptop, Printer, CCTV, AC, etc.). If unspecified, return empty string." },
-                deviceIssue: { type: Type.STRING, description: "Detailed description of the issue or upgrade request, in bilingual English/Burmese text preserving full context. If unspecified, return empty string." },
-                locationText: { type: Type.STRING, description: "Extracted Yangon, Myanmar address. If unspecified, return empty string." },
+                deviceIssue: { type: Type.STRING, description: "Detailed description of the issue or upgrade request. Preserve any Burmese text EXACTLY as-is and DO NOT translate to English. If unspecified, return empty string." },
+                locationText: { type: Type.STRING, description: "Extracted Yangon, Myanmar address. Preserve any Burmese text EXACTLY as-is and DO NOT translate to English. If unspecified, return empty string." },
                 urgency: { type: Type.STRING, description: "Urgency category. Must be strictly one of: Low, Medium, High, Critical", enum: ["Low", "Medium", "High", "Critical"] },
                 selectedDate: { type: Type.STRING, description: "The calculated target service date as YYYY-MM-DD. Calculate relative dates like 'tomorrow' based on the referenceDate." },
                 selectedTime: { type: Type.STRING, description: "Preferred hour match. Strictly one of: '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', or 'none'. Default is 'none'." }
