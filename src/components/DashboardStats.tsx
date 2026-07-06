@@ -130,23 +130,13 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
       color: 'hover:border-emerald-400 focus:bg-emerald-50/10',
       badgeColor: 'bg-emerald-50 text-emerald-900'
     },
-    {
-      title: 'Total Settlements',
-      value: formatMMK(totalRevenue),
-      desc: 'Payments received',
-      icon: TrendingUp,
-      filter: 'Completed',
-      color: 'hover:border-teal-400 focus:bg-teal-50/10',
-      badgeColor: 'bg-teal-50 text-teal-850'
-    },
   ];
 
   return (
     <div className="space-y-4 text-left" id="dashboard-statistics">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-5">
         {kpis.map((kpi, idx) => {
           const IconComponent = kpi.icon;
-          const isSettlements = kpi.title === 'Total Settlements';
           return (
             <div
               key={idx}
@@ -154,7 +144,7 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
               onClick={() => onSelectedStatusFilter(kpi.filter)}
               className={`ios-glass-card ios-glass-card-hover p-4 md:p-5 rounded-3xl cursor-pointer group relative overflow-hidden select-none flex flex-col justify-between h-36 md:h-40 transition-all duration-300 ${
                 kpi.isCritical ? 'border-rose-500/30 shadow-[0_0_15px_rgba(239,68,68,0.12)] bg-rose-500/5' : ''
-              } ${isSettlements ? 'col-span-2 md:col-span-1' : ''}`}
+              }`}
             >
               {/* Top ambient color reflection */}
               <div className={`absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent ${kpi.isCritical ? 'via-rose-500/20' : 'via-white/10'} to-transparent`} />
@@ -164,7 +154,7 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
                   <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
                     {kpi.title}
                   </p>
-                  <p className={`font-black tracking-tight font-display ${isSettlements ? 'text-xl lg:text-2xl text-teal-300' : 'text-2xl lg:text-3xl text-white'}`}>
+                  <p className="text-2xl lg:text-3xl font-black text-white tracking-tight font-display">
                     {kpi.value}
                   </p>
                 </div>
