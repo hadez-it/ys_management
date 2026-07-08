@@ -876,26 +876,36 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                     <UserIcon className="h-4 w-4 text-teal-400" /> Customer Information
                   </h4>
                   <div className="space-y-2 text-sm text-slate-300">
-                    <div className="flex items-start justify-between gap-2 bg-white/5 backdrop-blur-md p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-white/10">
-                      <div>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 block uppercase tracking-wider leading-none mb-1 select-none">Phone Number</span>
-                        <div className="space-y-1">
-                          {selectedJob.customerPhone.split(/[,\/;\n]+/).map((num) => num.trim()).filter(Boolean).map((phoneNum, idx) => (
-                            <strong key={idx} className="text-white font-mono text-xs sm:text-base tracking-tight select-text block">{phoneNum}</strong>
-                          ))}
-                        </div>
+                    <div className="bg-white/5 backdrop-blur-md p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-white/10 space-y-2">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 block uppercase tracking-wider leading-none select-none">Phone Number</span>
+                      <div className="space-y-1.5">
+                        {selectedJob.customerPhone.split(/[,\/;\n]+/).map((num) => num.trim()).filter(Boolean).map((phoneNum, idx) => (
+                          <div key={idx} className="flex items-center justify-between gap-2 bg-white/5 p-1.5 px-2 rounded-lg border border-white/5">
+                            <strong className="text-white font-mono text-xs sm:text-sm tracking-tight select-text">{phoneNum}</strong>
+                            <div className="flex items-center gap-1.5">
+                              <a
+                                href={`tel:${phoneNum.replace(/[^0-9+]/g, '')}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[9px] sm:text-[10px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold px-2 py-1 rounded border border-emerald-500/20 transition-colors cursor-pointer select-none flex items-center gap-1"
+                              >
+                                <Phone className="h-2.5 w-2.5" />
+                                <span>Call</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(phoneNum);
+                                  alert(`Copied ${phoneNum}!`);
+                                }}
+                                className="text-[9px] sm:text-[10px] bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 font-bold px-2 py-1 rounded border border-teal-500/20 transition-colors cursor-pointer select-none"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigator.clipboard.writeText(selectedJob.customerPhone);
-                          alert('Copied phone number!');
-                        }}
-                        className="text-[9px] sm:text-[10px] bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 font-bold px-2 sm:px-2.5 py-1 rounded border border-teal-500/20 transition-colors cursor-pointer select-none mt-1"
-                      >
-                        Copy
-                      </button>
                     </div>
                     
                     <div className="bg-white/5 backdrop-blur-md p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-white/10">
