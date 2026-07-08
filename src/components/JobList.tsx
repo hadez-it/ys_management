@@ -876,10 +876,14 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                     <UserIcon className="h-4 w-4 text-teal-400" /> Customer Information
                   </h4>
                   <div className="space-y-2 text-sm text-slate-300">
-                    <div className="flex items-center justify-between gap-2 bg-white/5 backdrop-blur-md p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-white/10">
+                    <div className="flex items-start justify-between gap-2 bg-white/5 backdrop-blur-md p-2 sm:p-2.5 rounded-lg sm:rounded-xl border border-white/10">
                       <div>
                         <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 block uppercase tracking-wider leading-none mb-1 select-none">Phone Number</span>
-                        <strong className="text-white font-mono text-xs sm:text-base tracking-tight select-text">{selectedJob.customerPhone}</strong>
+                        <div className="space-y-1">
+                          {selectedJob.customerPhone.split(/[,\/;\n]+/).map((num) => num.trim()).filter(Boolean).map((phoneNum, idx) => (
+                            <strong key={idx} className="text-white font-mono text-xs sm:text-base tracking-tight select-text block">{phoneNum}</strong>
+                          ))}
+                        </div>
                       </div>
                       <button
                         type="button"
@@ -888,7 +892,7 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                           navigator.clipboard.writeText(selectedJob.customerPhone);
                           alert('Copied phone number!');
                         }}
-                        className="text-[9px] sm:text-[10px] bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 font-bold px-2 sm:px-2.5 py-1 rounded border border-teal-500/20 transition-colors cursor-pointer select-none"
+                        className="text-[9px] sm:text-[10px] bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 font-bold px-2 sm:px-2.5 py-1 rounded border border-teal-500/20 transition-colors cursor-pointer select-none mt-1"
                       >
                         Copy
                       </button>
