@@ -1105,8 +1105,20 @@ app.post("/api/inventory/transaction", async (req, res) => {
       item.qty -= quantity;
       actionType = `Sell: ${customerName.trim()}`;
       qtyImpact = -quantity;
+    } else if (type === "damaged") {
+      if (!customerName || !customerName.trim()) {
+        res.status(400).json({ error: "Description is required for damaged items." });
+        return;
+      }
+      if (item.qty < quantity) {
+        res.status(400).json({ error: `Insufficient stock. Only ${item.qty} items available.` });
+        return;
+      }
+      item.qty -= quantity;
+      actionType = `Damaged: ${customerName.trim()}`;
+      qtyImpact = -quantity;
     } else {
-      res.status(400).json({ error: "Invalid transaction type. Must be 'fill' or 'sell'." });
+      res.status(400).json({ error: "Invalid transaction type. Must be 'fill', 'sell', or 'damaged'." });
       return;
     }
 
