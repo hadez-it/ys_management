@@ -60,6 +60,9 @@ export default function DashboardStats({ jobs, invoices, onSelectedStatusFilter 
       const diffDays = Math.round((jobMidnightYangon - nowMidnightYangon) / (24 * 60 * 60 * 1000));
       
       if (diffDays < 0) {
+        if (job.status === 'Repairing' || job.status === 'ServiceInProgress') {
+          return 'Today';
+        }
         return 'Overdue';
       } else if (diffDays === 0) {
         return 'Today';
