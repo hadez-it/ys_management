@@ -119,20 +119,20 @@ const JobEditHistorySchema = new mongoose.Schema({
 
 const ServiceJobSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
-  customerName: { type: String, required: true },
-  customerPhone: { type: String, required: true },
-  dateTime: { type: String, required: true },
+  customerName: { type: String, required: true, index: true },
+  customerPhone: { type: String, required: true, index: true },
+  dateTime: { type: String, required: true, index: true },
   locationText: { type: String, required: true },
   locationCoords: { type: LocationSchema, required: true },
   deviceType: { type: String, required: true },
   deviceModel: { type: String },
   deviceIssue: { type: String, required: true },
   urgency: { type: String, required: true },
-  status: { type: String, required: true },
+  status: { type: String, required: true, index: true },
   technicianName: { type: String },
   diagnosedProblem: { type: String },
   resolutionNotes: { type: String },
-  createdAt: { type: String, required: true },
+  createdAt: { type: String, required: true, index: true },
   updatedAt: { type: String, required: true },
   invoiceId: { type: String },
   remarks: { type: String },
@@ -150,7 +150,7 @@ const InvoiceItemSchema = new mongoose.Schema({
 
 const InvoiceSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
-  jobId: { type: String, required: true },
+  jobId: { type: String, required: true, index: true },
   customerName: { type: String, required: true },
   customerPhone: { type: String, required: true },
   dateTime: { type: String, required: true },
@@ -162,7 +162,7 @@ const InvoiceSchema = new mongoose.Schema({
   paymentStatus: { type: String, required: true },
   paymentMethod: { type: String, required: true },
   notes: { type: String },
-  createdTime: { type: String, required: true }
+  createdTime: { type: String, required: true, index: true }
 });
 
 const JobModel = mongoose.models.Job || mongoose.model("Job", ServiceJobSchema);
@@ -173,7 +173,7 @@ const DeletedJobSchema = new mongoose.Schema({
   customerName: { type: String, required: true },
   customerPhone: { type: String, required: true },
   dateTime: { type: String, required: true },
-  deletedAt: { type: String, required: true },
+  deletedAt: { type: String, required: true, index: true },
   deleteReason: { type: String, required: true },
   originalJobData: { type: mongoose.Schema.Types.Mixed, required: true }
 });
@@ -187,7 +187,7 @@ const ActivityLogSchema = new mongoose.Schema({
   customerName: { type: String },
   deviceType: { type: String },
   username: { type: String, required: true },
-  timestamp: { type: String, required: true },
+  timestamp: { type: String, required: true, index: true },
   details: { type: String }
 });
 
@@ -237,7 +237,7 @@ const InventoryItemSchema = new mongoose.Schema({
   qty: { type: Number, required: true, default: 0 },
   date: { type: String, required: true },
   createdAt: { type: String, required: true },
-  updatedAt: { type: String, required: true }
+  updatedAt: { type: String, required: true, index: true }
 });
 
 const InventoryItemModel = mongoose.models.InventoryItem || mongoose.model("InventoryItem", InventoryItemSchema);
@@ -250,7 +250,7 @@ const InventoryLogSchema = new mongoose.Schema({
   qty: { type: Number, required: true },
   date: { type: String, required: true },
   username: { type: String, required: true },
-  timestamp: { type: String, required: true }
+  timestamp: { type: String, required: true, index: true }
 });
 
 const InventoryLogModel = mongoose.models.InventoryLog || mongoose.model("InventoryLog", InventoryLogSchema);
@@ -329,7 +329,9 @@ async function ensureDbConnected() {
     if (!cachedConnection) {
       cachedConnection = mongoose.connect(currentUri, {
         serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
+        socketTimeoutMS: 30000,
+        maxPoolSize: 10,
+        minPoolSize: 2,
       });
     }
     

@@ -96,16 +96,65 @@ export default function App() {
   };
 
   // Global States synced with Express REST + MongoDB Server
-  const [jobs, setJobs] = useState<ServiceJob[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [dataLoading, setDataLoading] = useState<boolean>(true);
+  const [jobs, setJobs] = useState<ServiceJob[]>(() => {
+    try {
+      const cached = localStorage.getItem('ys_cached_jobs');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [invoices, setInvoices] = useState<Invoice[]>(() => {
+    try {
+      const cached = localStorage.getItem('ys_cached_invoices');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
+    try {
+      const cached = localStorage.getItem('ys_cached_activity_logs');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [dataLoading, setDataLoading] = useState<boolean>(() => {
+    try {
+      const hasJobs = localStorage.getItem('ys_cached_jobs');
+      return !hasJobs; // Only show initial loading screen if no cached data exists
+    } catch {
+      return true;
+    }
+  });
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string } | null>(null);
 
   // Inventory States
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>([]);
-  const [inventoryCategories, setInventoryCategories] = useState<string[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('ys_cached_inventory_items');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>(() => {
+    try {
+      const cached = localStorage.getItem('ys_cached_inventory_logs');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [inventoryCategories, setInventoryCategories] = useState<string[]>(() => {
+    try {
+      const cached = localStorage.getItem('ys_cached_inventory_categories');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [inventorySubTab, setInventorySubTab] = useState<'stock' | 'logs'>('stock');
   const [isAddInventoryOpen, setIsAddInventoryOpen] = useState(false);
   const [inventoryLoading, setInventoryLoading] = useState(false);
@@ -119,9 +168,21 @@ export default function App() {
       authFetch('/api/inventory/logs').then(res => res.json()),
       authFetch('/api/inventory/categories').then(res => res.json())
     ]).then(([items, logs, categories]) => {
-      setInventoryItems(Array.isArray(items) ? items : []);
-      setInventoryLogs(Array.isArray(logs) ? logs : []);
-      setInventoryCategories(Array.isArray(categories) ? categories : []);
+      const itemsArray = Array.isArray(items) ? items : [];
+      const logsArray = Array.isArray(logs) ? logs : [];
+      const categoriesArray = Array.isArray(categories) ? categories : [];
+      
+      setInventoryItems(itemsArray);
+      setInventoryLogs(logsArray);
+      setInventoryCategories(categoriesArray);
+      
+      try {
+        localStorage.setItem('ys_cached_inventory_items', JSON.stringify(itemsArray));
+        localStorage.setItem('ys_cached_inventory_logs', JSON.stringify(logsArray));
+        localStorage.setItem('ys_cached_inventory_categories', JSON.stringify(categoriesArray));
+      } catch (e) {
+        console.error(e);
+      }
     }).catch(err => {
       console.error('Error fetching inventory data:', err);
     }).finally(() => {
@@ -325,7 +386,10 @@ export default function App() {
       return;
     }
 
-    setDataLoading(true);
+    const hasCachedJobs = localStorage.getItem('ys_cached_jobs');
+    if (!hasCachedJobs) {
+      setDataLoading(true);
+    }
 
     const p1 = authFetch('/api/jobs')
       .then((res) => {
@@ -343,6 +407,11 @@ export default function App() {
           return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
         });
         setJobs(filtered);
+        try {
+          localStorage.setItem('ys_cached_jobs', JSON.stringify(filtered));
+        } catch (e) {
+          console.error(e);
+        }
       })
       .catch((err) => {
         console.error('Error fetching jobs online:', err.message || err);
@@ -356,6 +425,11 @@ export default function App() {
       .then((data) => {
         const invoicesArray = Array.isArray(data) ? data : [];
         setInvoices(invoicesArray);
+        try {
+          localStorage.setItem('ys_cached_invoices', JSON.stringify(invoicesArray));
+        } catch (e) {
+          console.error(e);
+        }
       })
       .catch((err) => {
         console.error('Error fetching invoices online:', err.message || err);
@@ -369,6 +443,11 @@ export default function App() {
       .then((data) => {
         const logsArray = Array.isArray(data) ? data : [];
         setActivityLogs(logsArray);
+        try {
+          localStorage.setItem('ys_cached_activity_logs', JSON.stringify(logsArray));
+        } catch (e) {
+          console.error(e);
+        }
       })
       .catch((err) => {
         console.error('Error fetching activity logs online:', err.message || err);
@@ -391,6 +470,11 @@ export default function App() {
         .then((data) => {
           const dataArray = Array.isArray(data) ? data : [];
           setJobs(dataArray);
+          try {
+            localStorage.setItem('ys_cached_jobs', JSON.stringify(dataArray));
+          } catch (e) {
+            console.error(e);
+          }
         })
         .catch(() => {
           // Keep offline state silently running
