@@ -25,7 +25,9 @@ import {
   Menu,
   ChevronDown,
   ChevronUp,
-  ChevronRight
+  ChevronRight,
+  ArrowDown,
+  RefreshCw
 } from 'lucide-react';
 import { ServiceJob, Invoice, JobStatus, DeviceType, UrgencyLevel, LocationCoords, DeletedJob, User, UserRole, ActivityLog, InventoryItem, InventoryLog } from './types.ts';
 import {
@@ -195,6 +197,74 @@ export default function App() {
   const [lastServiceTab, setLastServiceTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Pull-to-refresh for Fullscreen PWA mobile device
+  const mainRef = React.useRef<HTMLElement | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    const element = mainRef.current;
+    if (!element) return;
+
+    let startY = 0;
+    let isAtTop = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      isAtTop = element.scrollTop <= 0;
+      if (isAtTop && e.touches.length === 1) {
+        startY = e.touches[0].clientY;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isAtTop || e.touches.length !== 1 || isRefreshing) return;
+      
+      const currentY = e.touches[0].clientY;
+      const diffY = currentY - startY;
+
+      if (diffY > 0) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+        setIsPulling(true);
+        const dampFactor = 0.45;
+        const dist = Math.min(diffY * dampFactor, 150);
+        setPullDistance(dist);
+      } else {
+        setPullDistance(0);
+        setIsPulling(false);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (isRefreshing) return;
+      
+      if (pullDistance > 65) {
+        setIsRefreshing(true);
+        setIsPulling(false);
+        setTimeout(() => {
+          window.location.reload();
+        }, 800);
+      } else {
+        setPullDistance(0);
+        setIsPulling(false);
+      }
+    };
+
+    element.addEventListener('touchstart', handleTouchStart, { passive: true });
+    element.addEventListener('touchmove', handleTouchMove, { passive: false });
+    element.addEventListener('touchend', handleTouchEnd, { passive: true });
+    element.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+    return () => {
+      element.removeEventListener('touchstart', handleTouchStart);
+      element.removeEventListener('touchmove', handleTouchMove);
+      element.removeEventListener('touchend', handleTouchEnd);
+      element.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [pullDistance, isRefreshing]);
 
   // Navigation History Stack for Back button support
   const [navHistory, setNavHistory] = useState<{ activeTab: string; inventorySubTab: 'stock' | 'logs' }[]>([]);
@@ -1047,7 +1117,32 @@ export default function App() {
 
 
         {/* MAIN BODY AREA & WORKSPACE */}
-        <main className="w-full px-4 sm:px-6 py-6 flex-1 overflow-y-auto pb-24 lg:pb-6 space-y-6">
+        <main ref={mainRef} className="w-full px-4 sm:px-6 py-6 flex-1 overflow-y-auto pb-24 lg:pb-6 space-y-6 relative">
+          
+          {/* Pull to Refresh Tactile Indicator */}
+          {(isPulling || isRefreshing || pullDistance > 0) && (
+            <div 
+              className="absolute left-0 right-0 top-2 flex justify-center pointer-events-none z-50 transition-all duration-75"
+              style={{
+                transform: `translateY(${Math.min(pullDistance - 50, 40)}px)`,
+                opacity: Math.min(pullDistance / 50, 1),
+              }}
+            >
+              <div className="bg-[#0b151a]/95 backdrop-blur-md border border-teal-500/30 text-teal-300 py-2.5 px-4 rounded-full flex items-center gap-2.5 shadow-[0_4px_25px_rgba(20,184,166,0.3)] text-xs font-bold">
+                {isRefreshing ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin text-teal-400" />
+                    <span>Reloading...</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDown className={`h-3.5 w-3.5 transition-transform duration-200 text-teal-400 ${pullDistance > 65 ? 'rotate-180' : ''}`} />
+                    <span>{pullDistance > 65 ? 'Release to reload' : 'Pull to reload'}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
           
           {invoiceWizardJob ? (
             <InvoiceGenerator
