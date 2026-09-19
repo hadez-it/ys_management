@@ -32,6 +32,14 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
+// Normalize Netlify Functions URL routing (maps /.netlify/functions/api/* to /api/*)
+app.use((req, res, next) => {
+  if (req.url.startsWith("/.netlify/functions/api")) {
+    req.url = req.url.replace(/^\/\.netlify\/functions\/api/, "/api") || "/api";
+  }
+  next();
+});
+
 // Secure CORS policy middleware to avoid cross-origin request issues (satisfying medium safety finding)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -42,7 +50,7 @@ app.use((req, res, next) => {
   ].filter(Boolean) as string[];
 
   if (origin) {
-    const isAllowed = allowedOrigins.some(o => origin.startsWith(o)) || origin.includes("run.app") || origin.includes("vercel.app");
+    const isAllowed = allowedOrigins.some(o => origin.startsWith(o)) || origin.includes("run.app") || origin.includes("vercel.app") || origin.includes("netlify.app");
     if (isAllowed) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Access-Control-Allow-Credentials", "true");
