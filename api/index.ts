@@ -13,6 +13,25 @@ dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "jwt-fallback-secret-key-12345";
 
+// Persistent session policy: signed-in devices keep their session for 7 days, and the
+// expiry slides forward while the app is in use, so only an explicit logout ends it.
+const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_DURATION = "7d";
+const SESSION_RENEW_AFTER_MS = 30 * 60 * 1000; // re-issue the token after 30 minutes of use
+const SESSION_COOKIE_NAME = "token";
+
+// Cookie policy for the sliding session (Secure is only set on HTTPS so http dev/preview also persists)
+function sessionCookieOptions(req: express.Request) {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  return {
+    httpOnly: true,
+    secure: req.secure || forwardedProto === "https",
+    sameSite: "strict" as const,
+    maxAge: SESSION_DURATION_MS,
+    path: "/"
+  };
+}
+
 // bcryptjs Password Hashing Helpers
 function hashPassword(password: string): string {
   return bcrypt.hashSync(password, 12);
@@ -384,7 +403,7 @@ async function ensureDbConnected() {
 const authenticateToken = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   // Public endpoints do not require token
   const path = req.path;
-  if (path === "/db-status" || path === "/auth/login" || path === "/auth/logout" || path === "/parse-ticket") {
+  if (path === "/db-status" || path === "/auth/login" || path === "/auth/logout" || path === "/auth/me" || path === "/parse-ticket") {
     return next();
   }
 
@@ -416,7 +435,7 @@ app.use("/api", authenticateToken);
 // A dynamic serverless-friendly database auto-resolution middleware for API requests
 app.use("/api", async (req, res, next) => {
   // If it's just checking status, try resolving lazily but proceed to normal handler so status returns diagnostic logs properly
-  if (req.path === "/db-status") {
+  if (req.path === "/db-status" || req.path === "/auth/me" || req.path === "/auth/logout") {
     try {
       await ensureDbConnected();
     } catch {
@@ -501,16 +520,11 @@ app.post("/api/auth/login", rateLimitLogin, async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: SESSION_DURATION }
     );
 
-    // Set JWT in a secure, httpOnly cookie
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      maxAge: 24 * 60 * 60 * 1000 // 1 day
-    });
+    // Set JWT in a secure, httpOnly cookie for the full 7-day session window
+    res.cookie(SESSION_COOKIE_NAME, token, sessionCookieOptions(req));
 
     res.json({ ...userWithoutPassword, token });
   } catch (err: any) {
@@ -520,8 +534,65 @@ app.post("/api/auth/login", rateLimitLogin, async (req, res) => {
 
 // LOGOUT Endpoint
 app.post("/api/auth/logout", (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
   res.json({ success: true, message: "Logged out successfully" });
+});
+
+// SESSION REFRESH Endpoint
+// Validates the saved session and slides its 7-day expiry forward, so a device that keeps
+// using the app stays signed in until the user explicitly logs out.
+app.get("/api/auth/me", async (req, res) => {
+  const cookieToken = req.cookies ? req.cookies[SESSION_COOKIE_NAME] : null;
+  const headerToken = req.headers["authorization"]?.split(" ")[1];
+  const sessionToken = cookieToken || headerToken;
+
+  if (!sessionToken) {
+    res.status(401).json({ error: "No active session. Please sign in again." });
+    return;
+  }
+
+  let claims: { id: string; username: string; role: string; iat?: number };
+  try {
+    claims = jwt.verify(sessionToken, JWT_SECRET) as { id: string; username: string; role: string; iat?: number };
+  } catch (err) {
+    res.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
+    res.status(401).json({ error: "Session expired. Please sign in again." });
+    return;
+  }
+
+  // Prefer the live database record, fall back to the token claims if the database is briefly unreachable
+  let userProfile: any = {
+    id: claims.id,
+    username: claims.username,
+    role: claims.role
+  };
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const dbUser: any = await UserModel.findOne({ id: claims.id } as any).lean();
+      if (dbUser) {
+        delete dbUser.password;
+        delete dbUser.__v;
+        userProfile = dbUser;
+      }
+    }
+  } catch (err) {
+    console.warn("Session refresh could not load the latest user record:", err);
+  }
+
+  // Rotate the token once it has been in use for a while so the session never expires mid-use
+  const issuedAt = (claims.iat || 0) * 1000;
+  const shouldRenew = !issuedAt || Date.now() - issuedAt > SESSION_RENEW_AFTER_MS;
+  let activeToken = sessionToken;
+  if (shouldRenew) {
+    activeToken = jwt.sign(
+      { id: claims.id, username: claims.username, role: userProfile.role || claims.role },
+      JWT_SECRET,
+      { expiresIn: SESSION_DURATION }
+    );
+    res.cookie(SESSION_COOKIE_NAME, activeToken, sessionCookieOptions(req));
+  }
+
+  res.json({ ...userProfile, token: activeToken });
 });
 
 // JOB API Endpoints

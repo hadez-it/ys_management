@@ -228,6 +228,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
 
         {/* Info footer */}
         <p className="text-center text-[10px] text-slate-500 leading-normal select-none">
+          You stay signed in on this device for 7 days unless you log out.<br/>
           Enterprise role restrictions prevent unauthorized access.<br/>
           YS SVC Co., Ltd &copy; 2026. All Rights Reserved.
         </p>

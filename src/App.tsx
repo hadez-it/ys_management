@@ -46,6 +46,9 @@ import Login from './components/Login.tsx';
 import UserManagement from './components/UserManagement.tsx';
 import Inventory from './components/Inventory.tsx';
 
+// Saved sessions last 7 days and are silently refreshed while the app stays in use
+const SESSION_HEARTBEAT_MS = 60 * 60 * 1000; // check/renew the session once an hour
+
 export default function App() {
   // User Session Management
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -53,6 +56,13 @@ export default function App() {
       return secureStorage.getItem<User>('smartfix_current_user');
     } catch (_) {
       return null;
+    }
+  });
+  const [sessionRestoring, setSessionRestoring] = useState<boolean>(() => {
+    try {
+      return !!secureStorage.getItem<User>('smartfix_current_user')?.token;
+    } catch (_) {
+      return false;
     }
   });
 
@@ -71,6 +81,88 @@ export default function App() {
       fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     } catch (_) {}
   };
+
+  // Restore the saved session on load and keep it alive: the server slides the 7-day
+  // expiry forward whenever the app is used, so the user stays signed in until they log out.
+  useEffect(() => {
+    const storedToken = (() => {
+      try {
+        return secureStorage.getItem<User>('smartfix_current_user')?.token || null;
+      } catch (_) {
+        return null;
+      }
+    })();
+
+    if (!storedToken) {
+      // No saved session (or a stale entry without a token): fall back to the login screen
+      try {
+        if (secureStorage.getItem<User>('smartfix_current_user')) {
+          secureStorage.removeItem('smartfix_current_user');
+        }
+      } catch (_) {}
+      setCurrentUser(null);
+      setSessionRestoring(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const refreshSession = async () => {
+      let storedUser: User | null = null;
+      try {
+        storedUser = secureStorage.getItem<User>('smartfix_current_user');
+      } catch (_) {}
+      const latestToken = storedUser?.token || storedToken;
+      if (!latestToken) {
+        if (!cancelled) setSessionRestoring(false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${latestToken}` },
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          // Session expired or was revoked server-side -> back to login
+          if (cancelled) return;
+          secureStorage.removeItem('smartfix_current_user');
+          setCurrentUser(null);
+          return;
+        }
+        if (!res.ok) {
+          // Server/database hiccup: keep the saved session and retry on the next heartbeat
+          return;
+        }
+
+        const refreshedUser = (await res.json()) as User;
+        if (cancelled || !refreshedUser?.token) return;
+        // Keep cached profile details when the server could only confirm the token claims
+        const mergedUser: User = { ...(storedUser || {}), ...refreshedUser };
+        setCurrentUser(mergedUser);
+        secureStorage.setItem('smartfix_current_user', mergedUser);
+      } catch (_) {
+        // Offline: keep the saved session and try again on the next heartbeat
+      } finally {
+        if (!cancelled) setSessionRestoring(false);
+      }
+    };
+
+    refreshSession();
+
+    // Keep the sliding 7-day session alive while the app is open and when the tab wakes up
+    const heartbeat = window.setInterval(refreshSession, SESSION_HEARTBEAT_MS);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshSession();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [currentUser?.token]);
 
   // Authenticated fetch wrapper for custom JWT authorization
   const authFetch = (url: string, options: RequestInit = {}) => {
@@ -873,6 +965,21 @@ export default function App() {
       alert('Invoice receipt trace missing in local registers.');
     }
   };
+
+  if (!currentUser && sessionRestoring) {
+    return (
+      <div className="min-h-screen bg-[#050e12] flex flex-col items-center justify-center gap-4 font-sans select-none" id="session-restore-screen">
+        <div className="relative h-14 w-14 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-600 text-white shadow-xl border border-white/20 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-2xl bg-white/10 opacity-50 blur-[2px]" />
+          <Terminal className="h-6 w-6 relative z-10" />
+        </div>
+        <div className="flex items-center gap-2 text-slate-400">
+          <RefreshCw className="h-3.5 w-3.5 text-teal-400 animate-spin" />
+          <span className="text-[11px] font-bold uppercase tracking-widest">Restoring your session</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return <Login onLoginSuccess={handleLoginSuccess} dbStatus={dbStatus} />;
