@@ -1055,6 +1055,61 @@ export default function App() {
     );
   };
 
+  // Desktop tab rail. The bottom nav is a phone pattern (fixed, capped at max-w-lg), so
+  // wide screens get a real tab strip under the header instead.
+  const renderDesktopTabs = () => {
+    const tabButtonClass = (isSelected: boolean) =>
+      `relative inline-flex items-center gap-2 px-3 py-3 text-[11px] font-extrabold uppercase tracking-wider border-b-2 transition-colors cursor-pointer outline-none ${
+        isSelected
+          ? 'border-teal-400 text-teal-300'
+          : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-white/15'
+      }`;
+
+    return (
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 flex items-center gap-1.5">
+        {activeTab === 'inventory'
+          ? ([
+              { id: 'stock', label: 'Stock', icon: Package },
+              { id: 'logs', label: 'Logs', icon: History },
+            ] as const).map((tab) => {
+              const Icon = tab.icon;
+              const isSelected = inventorySubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  id={`desktop-tab-btn-inventory-${tab.id}`}
+                  onClick={() => setInventorySubTab(tab.id)}
+                  className={tabButtonClass(isSelected)}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })
+          : visibleTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isSelected = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  id={`desktop-tab-btn-${tab.id}`}
+                  onClick={() => {
+                    setActiveTab(tab.id as any);
+                    setInvoiceWizardJob(null);
+                  }}
+                  className={tabButtonClass(isSelected)}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+      </div>
+    );
+  };
+
   return (
     <div className="h-screen bg-[#050e12] text-slate-100 font-sans antialiased flex flex-col lg:flex-row overflow-hidden relative" id="app-viewport">
       
@@ -1129,7 +1184,7 @@ export default function App() {
         
         {/* RESPONSIVE FLUID HEADER */}
         <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 z-20 shrink-0 select-none" id="shop-header">
-          <div className="mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
             
             {/* Title / Mobile Brand */}
             <div className="flex items-center gap-2.5 text-left">
@@ -1220,11 +1275,16 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          {/* DESKTOP TAB RAIL (lg and up) */}
+          <div className="hidden lg:block border-t border-white/5" id="desktop-tab-rail">
+            {renderDesktopTabs()}
+          </div>
         </header>
 
 
         {/* MAIN BODY AREA & WORKSPACE */}
-        <main ref={mainRef} className="w-full px-4 sm:px-6 py-6 flex-1 overflow-y-auto pb-24 lg:pb-6 space-y-6 relative">
+        <main ref={mainRef} className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 overflow-y-auto pb-24 lg:pb-6 space-y-6 relative">
           
           {/* Pull to Refresh Tactile Indicator */}
           {(isPulling || isRefreshing || pullDistance > 0) && (
@@ -1777,9 +1837,7 @@ export default function App() {
       {/* RESPONSIVE BOTTOM NAVBAR FOR SERVICE SUB-MENU TABS */}
       {activeTab !== 'inventory' && (
         <nav 
-          className={`fixed bottom-0 left-0 right-0 z-40 bg-[#050e12]/90 backdrop-blur-lg border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.15)] select-none transition-all duration-300 ${
-            isSidebarOpen ? 'lg:left-64' : 'lg:left-0'
-          }`} 
+          className="fixed bottom-0 left-0 right-0 z-40 bg-[#050e12]/90 backdrop-blur-lg border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.15)] select-none transition-all duration-300 lg:hidden"
           id="workspace-bottom-nav"
         >
           <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-around">
@@ -1825,9 +1883,7 @@ export default function App() {
       {/* RESPONSIVE BOTTOM NAVBAR FOR INVENTORY TABS */}
       {activeTab === 'inventory' && (
         <nav 
-          className={`fixed bottom-0 left-0 right-0 z-40 bg-[#050e12]/90 backdrop-blur-lg border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.15)] select-none transition-all duration-300 ${
-            isSidebarOpen ? 'lg:left-64' : 'lg:left-0'
-          }`} 
+          className="fixed bottom-0 left-0 right-0 z-40 bg-[#050e12]/90 backdrop-blur-lg border-t border-white/10 shadow-[0_-4px_16px_rgba(0,0,0,0.15)] select-none transition-all duration-300 lg:hidden"
           id="inventory-bottom-nav"
         >
           <div className="max-w-lg mx-auto px-4 h-16 flex items-center justify-around">

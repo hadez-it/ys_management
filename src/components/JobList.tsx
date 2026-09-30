@@ -631,7 +631,8 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
                 <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">
                   {searchQuery ? "No queues match your search query." : "There are currently no tickets assigned under this tab."}
                 </p>
-                <div className="mt-4 flex gap-2 text-[10px] bg-teal-500/10 border border-teal-500/20 rounded-xl px-3 py-1.5 text-teal-300 font-bold font-sans">
+                {/* Touch-only hint: desktop users get the header tab rail instead */}
+                <div className="mt-4 flex gap-2 text-[10px] bg-teal-500/10 border border-teal-500/20 rounded-xl px-3 py-1.5 text-teal-300 font-bold font-sans md:hidden">
                   <span>👉 Swipe left or right to switch tabs</span>
                 </div>
               </div>
