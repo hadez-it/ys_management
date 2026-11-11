@@ -2,7 +2,7 @@ import app from "./api/index";
 import path from "path";
 import express from "express";
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Vite Setup on Express for Local Development & Cloud Run
 async function startServer() {

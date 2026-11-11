@@ -34,7 +34,7 @@ import {
   formatMMK,
   MAP_CENTER_YANGON
 } from './utils.ts';
-import { secureStorage } from './lib/secureStorage.ts';
+import { localCache } from './lib/localCache.ts';
 
 // Import components
 import DashboardStats from './components/DashboardStats.tsx';
@@ -49,85 +49,78 @@ import Inventory from './components/Inventory.tsx';
 // Saved sessions last 7 days and are silently refreshed while the app stays in use
 const SESSION_HEARTBEAT_MS = 60 * 60 * 1000; // check/renew the session once an hour
 
+function toCachedUserProfile(user: User): User {
+  return {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    role: user.role,
+  };
+}
+
 export default function App() {
   // User Session Management
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
-      return secureStorage.getItem<User>('smartfix_current_user');
+      const cached = localCache.getItem<User>('smartfix_current_user');
+      return cached?.id ? toCachedUserProfile(cached) : null;
     } catch (_) {
       return null;
     }
   });
   const [sessionRestoring, setSessionRestoring] = useState<boolean>(() => {
     try {
-      return !!secureStorage.getItem<User>('smartfix_current_user')?.token;
+      return !!localCache.getItem<User>('smartfix_current_user')?.id;
     } catch (_) {
       return false;
     }
   });
 
   const handleLoginSuccess = (user: User) => {
-    setCurrentUser(user);
+    const profile = toCachedUserProfile(user);
+    setCurrentUser(profile);
     try {
-      secureStorage.setItem('smartfix_current_user', user);
+      localCache.setItem('smartfix_current_user', profile);
     } catch (_) {}
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setJobs([]);
+    setInvoices([]);
+    setActivityLogs([]);
+    setInventoryItems([]);
+    setInventoryLogs([]);
+    setInventoryCategories([]);
     try {
-      secureStorage.removeItem('smartfix_current_user');
+      localCache.clearSessionCache();
       // Call server logout to clear secure cookie
-      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     } catch (_) {}
   };
 
   // Restore the saved session on load and keep it alive: the server slides the 7-day
   // expiry forward whenever the app is used, so the user stays signed in until they log out.
   useEffect(() => {
-    const storedToken = (() => {
-      try {
-        return secureStorage.getItem<User>('smartfix_current_user')?.token || null;
-      } catch (_) {
-        return null;
-      }
-    })();
-
-    if (!storedToken) {
-      // No saved session (or a stale entry without a token): fall back to the login screen
-      try {
-        if (secureStorage.getItem<User>('smartfix_current_user')) {
-          secureStorage.removeItem('smartfix_current_user');
-        }
-      } catch (_) {}
-      setCurrentUser(null);
-      setSessionRestoring(false);
-      return;
-    }
-
     let cancelled = false;
 
     const refreshSession = async () => {
-      let storedUser: User | null = null;
-      try {
-        storedUser = secureStorage.getItem<User>('smartfix_current_user');
-      } catch (_) {}
-      const latestToken = storedUser?.token || storedToken;
-      if (!latestToken) {
-        if (!cancelled) setSessionRestoring(false);
-        return;
-      }
-
       try {
         const res = await fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${latestToken}` },
+          credentials: 'include',
         });
 
         if (res.status === 401 || res.status === 403) {
-          // Session expired or was revoked server-side -> back to login
+          // Session expired or was revoked server-side -> clear session cache and return to login
           if (cancelled) return;
-          secureStorage.removeItem('smartfix_current_user');
+          localCache.clearSessionCache();
           setCurrentUser(null);
+          setJobs([]);
+          setInvoices([]);
+          setActivityLogs([]);
+          setInventoryItems([]);
+          setInventoryLogs([]);
+          setInventoryCategories([]);
           return;
         }
         if (!res.ok) {
@@ -136,11 +129,10 @@ export default function App() {
         }
 
         const refreshedUser = (await res.json()) as User;
-        if (cancelled || !refreshedUser?.token) return;
-        // Keep cached profile details when the server could only confirm the token claims
-        const mergedUser: User = { ...(storedUser || {}), ...refreshedUser };
-        setCurrentUser(mergedUser);
-        secureStorage.setItem('smartfix_current_user', mergedUser);
+        if (cancelled || !refreshedUser?.id) return;
+        const profile = toCachedUserProfile(refreshedUser);
+        setCurrentUser(profile);
+        localCache.setItem('smartfix_current_user', profile);
       } catch (_) {
         // Offline: keep the saved session and try again on the next heartbeat
       } finally {
@@ -149,6 +141,12 @@ export default function App() {
     };
 
     refreshSession();
+
+    if (!currentUser?.id) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
     // Keep the sliding 7-day session alive while the app is open and when the tab wakes up
     const heartbeat = window.setInterval(refreshSession, SESSION_HEARTBEAT_MS);
@@ -162,27 +160,21 @@ export default function App() {
       window.clearInterval(heartbeat);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [currentUser?.token]);
+  }, [currentUser?.id]);
 
-  // Authenticated fetch wrapper for custom JWT authorization
+  // Authenticated fetch wrapper relying on the httpOnly session cookie
   const authFetch = (url: string, options: RequestInit = {}) => {
     const headers = {
       ...(options.headers || {}),
     } as Record<string, string>;
 
-    if (currentUser?.token) {
-      headers['Authorization'] = `Bearer ${currentUser.token}`;
-    }
-    if (currentUser?.username) {
-      headers['X-Operator-Username'] = currentUser.username;
-    }
-
     return fetch(url, {
       ...options,
+      credentials: 'include',
       headers,
     }).then((res) => {
       if (res.status === 401 || res.status === 403) {
-        // Token is invalid/expired; log out automatically to prevent stale state
+        // Session is invalid/expired or revoked; clear cache and log out automatically
         handleLogout();
       }
       return res;
@@ -254,7 +246,7 @@ export default function App() {
   const [inventoryLoading, setInventoryLoading] = useState(false);
 
   const fetchInventoryData = () => {
-    if (!currentUser?.token) return;
+    if (!currentUser?.id) return;
     setInventoryLoading(true);
     
     Promise.all([
@@ -489,6 +481,9 @@ export default function App() {
   const [isWiping, setIsWiping] = useState(false);
 
   const fetchActivityLogs = () => {
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'coordinator')) {
+      return;
+    }
     authFetch('/api/activity-logs')
       .then((res) => {
         if (!res.ok) throw new Error();
@@ -533,14 +528,14 @@ export default function App() {
 
   // Fetch Inventory Data when logged in and active tab is inventory
   useEffect(() => {
-    if (currentUser?.token && activeTab === 'inventory') {
+    if (currentUser?.id && activeTab === 'inventory') {
       fetchInventoryData();
     }
   }, [currentUser, activeTab]);
 
   // Load state from Backend APIs when user is logged-authorized
   useEffect(() => {
-    if (!currentUser?.token) {
+    if (!currentUser?.id) {
       setJobs([]);
       setInvoices([]);
       setActivityLogs([]);
@@ -579,41 +574,47 @@ export default function App() {
         console.error('Error fetching jobs online:', err.message || err);
       });
 
-    const p2 = authFetch('/api/invoices')
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => {
-        const invoicesArray = Array.isArray(data) ? data : [];
-        setInvoices(invoicesArray);
-        try {
-          localStorage.setItem('ys_cached_invoices', JSON.stringify(invoicesArray));
-        } catch (e) {
-          console.error(e);
-        }
-      })
-      .catch((err) => {
-        console.error('Error fetching invoices online:', err.message || err);
-      });
+    const canReadInvoices = currentUser.role === 'admin' || currentUser.role === 'coordinator' || currentUser.role === 'senior_technician';
+    const p2 = canReadInvoices
+      ? authFetch('/api/invoices')
+          .then((res) => {
+            if (!res.ok) throw new Error();
+            return res.json();
+          })
+          .then((data) => {
+            const invoicesArray = Array.isArray(data) ? data : [];
+            setInvoices(invoicesArray);
+            try {
+              localStorage.setItem('ys_cached_invoices', JSON.stringify(invoicesArray));
+            } catch (e) {
+              console.error(e);
+            }
+          })
+          .catch((err) => {
+            console.error('Error fetching invoices online:', err.message || err);
+          })
+      : Promise.resolve();
 
-    const p3 = authFetch('/api/activity-logs')
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => {
-        const logsArray = Array.isArray(data) ? data : [];
-        setActivityLogs(logsArray);
-        try {
-          localStorage.setItem('ys_cached_activity_logs', JSON.stringify(logsArray));
-        } catch (e) {
-          console.error(e);
-        }
-      })
-      .catch((err) => {
-        console.error('Error fetching activity logs online:', err.message || err);
-      });
+    const canReadActivityLogs = currentUser.role === 'admin' || currentUser.role === 'coordinator';
+    const p3 = canReadActivityLogs
+      ? authFetch('/api/activity-logs')
+          .then((res) => {
+            if (!res.ok) throw new Error();
+            return res.json();
+          })
+          .then((data) => {
+            const logsArray = Array.isArray(data) ? data : [];
+            setActivityLogs(logsArray);
+            try {
+              localStorage.setItem('ys_cached_activity_logs', JSON.stringify(logsArray));
+            } catch (e) {
+              console.error(e);
+            }
+          })
+          .catch((err) => {
+            console.error('Error fetching activity logs online:', err.message || err);
+          })
+      : Promise.resolve();
 
     Promise.allSettled([p1, p2, p3]).finally(() => {
       // Small artificial delay for polished, high-fidelity skeleton animation
@@ -646,7 +647,7 @@ export default function App() {
     return () => {
       clearInterval(intervalId);
     };
-  }, [currentUser?.token]);
+  }, [currentUser?.id]);
 
   // Global modal watcher hook to prevent background body and container scrolling
   useEffect(() => {
@@ -759,22 +760,22 @@ export default function App() {
     const targetJob = jobs.find((j) => j.id === jobId);
     if (!targetJob) return;
 
-    const updatedJob: ServiceJob = {
-      ...targetJob,
+    const updatePayload: Record<string, any> = {
       status,
-      technicianName: technicianName !== undefined ? technicianName : targetJob.technicianName,
       diagnosedProblem: diagnosedProblem !== undefined ? diagnosedProblem : targetJob.diagnosedProblem,
       resolutionNotes: resolutionNotes !== undefined ? resolutionNotes : targetJob.resolutionNotes,
       remarks: remarks !== undefined ? remarks : targetJob.remarks,
-      updatedAt: new Date().toISOString(),
     };
+    if (currentUser?.role !== 'technician' && technicianName !== undefined) {
+      updatePayload.technicianName = technicianName;
+    }
 
     authFetch(`/api/jobs/${jobId}`, {
       method: 'PUT',
       headers: { 
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(updatedJob),
+      body: JSON.stringify(updatePayload),
     })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to update job status');
@@ -783,7 +784,7 @@ export default function App() {
       .then((savedJob) => {
         setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
         fetchActivityLogs();
-        if (status === 'Completed') {
+        if (status === 'Completed' && (currentUser?.role === 'admin' || currentUser?.role === 'coordinator' || currentUser?.role === 'senior_technician')) {
           setInvoiceWizardJob(savedJob);
         }
       })

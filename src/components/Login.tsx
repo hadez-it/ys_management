@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Lock, User as UserIcon, ShieldAlert, ArrowRight, Terminal, Database, CheckCircle, AlertTriangle } from 'lucide-react';
 import { User } from '../types.ts';
-import { secureStorage } from '../lib/secureStorage.ts';
+import { localCache } from '../lib/localCache.ts';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
-  dbStatus?: { connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string; uriState?: string } | null;
+  dbStatus?: { connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string } | null;
 }
 
 export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
@@ -16,7 +16,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
   const [errorMsg, setErrorMsg] = useState('');
 
   React.useEffect(() => {
-    const savedUser = secureStorage.getItem<string>('remember_username') || '';
+    const savedUser = localCache.getItem<string>('remember_username') || '';
     if (savedUser) {
       setUsername(savedUser);
       setRememberMe(true);
@@ -39,6 +39,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
 
     fetch('/api/auth/login', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: userVal, password: passVal })
     })
@@ -53,12 +54,12 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
       })
       .then((userData: User) => {
         if (rememberMe) {
-          secureStorage.setItem('remember_username', username);
+          localCache.setItem('remember_username', username);
         } else {
-          secureStorage.removeItem('remember_username');
+          localCache.removeItem('remember_username');
         }
-        // Always remove password from secureStorage if it lingered from previous instances
-        secureStorage.removeItem('remember_password');
+        // Always remove password from localCache if it lingered from previous instances
+        localCache.removeItem('remember_password');
         onLoginSuccess(userData);
       })
       .catch((err) => {

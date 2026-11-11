@@ -17,7 +17,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { User, UserRole } from '../types.ts';
-import { secureStorage } from '../lib/secureStorage.ts';
+import { localCache } from '../lib/localCache.ts';
 
 interface UserManagementProps {
   currentUser: User | null;
@@ -42,27 +42,18 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
   const [role, setRole] = useState<UserRole>('technician');
   const [phone, setPhone] = useState<string>('');
 
-  // Auth headers generator helper
-  const getAuthHeaders = (additionalHeaders: Record<string, string> = {}) => {
-    const headers: Record<string, string> = { ...additionalHeaders };
-    if (currentUser?.token) {
-      headers['Authorization'] = `Bearer ${currentUser.token}`;
-    }
-    return headers;
-  };
-
   // Delete confirmation state
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null);
 
   const fetchUsers = () => {
-    if (!currentUser?.token) {
+    if (!currentUser?.id) {
       // Fallback silently if user is not authenticated yet
-      const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
+      const cachedUsers = localCache.getItem<User[]>('smartfix_users');
       if (cachedUsers && Array.isArray(cachedUsers)) {
         setUsers(cachedUsers);
       } else {
         setUsers([]);
-        secureStorage.setItem('smartfix_users', []);
+        localCache.setItem('smartfix_users', []);
       }
       setLoading(false);
       return;
@@ -70,28 +61,32 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
     setLoading(true);
     fetch('/api/users', {
-      headers: getAuthHeaders()
+      credentials: 'include',
     })
       .then((res) => {
+        if (res.status === 401 || res.status === 403) {
+          localCache.clearSessionCache();
+          throw new Error('Failed to retrieve system accounts');
+        }
         if (!res.ok) throw new Error('Failed to retrieve system accounts');
         return res.json();
       })
       .then((data) => {
         const usersArray = Array.isArray(data) ? data : [];
         setUsers(usersArray);
-        secureStorage.setItem('smartfix_users', usersArray);
+        localCache.setItem('smartfix_users', usersArray);
         setErrorMsg('');
       })
       .catch((err) => {
         console.warn('Database offline: fetching users fallback to local storage.', err.message || err);
-        const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
+        const cachedUsers = localCache.getItem<User[]>('smartfix_users');
         if (cachedUsers && Array.isArray(cachedUsers)) {
           setUsers(cachedUsers);
           setErrorMsg('');
         } else {
           // Initialize clean fallback users list (omit passwords)
           setUsers([]);
-          secureStorage.setItem('smartfix_users', []);
+          localCache.setItem('smartfix_users', []);
           setErrorMsg('');
         }
       })
@@ -162,10 +157,14 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
     fetch(url, {
       method,
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
       .then(async (res) => {
+        if (res.status === 401 || res.status === 403) {
+          localCache.clearSessionCache();
+        }
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data.error || 'Server rejected user update operation.');
@@ -181,7 +180,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       })
       .catch((err) => {
         // Fallback for offline/Vercel
-        const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
+        const cachedUsers = localCache.getItem<User[]>('smartfix_users');
         let localUsersList: User[] = (cachedUsers && Array.isArray(cachedUsers)) ? cachedUsers : [];
 
         if (editingUser) {
@@ -201,7 +200,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
           setSuccessMsg('New user account created successfully (Local storage backup updated)!');
         }
 
-        secureStorage.setItem('smartfix_users', localUsersList);
+        localCache.setItem('smartfix_users', localUsersList);
         setUsers(localUsersList);
         setIsFormOpen(false);
         resetForm();
@@ -215,9 +214,12 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
 
     fetch(`/api/users/${userId}`, {
       method: 'DELETE',
-      headers: getAuthHeaders()
+      credentials: 'include',
     })
       .then(async (res) => {
+        if (res.status === 401 || res.status === 403) {
+          localCache.clearSessionCache();
+        }
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data.error || 'Failed to delete user.');
@@ -232,10 +234,10 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
       })
       .catch((err) => {
         // Fallback for offline/Vercel
-        const cachedUsers = secureStorage.getItem<User[]>('smartfix_users');
+        const cachedUsers = localCache.getItem<User[]>('smartfix_users');
         if (cachedUsers && Array.isArray(cachedUsers)) {
           const updated = cachedUsers.filter(u => u.id !== userId);
-          secureStorage.setItem('smartfix_users', updated);
+          localCache.setItem('smartfix_users', updated);
           setUsers(updated);
         }
         setSuccessMsg('User account successfully removed (Local storage backup updated).');
@@ -524,7 +526,7 @@ export default function UserManagement({ currentUser }: UserManagementProps) {
                     type="text"
                     required
                     value={username}
-                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+                    onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9._-]/g, ''))}
                     disabled={!!editingUser}
                     className="w-full bg-slate-900 disabled:opacity-50 border border-white/10 rounded-xl py-2.5 pl-7 pr-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500 font-sans"
                   />

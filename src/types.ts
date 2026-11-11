@@ -106,7 +106,6 @@ export interface User {
   name: string;
   role: UserRole;
   phone?: string;
-  token?: string;
 }
 
 export interface InventoryItem {

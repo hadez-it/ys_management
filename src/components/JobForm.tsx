@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Calendar, User, Phone, Laptop, AlertTriangle, MapPin, AlignLeft, Send, Sparkles, RefreshCw } from 'lucide-react';
 import { ServiceJob, DeviceType, UrgencyLevel, LocationCoords } from '../types.ts';
 import { MAP_CENTER_YANGON } from '../utils.ts';
-import { secureStorage } from '../lib/secureStorage.ts';
 
 const GeminiIcon = ({ className = "h-5 w-5", flat = false }: { className?: string; flat?: boolean }) => (
   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -93,33 +92,14 @@ export default function JobForm({ onSubmit, onCancel, initialData, isEditMode = 
     setAiError('');
 
     try {
-      let token = '';
-      let username = 'system';
-      try {
-        const userObj = secureStorage.getItem<any>('smartfix_current_user');
-        if (userObj) {
-          token = userObj?.token || '';
-          username = userObj?.username || 'system';
-        }
-      } catch (e) {
-        console.error('Error fetching user from secure storage:', e);
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      if (username) {
-        headers['X-Operator-Username'] = username;
-      }
-
       const referenceDate = selectedDate || new Date().toISOString().split('T')[0];
 
       const res = await fetch('/api/parse-ticket', {
         method: 'POST',
-        headers,
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ rawText, referenceDate }),
       });
 
