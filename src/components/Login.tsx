@@ -43,12 +43,19 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: userVal, password: passVal })
     })
-      .then((res) => {
+      .then(async (res) => {
          if (!res.ok) {
+           const errBody = await res.json().catch(() => ({}));
            if (res.status === 401) {
              throw new Error('Authentication failed: Invalid username or passcode.');
            }
-           throw new Error('BACKEND_OFFLINE');
+           if (res.status === 429 || res.status === 400) {
+             throw new Error(errBody.error || 'Authentication request rejected. Please try again.');
+           }
+           if (res.status === 503) {
+             throw new Error('BACKEND_OFFLINE');
+           }
+           throw new Error(errBody.error || 'Authentication failed. Please try again.');
          }
          return res.json();
       })
@@ -63,7 +70,7 @@ export default function Login({ onLoginSuccess, dbStatus }: LoginProps) {
         onLoginSuccess(userData);
       })
       .catch((err) => {
-        setErrorMsg(err.message === 'BACKEND_OFFLINE' 
+        setErrorMsg(err.message === 'BACKEND_OFFLINE' || err.name === 'TypeError'
           ? 'Database connection offline. Please examine your setup configuration.' 
           : (err.message || 'Authentication failed: Invalid username or passcode.'));
       })

@@ -59,17 +59,26 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 async function comparePassword(password: string, hash: string): Promise<boolean> {
-  if (hash.startsWith("$2a$") || hash.startsWith("$2b$")) {
+  if (hash.startsWith("$2a$") || hash.startsWith("$2b$") || hash.startsWith("$2y$")) {
     return bcrypt.compare(password, hash);
   }
-  // Legacy SHA256 fallback comparison using constant-time comparison
-  const sha256Hash = crypto.createHash("sha256").update(password).digest("hex");
+  if (/^[a-f0-9]{64}$/i.test(hash)) {
+    // Legacy SHA256 fallback comparison using constant-time comparison
+    const sha256Hash = crypto.createHash("sha256").update(password).digest("hex");
+    const hashBuf = Buffer.from(hash.toLowerCase(), "utf8");
+    const expectedBuf = Buffer.from(sha256Hash.toLowerCase(), "utf8");
+    if (hashBuf.length !== expectedBuf.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(hashBuf, expectedBuf);
+  }
+  // Legacy unhashed password fallback (from prior system reset bug) using constant-time comparison
   const hashBuf = Buffer.from(hash, "utf8");
-  const expectedBuf = Buffer.from(sha256Hash, "utf8");
-  if (hashBuf.length !== expectedBuf.length) {
+  const inputBuf = Buffer.from(password, "utf8");
+  if (hashBuf.length !== inputBuf.length) {
     return false;
   }
-  return crypto.timingSafeEqual(hashBuf, expectedBuf);
+  return crypto.timingSafeEqual(hashBuf, inputBuf);
 }
 
 const app = express();
@@ -433,11 +442,13 @@ async function ensureDbConnected() {
     return;
   }
 
-  const currentUri = process.env.MONGO_URI || "";
+  const currentUri = (process.env.MONGO_URI || "").trim();
   let currentUriDiagnostics = "present";
-  if (!currentUri || currentUri === "") {
+  if (!currentUri) {
     currentUriDiagnostics = "missing";
-  } else if (currentUri.includes("<db_username>") || currentUri.includes("<db_password>") || currentUri.includes("YOUR_") || currentUri === "CHANGE_ME") {
+  } else if (
+    /<db_username>|<db_password>|your-cluster\.mongodb\.net|your-username|your-password|YOUR_|^CHANGE_ME/i.test(currentUri)
+  ) {
     currentUriDiagnostics = "placeholder";
   }
 
@@ -446,7 +457,7 @@ async function ensureDbConnected() {
     if (currentUriDiagnostics === "missing") {
       lastConnectionError = "MONGO_URI environment variable is missing in setup.";
     } else {
-      lastConnectionError = "MONGO_URI connection link contains unresolved placeholders (like <db_username>, <db_password> or YOUR_).";
+      lastConnectionError = "MONGO_URI connection link contains unresolved placeholders (like <db_username>, <db_password>, your-cluster.mongodb.net, or CHANGE_ME).";
     }
     throw new Error(lastConnectionError);
   }
@@ -487,17 +498,36 @@ async function ensureDbConnected() {
               await InvoiceModel.insertMany(INITIAL_INVOICES_FALLBACK as any[]);
             }
           }
+        } else {
+          // One-time migration for existing databases with legacy unhashed passwords from prior reset bug
+          const existingUsers = await UserModel.find({} as any);
+          let migratedCount = 0;
+          for (const u of existingUsers) {
+            const pwd = String(u.password || "");
+            if (pwd && !pwd.startsWith("$2a$") && !pwd.startsWith("$2b$") && !pwd.startsWith("$2y$") && !/^[a-f0-9]{64}$/i.test(pwd)) {
+              u.password = await hashPassword(pwd);
+              if (typeof u.tokenVersion !== "number") {
+                u.tokenVersion = 0;
+              }
+              await u.save();
+              migratedCount++;
+            }
+          }
+          if (migratedCount > 0) {
+            await LoginAttemptModel.deleteMany({});
+            console.log(`Migrated ${migratedCount} legacy user account(s) to bcrypt hashes.`);
+          }
         }
         databaseSeeded = true;
       } catch (seedErr) {
-        console.error("Warning: Seeding on-demand failed or was already completed:", seedErr);
+        console.warn("Warning: Seeding on-demand failed or was already completed:", seedErr);
       }
     }
   } catch (err: any) {
     mongoConnected = false;
     cachedConnection = null; // reset cached connection on failure
     lastConnectionError = err.message || String(err);
-    console.error("ERROR: MongoDB connections failing dynamically:", lastConnectionError);
+    console.warn("MongoDB connection unavailable:", lastConnectionError);
     throw err;
   }
 }
@@ -513,11 +543,20 @@ app.use("/api", async (req, res, next) => {
     return next();
   }
 
+  // If /api/auth/me is called with no session cookie or Authorization header, let it return 401 without requiring DB
+  if (
+    req.path === "/auth/me" &&
+    !(req.cookies && req.cookies[SESSION_COOKIE_NAME]) &&
+    !req.headers["authorization"]
+  ) {
+    return next();
+  }
+
   try {
     await ensureDbConnected();
     next();
   } catch (err: any) {
-    console.error("Database connection middleware error:", err);
+    console.warn("Database connection middleware warning:", err?.message || err);
     res.status(503).json({ 
       error: "MongoDB Live Database ချိတ်ဆက်မှုမအောင်မြင်ပါ။ MONGO_URI variable ကို ပြန်လည်စစ်ဆေးပါ။" 
     });
