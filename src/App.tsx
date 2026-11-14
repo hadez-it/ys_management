@@ -4,7 +4,6 @@ import {
   Wrench,
   Inbox,
   PlusCircle,
-  FileText,
   Sparkles,
   Laptop,
   Cpu,
@@ -30,10 +29,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { ServiceJob, Invoice, JobStatus, DeviceType, UrgencyLevel, LocationCoords, DeletedJob, User, UserRole, ActivityLog, InventoryItem, InventoryLog } from './types.ts';
-import {
-  formatMMK,
-  MAP_CENTER_YANGON
-} from './utils.ts';
+import { MAP_CENTER_YANGON } from './utils.ts';
 import { localCache } from './lib/localCache.ts';
 import { useOfflineSync, generateId, OutboxOp, OpInput } from './lib/offlineSync.ts';
 import { applyJobOps, applyInvoiceOps, applyInventoryOps, applyInventoryLogOps } from './lib/optimistic.ts';
@@ -353,8 +349,8 @@ export default function App() {
   };
 
   // Routing and interactive view triggers
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users' | 'inventory'>('dashboard');
-  const [lastServiceTab, setLastServiceTab] = useState<'dashboard' | 'queue' | 'invoices' | 'deleted' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'deleted' | 'users' | 'inventory'>('dashboard');
+  const [lastServiceTab, setLastServiceTab] = useState<'dashboard' | 'queue' | 'deleted' | 'users'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -563,8 +559,6 @@ export default function App() {
     if (activeTab === 'deleted' && role !== 'admin') {
       setActiveTab('dashboard');
     } else if (activeTab === 'users' && role !== 'admin') {
-      setActiveTab('dashboard');
-    } else if (activeTab === 'invoices' && (role === 'coordinator' || role === 'technician')) {
       setActiveTab('dashboard');
     }
   }, [currentUser, activeTab]);
@@ -1013,7 +1007,6 @@ export default function App() {
   const visibleTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Layers },
     { id: 'queue', label: 'Service Queue', icon: Inbox },
-    { id: 'invoices', label: 'Invoice Ledger', icon: FileText },
     { id: 'deleted', label: 'Activity Logs', icon: History },
     { id: 'users', label: 'Users', icon: Users },
   ].filter((tab) => {
@@ -1231,7 +1224,6 @@ export default function App() {
                 <h2 className="text-sm lg:text-base font-extrabold tracking-tight text-white font-display">
                   {activeTab === 'dashboard' ? 'Overview Stats' :
                    activeTab === 'queue' ? 'Dispatching Queue' :
-                   activeTab === 'invoices' ? 'Billing History' :
                    activeTab === 'deleted' ? 'Activity Log History' :
                    activeTab === 'inventory' ? 'Inventory Center' : 'Team Directory'}
                 </h2>
@@ -1455,88 +1447,6 @@ export default function App() {
                           currentUser={currentUser || undefined}
                           statusFilter={statusFilter}
                         />
-                      )}
-                    </div>
-                  )}
-
-                  {activeTab === 'invoices' && (
-                    <div className="ios-glass-card rounded-3xl p-5 md:p-6 text-left space-y-5" id="invoices-list-tab-module">
-                      <div className="space-y-0.5">
-                        <h3 className="font-extrabold text-white text-base tracking-tight font-display flex items-center gap-1.5">
-                          <History className="h-5 w-5 text-teal-400" /> Settlement Ledger
-                        </h3>
-                        <p className="text-xs text-slate-400">Review final transaction logs, KBZPay entries, and invoices details.</p>
-                      </div>
-
-                      {dataLoading ? (
-                        <div className="space-y-4 animate-pulse">
-                          <div className="border border-white/5 rounded-2xl overflow-hidden">
-                            <div className="bg-white/5 h-10 w-full" />
-                            <div className="divide-y divide-white/5">
-                              {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className="p-4 flex justify-between items-center">
-                                  <div className="space-y-2">
-                                    <div className="h-4 bg-white/10 rounded-full w-24" />
-                                    <div className="h-3 bg-white/5 rounded-full w-16" />
-                                  </div>
-                                  <div className="h-4 bg-white/10 rounded-full w-20" />
-                                  <div className="h-4 bg-white/10 rounded-full w-24" />
-                                  <div className="h-6 bg-white/10 rounded-lg w-20" />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="border border-white/5 rounded-2xl overflow-x-auto" id="historic-invoices-register">
-                          <table className="w-full text-xs text-left">
-                            <thead className="bg-white/5 text-slate-350 font-bold uppercase tracking-wider text-[10px] border-b border-white/5 select-none">
-                              <tr>
-                                <th className="p-4">Ref Number</th>
-                                <th className="p-4">Customer Details</th>
-                                <th className="p-4">Payment Method</th>
-                                <th className="p-4 text-right">Settled Amount</th>
-                                <th className="p-4 text-center">Status</th>
-                                <th className="p-4 text-center w-28">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5 font-sans">
-                              {invoices.map((inv) => (
-                                <tr key={inv.id} className="hover:bg-white/5 transition-colors">
-                                  <td className="p-4 font-mono font-bold text-teal-400">{inv.id}</td>
-                                  <td className="p-4">
-                                    <p className="font-bold text-slate-100">{inv.customerName}</p>
-                                    <p className="text-[10px] text-slate-400 font-mono">{inv.customerPhone}</p>
-                                  </td>
-                                  <td className="p-4 font-semibold text-slate-300">{inv.paymentMethod}</td>
-                                  <td className="p-4 text-right font-extrabold text-slate-100 font-display">{formatMMK(inv.total)}</td>
-                                  <td className="p-4 text-center">
-                                    <span className="inline-flex text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold select-none">
-                                      Paid
-                                    </span>
-                                  </td>
-                                  <td className="p-4 text-center">
-                                    <button
-                                      type="button"
-                                      id={`view-registered-inv-${inv.id}`}
-                                      onClick={() => setViewingInvoice(inv)}
-                                      className="text-xs text-teal-400 hover:text-teal-300 font-bold cursor-pointer transition-colors"
-                                    >
-                                      View Invoice
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                              {invoices.length === 0 && (
-                                <tr>
-                                  <td colSpan={6} className="py-12 text-center text-slate-400 italic">
-                                    No settlements logged yet.
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
                       )}
                     </div>
                   )}
