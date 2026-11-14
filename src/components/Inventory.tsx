@@ -22,10 +22,14 @@ import {
   Edit
 } from 'lucide-react';
 import { InventoryItem, InventoryLog, User } from '../types';
+import { generateId, OpInput, SubmitResult } from '../lib/offlineSync.ts';
+
+const savedMessage = (result: SubmitResult, onlineText: string) =>
+  result === 'synced' ? onlineText : 'Saved on this device. It will sync automatically when you are back online.';
 
 interface InventoryProps {
   currentUser: User;
-  authFetch: (url: string, options?: RequestInit) => Promise<Response>;
+  submitChange: (input: OpInput) => Promise<SubmitResult>;
   inventoryItems: InventoryItem[];
   inventoryLogs: InventoryLog[];
   inventoryCategories: string[];
@@ -39,7 +43,7 @@ interface InventoryProps {
 
 export default function Inventory({
   currentUser,
-  authFetch,
+  submitChange,
   inventoryItems,
   inventoryLogs,
   inventoryCategories,
@@ -102,26 +106,19 @@ export default function Inventory({
     setTransactionError('');
     setTransactionSuccess('');
 
-    authFetch(`/api/inventory/${selectedItem.id}`, {
+    submitChange({
+      kind: 'inventory.edit',
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+      url: `/api/inventory/${encodeURIComponent(selectedItem.id)}`,
+      entityId: selectedItem.id,
+      body: {
         name: editItemName.trim(),
         category: editCategoryName.trim()
-      })
+      },
+      label: `Edit item: ${editItemName.trim()}`
     })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to update item');
-        }
-        return data;
-      })
-      .then(() => {
-        setTransactionSuccess('Successfully updated item details!');
-        fetchInventoryData();
+      .then((result) => {
+        setTransactionSuccess(savedMessage(result, 'Successfully updated item details!'));
         setTimeout(() => {
           setIsEditModalOpen(false);
           setSelectedItem(null);
@@ -158,28 +155,21 @@ export default function Inventory({
     setTransactionError('');
     setTransactionSuccess('');
 
-    authFetch('/api/inventory/transaction', {
+    submitChange({
+      kind: 'inventory.txn',
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+      url: '/api/inventory/transaction',
+      entityId: selectedItem.id,
+      body: {
         itemId: selectedItem.id,
         type,
         qty: transactionQty,
         customerName: type !== 'fill' ? descriptionText.trim() : undefined
-      })
+      },
+      label: `${type === 'fill' ? 'Fill' : type === 'sell' ? 'Sell' : 'Damaged'} ${transactionQty} × ${selectedItem.name}`
     })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || `Failed to process ${type} transaction`);
-        }
-        return data;
-      })
-      .then(() => {
-        setTransactionSuccess(`Successfully updated inventory!`);
-        fetchInventoryData();
+      .then((result) => {
+        setTransactionSuccess(savedMessage(result, 'Successfully updated inventory!'));
         setTimeout(() => {
           setIsFillModalOpen(false);
           setIsSellModalOpen(false);
@@ -276,27 +266,28 @@ export default function Inventory({
     setErrorMsg('');
     setSuccessMsg('');
 
-    authFetch('/api/inventory', {
+    // The server merges into an existing item with the same name/category, or creates one
+    // with its own id; queued ops that reference this temporary id are remapped on sync.
+    const existing = inventoryItems.find(
+      (item) =>
+        item.name.trim().toLowerCase() === itemName.trim().toLowerCase() &&
+        item.category.trim().toLowerCase() === categoryInput.trim().toLowerCase()
+    );
+    submitChange({
+      kind: 'inventory.create',
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+      url: '/api/inventory',
+      entityId: existing ? existing.id : generateId('inv-local-', 12),
+      body: {
         category: categoryInput.trim(),
         name: itemName.trim(),
         qty,
         date: dateInput
-      })
+      },
+      label: `Add ${qty} × ${itemName.trim()}`
     })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to add item to inventory');
-        }
-        return data;
-      })
-      .then(() => {
-        setSuccessMsg('Inventory item updated successfully!');
+      .then((result) => {
+        setSuccessMsg(savedMessage(result, 'Inventory item updated successfully!'));
         setCategoryInput('');
         setItemName('');
         setQty(1);

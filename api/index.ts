@@ -630,6 +630,125 @@ const authenticateToken = async (req: express.Request, res: express.Response, ne
 
 app.use("/api", authenticateToken);
 
+// ---------------------------------------------------------------------------
+// Idempotent writes for offline sync.
+// The client tags every queued mutation with a unique `X-Idempotency-Key`. The first
+// request with a key is processed and its response is stored; any replay of the same
+// key (retry after a dropped response, a second tab flushing the same queue, etc.)
+// gets the stored response back instead of being applied a second time.
+// ---------------------------------------------------------------------------
+const IDEMPOTENCY_TTL_SECONDS = 60 * 60 * 24 * 30; // keep keys for 30 days
+const IDEMPOTENCY_STALE_PROCESSING_MS = 2 * 60 * 1000; // a crashed request frees its key after 2 minutes
+const IDEMPOTENCY_KEY_REGEX = /^[A-Za-z0-9_-]{8,100}$/;
+const IDEMPOTENT_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+const IdempotencyRecordSchema = new mongoose.Schema({
+  key: { type: String, required: true },
+  userId: { type: String, required: true },
+  method: { type: String },
+  path: { type: String },
+  state: { type: String, required: true }, // 'processing' | 'done'
+  statusCode: { type: Number },
+  responseBody: { type: mongoose.Schema.Types.Mixed },
+  createdAt: { type: Date, default: Date.now, expires: IDEMPOTENCY_TTL_SECONDS }
+});
+IdempotencyRecordSchema.index({ key: 1, userId: 1 }, { unique: true });
+
+const IdempotencyRecordModel =
+  mongoose.models.IdempotencyRecord || mongoose.model("IdempotencyRecord", IdempotencyRecordSchema);
+
+app.use("/api", async (req, res, next) => {
+  if (!IDEMPOTENT_METHODS.has(req.method) || req.path.startsWith("/auth/")) return next();
+
+  const rawKey = req.headers["x-idempotency-key"];
+  if (rawKey === undefined) return next();
+  if (typeof rawKey !== "string" || !IDEMPOTENCY_KEY_REGEX.test(rawKey)) {
+    res.status(400).json({ error: "Invalid idempotency key." });
+    return;
+  }
+
+  const user = (req as any).user;
+  if (!user?.id) return next();
+
+  const filter = { key: rawKey, userId: String(user.id) };
+  const inProgress = () =>
+    res.status(409).json({
+      error: "This change is already being processed. It will be retried shortly.",
+      code: "IDEMPOTENCY_IN_PROGRESS"
+    });
+
+  try {
+    let existing: any = await IdempotencyRecordModel.findOne(filter as any).lean();
+    if (
+      existing &&
+      existing.state === "processing" &&
+      Date.now() - new Date(existing.createdAt).getTime() > IDEMPOTENCY_STALE_PROCESSING_MS
+    ) {
+      await IdempotencyRecordModel.deleteOne({ _id: existing._id } as any);
+      existing = null;
+    }
+
+    if (existing) {
+      if (existing.state === "done") {
+        res.setHeader("Idempotent-Replayed", "true");
+        res.status(existing.statusCode || 200).json(existing.responseBody ?? null);
+        return;
+      }
+      inProgress();
+      return;
+    }
+
+    try {
+      await IdempotencyRecordModel.create({
+        ...filter,
+        method: req.method,
+        path: req.originalUrl,
+        state: "processing"
+      });
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        // Another request with the same key won the race
+        inProgress();
+        return;
+      }
+      throw err;
+    }
+  } catch (err) {
+    console.error("Idempotency lookup failed:", err);
+    res.status(503).json({ error: "Service temporarily unavailable. Please retry." });
+    return;
+  }
+
+  // Persist the outcome BEFORE the response is sent: serverless functions may be frozen
+  // as soon as the response goes out, so a fire-and-forget write could be lost.
+  const originalJson = res.json.bind(res);
+  let finalized = false;
+  res.json = ((body: any) => {
+    if (finalized) return originalJson(body);
+    finalized = true;
+    const status = res.statusCode;
+    // Transient / auth failures must stay retryable, so forget the key for those.
+    const retryable = status >= 500 || status === 401 || status === 403 || status === 408 || status === 429;
+    let storedBody: any = null;
+    try {
+      storedBody = body === undefined ? null : JSON.parse(JSON.stringify(body));
+    } catch {
+      storedBody = null;
+    }
+    const persist = retryable
+      ? IdempotencyRecordModel.deleteOne(filter as any)
+      : IdempotencyRecordModel.updateOne(filter as any, {
+          $set: { state: "done", statusCode: status, responseBody: storedBody }
+        });
+    Promise.resolve(persist)
+      .catch((err: any) => console.error("Failed to persist idempotency record:", err))
+      .finally(() => originalJson(body));
+    return res;
+  }) as any;
+
+  next();
+});
+
 // REST API Endpoints
 app.get("/api/db-status", (req, res) => {
   res.json({
@@ -1008,8 +1127,23 @@ app.post("/api/jobs", requireRole("admin", "coordinator"), async (req, res) => {
       allowedJobDoc.priorityNumber = priorityNumber;
     }
 
+    const existingJob: any = await JobModel.findOne({ id: jobId } as any).lean();
+    if (existingJob) {
+      res.status(409).json({ error: `Job ${jobId} already exists.`, code: "DUPLICATE_ID", existing: existingJob });
+      return;
+    }
+
     const newJob = new JobModel(allowedJobDoc);
-    await newJob.save();
+    try {
+      await newJob.save();
+    } catch (saveErr: any) {
+      if (saveErr?.code === 11000) {
+        const raced: any = await JobModel.findOne({ id: jobId } as any).lean();
+        res.status(409).json({ error: `Job ${jobId} already exists.`, code: "DUPLICATE_ID", existing: raced });
+        return;
+      }
+      throw saveErr;
+    }
 
     // Log Activity
     const operator = (req as any).user.username;
@@ -1467,7 +1601,22 @@ app.post("/api/invoices", requireRole("admin", "coordinator", "senior_technician
       notes: typeof notes === "string" ? notes : "",
       createdTime: new Date().toISOString()
     });
-    await newInvoice.save();
+
+    const existingInvoice: any = await InvoiceModel.findOne({ id: invoiceId } as any).lean();
+    if (existingInvoice) {
+      res.status(409).json({ error: `Invoice ${invoiceId} already exists.`, code: "DUPLICATE_ID", existing: existingInvoice });
+      return;
+    }
+    try {
+      await newInvoice.save();
+    } catch (saveErr: any) {
+      if (saveErr?.code === 11000) {
+        const raced: any = await InvoiceModel.findOne({ id: invoiceId } as any).lean();
+        res.status(409).json({ error: `Invoice ${invoiceId} already exists.`, code: "DUPLICATE_ID", existing: raced });
+        return;
+      }
+      throw saveErr;
+    }
     res.status(201).json(newInvoice);
   } catch (err: any) {
     res.status(400).json({ error: err.message });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Wrench,
@@ -35,6 +35,9 @@ import {
   MAP_CENTER_YANGON
 } from './utils.ts';
 import { localCache } from './lib/localCache.ts';
+import { useOfflineSync, generateId, OutboxOp, OpInput } from './lib/offlineSync.ts';
+import { applyJobOps, applyInvoiceOps, applyInventoryOps, applyInventoryLogOps } from './lib/optimistic.ts';
+import SyncStatus from './components/SyncStatus.tsx';
 
 // Import components
 import DashboardStats from './components/DashboardStats.tsx';
@@ -86,6 +89,8 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setInvoiceWizardJob(null);
+    setViewingInvoice(null);
     setJobs([]);
     setInvoices([]);
     setActivityLogs([]);
@@ -182,7 +187,7 @@ export default function App() {
   };
 
   // Global States synced with Express REST + MongoDB Server
-  const [jobs, setJobs] = useState<ServiceJob[]>(() => {
+  const [serverJobs, setJobs] = useState<ServiceJob[]>(() => {
     try {
       const cached = localStorage.getItem('ys_cached_jobs');
       return cached ? JSON.parse(cached) : [];
@@ -190,7 +195,7 @@ export default function App() {
       return [];
     }
   });
-  const [invoices, setInvoices] = useState<Invoice[]>(() => {
+  const [serverInvoices, setInvoices] = useState<Invoice[]>(() => {
     try {
       const cached = localStorage.getItem('ys_cached_invoices');
       return cached ? JSON.parse(cached) : [];
@@ -217,7 +222,7 @@ export default function App() {
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; isDemo: boolean; modeMessage?: string; uriUsed?: string; error?: string } | null>(null);
 
   // Inventory States
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>(() => {
+  const [serverInventoryItems, setInventoryItems] = useState<InventoryItem[]>(() => {
     try {
       const cached = localStorage.getItem('ys_cached_inventory_items');
       return cached ? JSON.parse(cached) : [];
@@ -225,7 +230,7 @@ export default function App() {
       return [];
     }
   });
-  const [inventoryLogs, setInventoryLogs] = useState<InventoryLog[]>(() => {
+  const [serverInventoryLogs, setInventoryLogs] = useState<InventoryLog[]>(() => {
     try {
       const cached = localStorage.getItem('ys_cached_inventory_logs');
       return cached ? JSON.parse(cached) : [];
@@ -245,19 +250,90 @@ export default function App() {
   const [isAddInventoryOpen, setIsAddInventoryOpen] = useState(false);
   const [inventoryLoading, setInventoryLoading] = useState(false);
 
+  // ---- Offline sync -------------------------------------------------------
+  // Bumped whenever a synced op changes a server snapshot, so that a fetch which
+  // started *before* that write can't overwrite the newer data when it lands.
+  const snapshotVersionRef = useRef(0);
+  const refreshAfterSyncRef = useRef<() => void>(() => {});
+
+  const handleOpSynced = (op: OutboxOp, data: any) => {
+    snapshotVersionRef.current += 1;
+    const upsert = <T extends { id: string }>(list: T[], record: T | null | undefined) => {
+      if (!record || typeof record.id !== 'string') return list;
+      return list.some((r) => r.id === record.id)
+        ? list.map((r) => (r.id === record.id ? record : r))
+        : [record, ...list];
+    };
+    if (op.kind === 'job.create' || op.kind === 'job.update') {
+      setJobs((prev) => upsert(prev, data));
+    } else if (op.kind === 'job.delete') {
+      setJobs((prev) => prev.filter((j) => j.id !== op.entityId));
+    } else if (op.kind === 'invoice.create') {
+      setInvoices((prev) => upsert(prev, data));
+    } else if (op.kind.startsWith('inventory.')) {
+      if (data?.item) setInventoryItems((prev) => upsert(prev, data.item));
+      if (data?.log) setInventoryLogs((prev) => [data.log, ...prev.filter((l) => l.id !== data.log.id)]);
+    }
+  };
+
+  const sync = useOfflineSync({
+    userId: currentUser?.id,
+    username: currentUser?.username,
+    onOpSynced: handleOpSynced,
+    onSyncComplete: () => refreshAfterSyncRef.current(),
+  });
+  const { pendingOps } = sync;
+
+  // What the UI shows: server snapshot with not-yet-synced changes applied on top
+  const jobs = useMemo(() => applyJobOps(serverJobs, pendingOps), [serverJobs, pendingOps]);
+  const invoices = useMemo(() => applyInvoiceOps(serverInvoices, pendingOps), [serverInvoices, pendingOps]);
+  const inventoryItems = useMemo(() => applyInventoryOps(serverInventoryItems, pendingOps), [serverInventoryItems, pendingOps]);
+  const inventoryLogs = useMemo(
+    () => applyInventoryLogOps(serverInventoryLogs, pendingOps, inventoryItems),
+    [serverInventoryLogs, pendingOps, inventoryItems]
+  );
+  const displayedInventoryCategories = useMemo(() => {
+    const set = new Set(inventoryCategories);
+    inventoryItems.forEach((i) => i.category && set.add(i.category));
+    return Array.from(set);
+  }, [inventoryCategories, inventoryItems]);
+
+  // Unsynced changes are stored per user and survive logout; they sync on that user's next sign-in.
+  const handleUserLogout = () => {
+    const unsynced = sync.pendingCount + sync.failedOps.length;
+    if (
+      unsynced > 0 &&
+      !window.confirm(
+        `You have ${unsynced} change(s) that have not reached the server yet. They will stay saved on this device and sync the next time you sign in here. Log out anyway?`
+      )
+    ) {
+      return;
+    }
+    handleLogout();
+  };
+
+  /** Queue a change. Resolves 'synced' or 'queued' (offline); rejects if the server refuses it. */
+  const submitChange = (input: OpInput) => sync.submit(input);
+
   const fetchInventoryData = () => {
     if (!currentUser?.id) return;
     setInventoryLoading(true);
-    
+    const versionAtStart = snapshotVersionRef.current;
+    const readJson = (res: Response) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    };
+
     Promise.all([
-      authFetch('/api/inventory').then(res => res.json()),
-      authFetch('/api/inventory/logs').then(res => res.json()),
-      authFetch('/api/inventory/categories').then(res => res.json())
+      authFetch('/api/inventory').then(readJson),
+      authFetch('/api/inventory/logs').then(readJson),
+      authFetch('/api/inventory/categories').then(readJson)
     ]).then(([items, logs, categories]) => {
+      if (versionAtStart !== snapshotVersionRef.current) return; // stale response
       const itemsArray = Array.isArray(items) ? items : [];
       const logsArray = Array.isArray(logs) ? logs : [];
       const categoriesArray = Array.isArray(categories) ? categories : [];
-      
+
       setInventoryItems(itemsArray);
       setInventoryLogs(logsArray);
       setInventoryCategories(categoriesArray);
@@ -480,24 +556,6 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isWiping, setIsWiping] = useState(false);
 
-  const fetchActivityLogs = () => {
-    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'coordinator')) {
-      return;
-    }
-    authFetch('/api/activity-logs')
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => {
-        const logsArray = Array.isArray(data) ? data : [];
-        setActivityLogs(logsArray);
-      })
-      .catch((err) => {
-        console.error('Error fetching activity logs online:', err.message || err);
-      });
-  };
-
   // If role changes, reset activeTab to dashboard if current tab is restricted
   useEffect(() => {
     if (!currentUser) return;
@@ -533,6 +591,103 @@ export default function App() {
     }
   }, [currentUser, activeTab]);
 
+  // Fetchers for server snapshots. Each one ignores its response if a synced write
+  // landed while it was in flight (that response would be older than what we hold).
+  const fetchJobs = (applyWindowFilter = false) => {
+    const versionAtStart = snapshotVersionRef.current;
+    return authFetch('/api/jobs')
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: ServiceJob[]) => {
+        if (versionAtStart !== snapshotVersionRef.current) return;
+        let dataArray = Array.isArray(data) ? data : [];
+        if (applyWindowFilter) {
+          const now = new Date();
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
+          dataArray = dataArray.filter((job) => {
+            if (!job.createdAt) return true;
+            const jobDate = new Date(job.createdAt);
+            return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
+          });
+        }
+        setJobs(dataArray);
+      });
+  };
+
+  const fetchInvoices = () => {
+    const role = currentUser?.role;
+    if (role !== 'admin' && role !== 'coordinator' && role !== 'senior_technician') return Promise.resolve();
+    const versionAtStart = snapshotVersionRef.current;
+    return authFetch('/api/invoices')
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (versionAtStart !== snapshotVersionRef.current) return;
+        setInvoices(Array.isArray(data) ? data : []);
+      });
+  };
+
+  const fetchActivityLogsCached = () => {
+    const role = currentUser?.role;
+    if (role !== 'admin' && role !== 'coordinator') return Promise.resolve();
+    return authFetch('/api/activity-logs')
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        const logsArray = Array.isArray(data) ? data : [];
+        setActivityLogs(logsArray);
+        try {
+          localStorage.setItem('ys_cached_activity_logs', JSON.stringify(logsArray));
+        } catch (e) {
+          console.error(e);
+        }
+      });
+  };
+
+  // After queued changes reach the server, pull fresh data (activity logs, stock levels, etc.)
+  refreshAfterSyncRef.current = () => {
+    fetchJobs().catch(() => {});
+    fetchInvoices().catch(() => {});
+    fetchActivityLogsCached().catch(() => {});
+    if (activeTab === 'inventory') fetchInventoryData();
+  };
+
+  // Persist the server snapshots so the app opens with data while offline
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem('ys_cached_jobs', JSON.stringify(serverJobs));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [serverJobs, currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem('ys_cached_invoices', JSON.stringify(serverInvoices));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [serverInvoices, currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem('ys_cached_inventory_items', JSON.stringify(serverInventoryItems));
+      localStorage.setItem('ys_cached_inventory_logs', JSON.stringify(serverInventoryLogs));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [serverInventoryItems, serverInventoryLogs, currentUser?.id]);
+
   // Load state from Backend APIs when user is logged-authorized
   useEffect(() => {
     if (!currentUser?.id) {
@@ -548,73 +703,15 @@ export default function App() {
       setDataLoading(true);
     }
 
-    const p1 = authFetch('/api/jobs')
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data: ServiceJob[]) => {
-        const dataArray = Array.isArray(data) ? data : [];
-        const now = new Date();
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
-        const filtered = dataArray.filter((job) => {
-          if (!job.createdAt) return true;
-          const jobDate = new Date(job.createdAt);
-          return jobDate >= startOfLastMonth && jobDate <= endOfNextMonth;
-        });
-        setJobs(filtered);
-        try {
-          localStorage.setItem('ys_cached_jobs', JSON.stringify(filtered));
-        } catch (e) {
-          console.error(e);
-        }
-      })
-      .catch((err) => {
-        console.error('Error fetching jobs online:', err.message || err);
-      });
-
-    const canReadInvoices = currentUser.role === 'admin' || currentUser.role === 'coordinator' || currentUser.role === 'senior_technician';
-    const p2 = canReadInvoices
-      ? authFetch('/api/invoices')
-          .then((res) => {
-            if (!res.ok) throw new Error();
-            return res.json();
-          })
-          .then((data) => {
-            const invoicesArray = Array.isArray(data) ? data : [];
-            setInvoices(invoicesArray);
-            try {
-              localStorage.setItem('ys_cached_invoices', JSON.stringify(invoicesArray));
-            } catch (e) {
-              console.error(e);
-            }
-          })
-          .catch((err) => {
-            console.error('Error fetching invoices online:', err.message || err);
-          })
-      : Promise.resolve();
-
-    const canReadActivityLogs = currentUser.role === 'admin' || currentUser.role === 'coordinator';
-    const p3 = canReadActivityLogs
-      ? authFetch('/api/activity-logs')
-          .then((res) => {
-            if (!res.ok) throw new Error();
-            return res.json();
-          })
-          .then((data) => {
-            const logsArray = Array.isArray(data) ? data : [];
-            setActivityLogs(logsArray);
-            try {
-              localStorage.setItem('ys_cached_activity_logs', JSON.stringify(logsArray));
-            } catch (e) {
-              console.error(e);
-            }
-          })
-          .catch((err) => {
-            console.error('Error fetching activity logs online:', err.message || err);
-          })
-      : Promise.resolve();
+    const p1 = fetchJobs(true).catch((err) => {
+      console.error('Error fetching jobs online:', err.message || err);
+    });
+    const p2 = fetchInvoices().catch((err) => {
+      console.error('Error fetching invoices online:', err.message || err);
+    });
+    const p3 = fetchActivityLogsCached().catch((err) => {
+      console.error('Error fetching activity logs online:', err.message || err);
+    });
 
     Promise.allSettled([p1, p2, p3]).finally(() => {
       // Small artificial delay for polished, high-fidelity skeleton animation
@@ -625,23 +722,10 @@ export default function App() {
 
     // Poll jobs endpoint every 8 seconds for a near-realtime dynamic auto-update
     const intervalId = setInterval(() => {
-      authFetch('/api/jobs')
-        .then((res) => {
-          if (res.ok) return res.json();
-          throw new Error();
-        })
-        .then((data) => {
-          const dataArray = Array.isArray(data) ? data : [];
-          setJobs(dataArray);
-          try {
-            localStorage.setItem('ys_cached_jobs', JSON.stringify(dataArray));
-          } catch (e) {
-            console.error(e);
-          }
-        })
-        .catch(() => {
-          // Keep offline state silently running
-        });
+      if (!navigator.onLine) return; // offline: keep showing cached data + pending changes
+      fetchJobs().catch(() => {
+        // Keep offline state silently running
+      });
     }, 8000);
 
     return () => {
@@ -710,43 +794,46 @@ export default function App() {
     };
   }, []);
 
+  // All writes below go through the offline outbox: they show up immediately, sync right
+  // away when online, and are queued (and retried until they land) when offline.
+  const reportRejected = (err: unknown, fallback: string) => {
+    alert(err instanceof Error && err.message ? err.message : fallback);
+  };
+
   // 1. Create a service job trigger
   const handleCreateJob = (jobDetails: Omit<ServiceJob, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
     if (isDispatching) return;
     setIsDispatching(true);
 
-    const nextIdNum = jobs.length + 101 + Math.floor(Math.random() * 900);
-    const newJob: ServiceJob = {
-      ...jobDetails,
-      id: `JOB-2026-${nextIdNum}`,
-      status: 'Created',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    authFetch('/api/jobs', {
+    const jobId = generateId(`JOB-${new Date().getFullYear()}-`);
+    submitChange({
+      kind: 'job.create',
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(newJob),
+      url: '/api/jobs',
+      entityId: jobId,
+      body: { ...jobDetails, id: jobId, status: 'Created' },
+      label: `New ticket: ${jobDetails.customerName}`,
     })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to create job');
-        return res.json();
-      })
-      .then((savedJob) => {
-        setJobs((prev) => [savedJob, ...prev]);
-        fetchActivityLogs();
+      .then(() => {
         setIsNewTicketModalOpen(false);
-        setIsDispatching(false);
         setActiveTab('queue');
       })
-      .catch((err) => {
-        alert(err.message || 'Failed to create job. Please check your internet connection.');
-        setIsDispatching(false);
-      });
+      .catch((err) => reportRejected(err, 'Failed to create job.'))
+      .finally(() => setIsDispatching(false));
   };
+
+  const submitJobUpdate = (jobId: string, body: Record<string, any>, label: string, fallbackError: string) =>
+    submitChange({
+      kind: 'job.update',
+      method: 'PUT',
+      url: `/api/jobs/${encodeURIComponent(jobId)}`,
+      entityId: jobId,
+      body,
+      label,
+    }).catch((err) => {
+      reportRejected(err, fallbackError);
+      throw err;
+    });
 
   // 2. Update service job status
   const handleUpdateJobStatus = (
@@ -760,113 +847,56 @@ export default function App() {
     const targetJob = jobs.find((j) => j.id === jobId);
     if (!targetJob) return;
 
-    const updatePayload: Record<string, any> = {
-      status,
-      diagnosedProblem: diagnosedProblem !== undefined ? diagnosedProblem : targetJob.diagnosedProblem,
-      resolutionNotes: resolutionNotes !== undefined ? resolutionNotes : targetJob.resolutionNotes,
-      remarks: remarks !== undefined ? remarks : targetJob.remarks,
-    };
+    // Only send what this action actually changes, so an offline update can't overwrite
+    // newer values another user saved in the meantime.
+    const updatePayload: Record<string, any> = { status };
+    if (diagnosedProblem !== undefined) updatePayload.diagnosedProblem = diagnosedProblem;
+    if (resolutionNotes !== undefined) updatePayload.resolutionNotes = resolutionNotes;
+    if (remarks !== undefined) updatePayload.remarks = remarks;
     if (currentUser?.role !== 'technician' && technicianName !== undefined) {
       updatePayload.technicianName = technicianName;
     }
 
-    authFetch(`/api/jobs/${jobId}`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(updatePayload),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to update job status');
-        return res.json();
-      })
-      .then((savedJob) => {
-        setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
-        fetchActivityLogs();
-        if (status === 'Completed' && (currentUser?.role === 'admin' || currentUser?.role === 'coordinator' || currentUser?.role === 'senior_technician')) {
-          setInvoiceWizardJob(savedJob);
-        }
-      })
-      .catch((err) => {
-        alert(err.message || 'Failed to update job. Please check your internet connection.');
-      });
+    submitJobUpdate(jobId, updatePayload, `${targetJob.customerName}: status → ${status}`, 'Failed to update job.').catch(() => {});
+
+    if (status === 'Completed' && (currentUser?.role === 'admin' || currentUser?.role === 'coordinator' || currentUser?.role === 'senior_technician')) {
+      const optimisticJob = { ...targetJob, ...updatePayload } as ServiceJob;
+      delete optimisticJob.priorityNumber;
+      setInvoiceWizardJob(optimisticJob);
+    }
   };
 
   // Update priority ranking
   const handleUpdateJobPriority = (jobId: string, priorityNumber: number | undefined) => {
     const targetJob = jobs.find((j) => j.id === jobId);
     if (!targetJob) return;
-
-    const updatedJob: ServiceJob = {
-      ...targetJob,
-      updatedAt: new Date().toISOString(),
-    };
-    if (priorityNumber !== undefined) {
-      updatedJob.priorityNumber = priorityNumber;
-    } else {
-      delete updatedJob.priorityNumber;
-    }
-
-    authFetch(`/api/jobs/${jobId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priorityNumber: priorityNumber === undefined ? null : priorityNumber, updatedAt: updatedJob.updatedAt }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to update priority ranking');
-        return res.json();
-      })
-      .then((savedJob) => {
-        setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
-      })
-      .catch((err) => {
-        alert(err.message || 'Failed to update priority. Please check your connection.');
-      });
+    submitJobUpdate(
+      jobId,
+      { priorityNumber: priorityNumber === undefined ? null : priorityNumber },
+      `${targetJob.customerName}: priority ${priorityNumber ?? 'cleared'}`,
+      'Failed to update priority.'
+    ).catch(() => {});
   };
 
   // Delete customer job and log reason
   const handleDeleteJob = (jobId: string, reason: string) => {
-    authFetch(`/api/jobs/${jobId}`, {
+    const targetJob = jobs.find((j) => j.id === jobId);
+    submitChange({
+      kind: 'job.delete',
       method: 'DELETE',
-      headers: { 
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ reason }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to delete job');
-        return res.json();
-      })
-      .then(() => {
-        setJobs((prev) => prev.filter((j) => j.id !== jobId));
-        fetchActivityLogs();
-      })
-      .catch((err) => {
-        alert(err.message || 'Failed to delete job. Please check your connection.');
-      });
+      url: `/api/jobs/${encodeURIComponent(jobId)}`,
+      entityId: jobId,
+      body: { reason },
+      label: `Delete ticket: ${targetJob?.customerName || jobId}`,
+    }).catch((err) => reportRejected(err, 'Failed to delete job.'));
   };
 
   // Edit job details
   const handleEditJob = (jobId: string, updatedJobData: any) => {
-    authFetch(`/api/jobs/${jobId}`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(updatedJobData),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to edit job');
-        return res.json();
-      })
-      .then((savedJob) => {
-        setJobs((prev) => prev.map((j) => (j.id === jobId ? savedJob : j)));
-        fetchActivityLogs();
-      })
-      .catch((err) => {
-        alert(err.message || 'Failed to edit job. Please check your connection.');
-      });
+    const targetJob = jobs.find((j) => j.id === jobId);
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, editHistory: _history, _id: _mongoId, __v: _v, ...fields } =
+      updatedJobData || {};
+    submitJobUpdate(jobId, fields, `Edit ticket: ${targetJob?.customerName || jobId}`, 'Failed to edit job.').catch(() => {});
   };
 
   // Completely clean dataset of all legacy/mock jobs and invoices
@@ -906,51 +936,44 @@ export default function App() {
   // Save invoice
   const handleSaveInvoice = (invoiceDetails: Omit<Invoice, 'id' | 'createdTime'>) => {
     if (!invoiceWizardJob) return;
+    const job = invoiceWizardJob;
 
-    const nextInvIdNum = invoices.length + 501 + Math.floor(Math.random() * 900);
+    const invoiceId = generateId(`INV-${new Date().getFullYear()}-`);
     const newInvoice: Invoice = {
       ...invoiceDetails,
-      id: `INV-2026-${nextInvIdNum}`,
+      id: invoiceId,
       createdTime: new Date().toISOString(),
     };
 
-    authFetch('/api/invoices', {
+    // Both are queued together; the job link is skipped automatically if the invoice is rejected.
+    const invoiceResult = submitChange({
+      kind: 'invoice.create',
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newInvoice),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to save invoice');
-        return res.json();
-      })
-      .then((savedInvoice) => {
-        setInvoices((prev) => [savedInvoice, ...prev]);
+      url: '/api/invoices',
+      entityId: invoiceId,
+      body: newInvoice,
+      label: `Invoice for ${newInvoice.customerName}`,
+    });
+    const linkResult = submitChange({
+      kind: 'job.update',
+      method: 'PUT',
+      url: `/api/jobs/${encodeURIComponent(job.id)}`,
+      entityId: job.id,
+      body: { status: 'Completed', invoiceId },
+      label: `${job.customerName}: link invoice ${invoiceId}`,
+    });
 
-        // Link invoice key to job and lock job
-        const updatedJobFields = {
-          status: 'Completed' as JobStatus,
-          invoiceId: savedInvoice.id,
-          updatedAt: new Date().toISOString(),
-        };
-
-        return authFetch(`/api/jobs/${invoiceWizardJob.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedJobFields),
-        })
-          .then((res) => {
-            if (!res.ok) throw new Error('Failed to update job reference');
-            return res.json();
-          })
-          .then((updatedJob) => {
-            setJobs((prev) => prev.map((j) => (j.id === invoiceWizardJob.id ? updatedJob : j)));
-            setInvoiceWizardJob(null);
-            setViewingInvoice(savedInvoice);
-          });
-      })
-      .catch((err) => {
-        alert(err.message || 'Failed to process invoice payment online. Please check your connection.');
-      });
+    Promise.allSettled([invoiceResult, linkResult]).then(([inv, link]) => {
+      if (inv.status === 'rejected') {
+        reportRejected(inv.reason, 'Failed to save invoice.');
+        return;
+      }
+      if (link.status === 'rejected') {
+        reportRejected(link.reason, 'Invoice saved, but linking it to the job failed.');
+      }
+      setInvoiceWizardJob(null);
+      setViewingInvoice(newInvoice);
+    });
   };
 
   const handleOpenStatusFilterFromDashboard = (filter: string) => {
@@ -1157,7 +1180,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={handleUserLogout}
               className="flex-1 inline-flex items-center justify-center gap-1.5 border border-white/10 hover:border-rose-500/30 hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 text-xs font-bold py-2 px-3 rounded-lg transition-all cursor-pointer active:scale-95"
             >
               <LogOut className="h-3.5 w-3.5" /> Log Out
@@ -1220,6 +1243,18 @@ export default function App() {
 
             {/* Quick Action Buttons */}
             <div className="flex items-center gap-2.5">
+
+              <SyncStatus
+                isOnline={sync.isOnline}
+                isSyncing={sync.isSyncing}
+                authBlocked={sync.authBlocked}
+                pendingOps={sync.pendingOps}
+                failedOps={sync.failedOps}
+                lastSyncedAt={sync.lastSyncedAt}
+                onSyncNow={() => void sync.flush()}
+                onRetry={sync.retryFailed}
+                onDiscard={sync.discardFailed}
+              />
               
               {/* User Identity - Hidden in lg sidebar format but visible in md size header */}
               <div className="text-right hidden sm:block lg:hidden select-none">
@@ -1267,7 +1302,7 @@ export default function App() {
                 )}
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={handleUserLogout}
                   className="text-xs text-slate-300 hover:text-rose-400 border border-white/10 rounded-xl p-2.5 transition-all bg-white/5 cursor-pointer hover:bg-rose-950/20"
                   title="Log Out Session"
                 >
@@ -1604,10 +1639,10 @@ export default function App() {
                   {activeTab === 'inventory' && currentUser && (
                     <Inventory
                       currentUser={currentUser}
-                      authFetch={authFetch}
+                      submitChange={submitChange}
                       inventoryItems={inventoryItems}
                       inventoryLogs={inventoryLogs}
-                      inventoryCategories={inventoryCategories}
+                      inventoryCategories={displayedInventoryCategories}
                       inventorySubTab={inventorySubTab}
                       setInventorySubTab={setInventorySubTab}
                       fetchInventoryData={fetchInventoryData}
@@ -1805,7 +1840,7 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setIsMobileSidebarOpen(false);
-                      handleLogout();
+                      handleUserLogout();
                     }}
                     className="flex-1 inline-flex items-center justify-center gap-1.5 border border-white/10 hover:border-rose-500/30 hover:bg-rose-950/20 text-slate-400 hover:text-rose-400 text-xs font-bold py-2 px-3 rounded-lg transition-all cursor-pointer active:scale-95"
                   >
