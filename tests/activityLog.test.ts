@@ -3,7 +3,19 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ActivityLogView from '../src/components/ActivityLog.tsx';
-import { activityDateKey, activityDayLabel, filterActivityLogs } from '../src/lib/activityLog.ts';
+import {
+  DEFAULT_ACTIVITY_FILTERS,
+  activityActionCounts,
+  activityCsv,
+  activityDateKey,
+  activityDayLabel,
+  activityRelativeTime,
+  activitySummary,
+  activityUsernames,
+  filterActivityLogs,
+  loadActivityFilters,
+  saveActivityFilters,
+} from '../src/lib/activityLog.ts';
 import { ActivityLog } from '../src/types.ts';
 import { changedJobFields } from '../api/activity.ts';
 
@@ -53,6 +65,47 @@ test('date filters use inclusive Yangon calendar days and exclude invalid or fut
   assert.deepEqual(filterActivityLogs(logs, '', '', '30days', now).map((log) => log.id), ['today', 'yesterday', 'seven-day-boundary', 'outside-seven', 'thirty-day-boundary']);
 });
 
+test('filters by user and only-mine scope', () => {
+  const logs = [
+    entry('ko', '2026-11-14T10:00:00Z', { username: 'Ko Min' }),
+    entry('aye', '2026-11-14T11:00:00Z', { username: 'Aye Chan' }),
+  ];
+  assert.deepEqual(filterActivityLogs(logs, '', '', 'all', now, { username: 'Ko Min' }).map((log) => log.id), ['ko']);
+  assert.deepEqual(filterActivityLogs(logs, '', '', 'all', now, { onlyMine: true, currentUsername: 'Aye Chan' }).map((log) => log.id), ['aye']);
+  assert.equal(filterActivityLogs(logs, '', '', 'all', now, { onlyMine: true }).length, 2);
+  assert.deepEqual(activityUsernames(logs), ['Aye Chan', 'Ko Min']);
+});
+
+test('derives action counts, summary tiles, relative times and CSV export', () => {
+  const logs = [
+    entry('a', '2026-11-14T17:30:00Z', { actionType: 'Completed', username: 'Ko Min', jobId: 'JOB-1', details: 'Said "hi", done' }),
+    entry('b', '2026-11-14T16:00:00Z', { actionType: 'Updated', username: 'Aye Chan', jobId: 'JOB-2' }),
+    entry('c', '2026-11-10T03:00:00Z', { actionType: 'Updated', username: 'Ko Min', jobId: 'JOB-1' }),
+    entry('invalid', 'invalid', { actionType: 'Cancelled', jobId: '' }),
+  ];
+  assert.deepEqual(activityActionCounts(logs), [
+    { action: 'Updated', count: 2 },
+    { action: 'Canceled', count: 1 },
+    { action: 'Completed', count: 1 },
+  ]);
+  assert.deepEqual(activitySummary(logs, now), { today: 1, week: 3, tickets: 2, contributors: 2 });
+  assert.equal(activityRelativeTime('2026-11-14T17:30:00Z', new Date('2026-11-14T18:00:00Z')), '30m ago');
+  assert.equal(activityRelativeTime('2026-11-14T16:00:00Z', new Date('2026-11-14T18:00:00Z')), '2h ago');
+  assert.equal(activityRelativeTime('2026-11-10T03:00:00Z', new Date('2026-11-14T18:00:00Z')), '4d ago');
+  assert.equal(activityRelativeTime('2026-11-14T17:59:30Z', new Date('2026-11-14T18:00:00Z')), 'Just now');
+  assert.equal(activityRelativeTime('invalid', new Date('2026-11-14T18:00:00Z')), 'Unknown time');
+  const csv = activityCsv([logs[0]]);
+  assert.match(csv, /^Timestamp,Action,Ticket,Customer,Device,User,Details/);
+  assert.ok(csv.includes('"Completed"'));
+  assert.ok(csv.includes('"Said ""hi"", done"'));
+  assert.ok(activityCsv([entry('formula', '2026-11-14T17:30:00Z', { details: '=HYPERLINK("https://example.com")' })]).includes('"\'=HYPERLINK(""https://example.com"")"'));
+});
+
+test('stored filters fall back to defaults when storage is unavailable', () => {
+  assert.deepEqual(loadActivityFilters(), DEFAULT_ACTIVITY_FILTERS);
+  assert.doesNotThrow(() => saveActivityFilters(DEFAULT_ACTIVITY_FILTERS));
+});
+
 test('the feed distinguishes empty, offline, and failed states while retaining saved activity', () => {
   const props = { logs: [], loading: false, error: false, isOnline: true, lastUpdated: null, pendingCount: 0, onRefresh: () => {} };
   const empty = renderToStaticMarkup(React.createElement(ActivityLogView, props));
@@ -63,4 +116,19 @@ test('the feed distinguishes empty, offline, and failed states while retaining s
   const failed = renderToStaticMarkup(React.createElement(ActivityLogView, { ...props, error: true, logs: [entry('saved', now.toISOString())] }));
   assert.match(failed, /Could not refresh activity/);
   assert.match(failed, /Replaced battery/);
+});
+
+test('the feed exposes ticket opening, export, summary and scoped filters', () => {
+  const props = {
+    logs: [entry('linked', now.toISOString())],
+    loading: false, error: false, isOnline: true, lastUpdated: null, pendingCount: 0,
+    onRefresh: () => {}, currentUsername: 'Ko Min', onOpenJob: () => {},
+  };
+  const html = renderToStaticMarkup(React.createElement(ActivityLogView, props));
+  assert.match(html, /Tickets touched/);
+  assert.match(html, /Open ticket JOB-123/);
+  assert.match(html, /Only me/);
+  assert.match(html, /Export/);
+  assert.match(html, /Completed|Updated/);
+  assert.match(html, /Show more|1 event/);
 });

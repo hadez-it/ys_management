@@ -361,6 +361,7 @@ export default function App() {
   // Routing and interactive view triggers
   const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'deleted' | 'users' | 'inventory'>('dashboard');
   const [lastServiceTab, setLastServiceTab] = useState<'dashboard' | 'queue' | 'deleted' | 'users'>('dashboard');
+  const [focusJobId, setFocusJobId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -1034,6 +1035,15 @@ export default function App() {
     }
   };
 
+  // Jump from an activity log entry to its ticket in the service queue
+  const handleOpenJobFromActivity = (jobId: string): boolean => {
+    if (!jobs.some((job) => job.id === jobId)) return false;
+    setStatusFilter('All');
+    setActiveTab('queue');
+    setFocusJobId(jobId);
+    return true;
+  };
+
   if (!currentUser && sessionRestoring) {
     return (
       <div className="min-h-screen bg-[#050e12] flex flex-col items-center justify-center gap-4 font-sans select-none" id="session-restore-screen">
@@ -1496,6 +1506,8 @@ export default function App() {
                           onEditJob={handleEditJob}
                           currentUser={currentUser || undefined}
                           statusFilter={statusFilter}
+                          focusJobId={focusJobId}
+                          onFocusJobHandled={() => setFocusJobId(null)}
                         />
                       )}
                     </div>
@@ -1510,6 +1522,8 @@ export default function App() {
                       lastUpdated={activityLastUpdated}
                       pendingCount={pendingOps.filter((op) => op.kind.startsWith('job.')).length}
                       onRefresh={() => { fetchActivityLogsCached().catch(() => {}); }}
+                      currentUsername={currentUser?.username}
+                      onOpenJob={handleOpenJobFromActivity}
                     />
                   )}
 

@@ -40,9 +40,11 @@ interface JobListProps {
   onEditJob?: (jobId: string, updatedJobData: any) => void;
   currentUser?: User;
   statusFilter?: string;
+  focusJobId?: string | null;
+  onFocusJobHandled?: () => void;
 }
 
-export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, onOpenInvoiceWizard, onViewInvoice, onDeleteJob, onEditJob, currentUser, statusFilter }: JobListProps) {
+export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, onOpenInvoiceWizard, onViewInvoice, onDeleteJob, onEditJob, currentUser, statusFilter, focusJobId, onFocusJobHandled }: JobListProps) {
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,6 +144,23 @@ export default function JobList({ jobs, onUpdateJobStatus, onUpdateJobPriority, 
   // Edit ticket interactive states
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [showWorkflow, setShowWorkflow] = useState(false);
+
+  // Open a specific ticket when navigating in from the activity log
+  React.useEffect(() => {
+    if (!focusJobId) return;
+    const job = jobs.find((item) => item.id === focusJobId);
+    if (!job) {
+      onFocusJobHandled?.();
+      return;
+    }
+    setSelectedJobId(focusJobId);
+    setIsModalOpen(true);
+    setShowWorkflow(false);
+    if (job.status === 'Completed' || job.status === 'Cancelled') setActiveTab('completed');
+    else if (job.status === 'Repairing' || job.status === 'ServiceInProgress') setActiveTab('repairing');
+    else setActiveTab('upcoming');
+    onFocusJobHandled?.();
+  }, [focusJobId, jobs, onFocusJobHandled]);
 
   // Lock body touch track/scroll when modal is active
   React.useEffect(() => {

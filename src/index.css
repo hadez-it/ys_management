@@ -147,6 +147,21 @@ body.modal-open main {
   animation: driftSlow3 18s infinite alternate ease-in-out;
 }
 
+@keyframes activitySheetIn {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-activity-sheet {
+  animation: activitySheetIn 0.24s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-activity-sheet {
+    animation: none;
+  }
+}
+
 /* Custom interactive modern scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
