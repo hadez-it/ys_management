@@ -62,7 +62,7 @@ export default function SyncStatus({
   }
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="lg:relative" ref={panelRef}>
       <button
         type="button"
         id="sync-status-btn"
@@ -76,7 +76,7 @@ export default function SyncStatus({
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[90vw] z-50 rounded-2xl border border-white/10 bg-slate-950/95 backdrop-blur-xl shadow-2xl p-4 text-left text-xs text-slate-300 space-y-3">
+        <div className="absolute right-4 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto lg:right-0 z-50 rounded-2xl border border-white/10 bg-slate-950/95 backdrop-blur-xl shadow-2xl p-4 text-left text-xs text-slate-300 space-y-3">
           <div className="flex items-center justify-between">
             <span className="font-extrabold uppercase tracking-wider text-white text-[11px]">
               {isOnline ? 'Online' : 'Offline — changes are saved on this device'}

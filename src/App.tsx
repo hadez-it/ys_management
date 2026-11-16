@@ -44,6 +44,7 @@ import InvoiceView from './components/InvoiceView.tsx';
 import Login from './components/Login.tsx';
 import UserManagement from './components/UserManagement.tsx';
 import Inventory from './components/Inventory.tsx';
+import ActivityLogView from './components/ActivityLog.tsx';
 
 // Saved sessions last 7 days and are silently refreshed while the app stays in use
 const SESSION_HEARTBEAT_MS = 60 * 60 * 1000; // check/renew the session once an hour
@@ -74,6 +75,9 @@ export default function App() {
       return false;
     }
   });
+  const activityRequestRef = useRef(0);
+  const activityUserRef = useRef(currentUser);
+  activityUserRef.current = currentUser;
 
   const handleLoginSuccess = (user: User) => {
     const profile = toCachedUserProfile(user);
@@ -84,6 +88,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    activityRequestRef.current += 1;
     setCurrentUser(null);
     setInvoiceWizardJob(null);
     setViewingInvoice(null);
@@ -114,6 +119,7 @@ export default function App() {
         if (res.status === 401 || res.status === 403) {
           // Session expired or was revoked server-side -> clear session cache and return to login
           if (cancelled) return;
+          activityRequestRef.current += 1;
           localCache.clearSessionCache();
           setCurrentUser(null);
           setJobs([]);
@@ -202,11 +208,15 @@ export default function App() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
     try {
       const cached = localStorage.getItem('ys_cached_activity_logs');
-      return cached ? JSON.parse(cached) : [];
+      const parsed = cached ? JSON.parse(cached) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
   });
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState(false);
+  const [activityLastUpdated, setActivityLastUpdated] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState<boolean>(() => {
     try {
       const hasJobs = localStorage.getItem('ys_cached_jobs');
@@ -626,24 +636,57 @@ export default function App() {
       });
   };
 
-  const fetchActivityLogsCached = () => {
+  const fetchActivityLogsCached = async () => {
     const role = currentUser?.role;
-    if (role !== 'admin' && role !== 'coordinator') return Promise.resolve();
-    return authFetch('/api/activity-logs')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        const logsArray = Array.isArray(data) ? data : [];
-        setActivityLogs(logsArray);
-        try {
-          localStorage.setItem('ys_cached_activity_logs', JSON.stringify(logsArray));
-        } catch (e) {
-          console.error(e);
-        }
-      });
+    const userId = currentUser?.id;
+    if (!userId || (role !== 'admin' && role !== 'coordinator')) return;
+    const requestId = ++activityRequestRef.current;
+    const versionAtStart = snapshotVersionRef.current;
+    const isCurrent = () => requestId === activityRequestRef.current &&
+      activityUserRef.current?.id === userId && activityUserRef.current?.role === role;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    setActivityLoading(true);
+    try {
+      const res = await fetch('/api/activity-logs', { credentials: 'include', signal: controller.signal });
+      if ((res.status === 401 || res.status === 403) && isCurrent()) handleLogout();
+      if (!res.ok) throw new Error('Activity request failed');
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error('Invalid activity response');
+      if (!isCurrent() || versionAtStart !== snapshotVersionRef.current) return;
+      setActivityLogs(data);
+      setActivityError(false);
+      setActivityLastUpdated(new Date().toISOString());
+      try {
+        localStorage.setItem('ys_cached_activity_logs', JSON.stringify(data));
+      } catch (err) {
+        console.error(err);
+      }
+    } catch (err) {
+      if (isCurrent()) setActivityError(true);
+      throw err;
+    } finally {
+      window.clearTimeout(timeout);
+      if (isCurrent()) setActivityLoading(false);
+    }
   };
+
+  useEffect(() => {
+    if (activeTab !== 'deleted' || currentUser?.role !== 'admin' || !sync.isOnline) return;
+    const refresh = () => fetchActivityLogsCached().catch(() => {});
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    refresh();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, 30000);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [activeTab, currentUser?.id, currentUser?.role, sync.isOnline]);
 
   // After queued changes reach the server, pull fresh data (activity logs, stock levels, etc.)
   refreshAfterSyncRef.current = () => {
@@ -688,6 +731,9 @@ export default function App() {
       setJobs([]);
       setInvoices([]);
       setActivityLogs([]);
+      setActivityLoading(false);
+      setActivityError(false);
+      setActivityLastUpdated(null);
       setDataLoading(false);
       return;
     }
@@ -852,12 +898,6 @@ export default function App() {
     }
 
     submitJobUpdate(jobId, updatePayload, `${targetJob.customerName}: status → ${status}`, 'Failed to update job.').catch(() => {});
-
-    if (status === 'Completed' && (currentUser?.role === 'admin' || currentUser?.role === 'coordinator' || currentUser?.role === 'senior_technician')) {
-      const optimisticJob = { ...targetJob, ...updatePayload } as ServiceJob;
-      delete optimisticJob.priorityNumber;
-      setInvoiceWizardJob(optimisticJob);
-    }
   };
 
   // Update priority ranking
@@ -909,9 +949,19 @@ export default function App() {
         return res.json();
       })
       .then(() => {
+        snapshotVersionRef.current += 1;
+        activityRequestRef.current += 1;
         setJobs([]);
         setInvoices([]);
         setActivityLogs([]);
+        setActivityLoading(false);
+        setActivityError(false);
+        setActivityLastUpdated(new Date().toISOString());
+        try {
+          localStorage.removeItem('ys_cached_activity_logs');
+        } catch (err) {
+          console.error(err);
+        }
         setShowDbStatusModal(false);
       })
       .catch((err) => {
@@ -1200,7 +1250,7 @@ export default function App() {
       <div className={`flex-1 flex flex-col h-screen overflow-hidden relative transition-all duration-300 ${isSidebarOpen ? 'lg:pl-64' : 'lg:pl-0'}`}>
         
         {/* RESPONSIVE FLUID HEADER */}
-        <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 z-20 shrink-0 select-none" id="shop-header">
+        <header className="relative bg-white/5 backdrop-blur-xl border-b border-white/10 z-20 shrink-0 select-none" id="shop-header">
           <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
             
             {/* Title / Mobile Brand */}
@@ -1452,94 +1502,15 @@ export default function App() {
                   )}
 
                   {activeTab === 'deleted' && (
-                    <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-5 md:p-6 shadow-2xl text-left space-y-5" id="deleted-list-tab-module">
-                      {/* Developer-style Console / Terminal container */}
-                      <div className="rounded-xl overflow-hidden border border-white/10 shadow-lg text-slate-200 font-mono text-[11px] md:text-xs">
-                        {/* Terminal Header */}
-                        <div className="bg-slate-900/80 px-4 py-2.5 flex items-center justify-between select-none border-b border-white/10">
-                          <div className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-[#ff5f56] inline-block shadow-inner" />
-                            <span className="w-3 h-3 rounded-full bg-[#ffbd2e] inline-block shadow-inner" />
-                            <span className="w-3 h-3 rounded-full bg-[#27c93f] inline-block shadow-inner" />
-                            <span className="text-slate-400 text-[11px] font-semibold pl-2 tracking-wide font-mono">system.log — bash</span>
-                          </div>
-                          <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-tight">Asia/Yangon Timezone</span>
-                        </div>
-
-                        {/* Terminal Log Output Body */}
-                        <div className="bg-slate-950/60 backdrop-blur-sm p-4 min-h-[350px] max-h-[550px] overflow-y-auto space-y-2 select-text custom-scrollbar">
-                          {dataLoading ? (
-                            <div className="space-y-3.5 animate-pulse">
-                              {[1, 2, 3, 4, 5, 6].map((i) => (
-                                <div key={i} className="flex gap-3">
-                                  <div className="h-4 bg-white/10 rounded-full w-24 shrink-0" />
-                                  <div className="h-4 bg-white/5 rounded-full w-12 shrink-0" />
-                                  <div className="h-4 bg-white/5 rounded-full w-16 shrink-0" />
-                                  <div className="h-4 bg-white/10 rounded-full w-full" />
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <>
-                              {activityLogs.map((log) => {
-                                const dateText = log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  second: '2-digit',
-                                  hour12: false,
-                                  timeZone: 'Asia/Yangon',
-                                }) : '-';
-                                
-                                let level = 'INFO';
-                                let levelColor = 'text-sky-400 font-bold';
-                                if (log.actionType === 'Deleted') {
-                                  level = 'FATAL';
-                                  levelColor = 'text-rose-500 font-semibold';
-                                } else if (log.actionType === 'Canceled' || log.actionType === 'Cancelled') {
-                                  level = 'WARN ';
-                                  levelColor = 'text-amber-500 font-semibold';
-                                } else if (log.actionType === 'Completed') {
-                                  level = 'DONE ';
-                                  levelColor = 'text-emerald-400 font-semibold';
-                                } else if (log.actionType === 'Created') {
-                                  level = 'NEW  ';
-                                  levelColor = 'text-lime-400 font-semibold';
-                                }
-
-                                return (
-                                  <div key={log.id || ('log-' + Math.random())} className="hover:bg-slate-900/60 py-0.5 px-2 rounded-md flex flex-col md:flex-row md:items-start gap-1 select-text transition-colors duration-150">
-                                    <span className="text-slate-500 shrink-0 font-medium">[{dateText}]</span>
-                                    <span className={`shrink-0 ${levelColor}`}>[{level}]</span>
-                                    <span className="text-teal-400 shrink-0">@{log.username || 'system'}</span>
-                                    <div className="flex-1 md:pl-1 text-slate-300">
-                                      <span className="text-zinc-400 font-medium uppercase text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800/40 mr-1.5 shrink-0 inline-block align-middle">{log.actionType}</span>
-                                      <span className="text-amber-300 font-bold mr-1.5">[TICKET #{log.jobId}]</span>
-                                      {log.customerName && (
-                                        <span className="text-slate-100 font-semibold mr-1">
-                                          {log.customerName} ({log.deviceType || 'Device'}) &raquo;
-                                        </span>
-                                      )}
-                                      <span className="text-slate-400 font-normal italic select-text pl-1">
-                                        {log.details || 'No additional activity notes provided.'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-
-                              {activityLogs.length === 0 && (
-                                <div className="py-20 text-center text-slate-500 italic select-none">
-                                  $ tail -n 100 activity.log<br />
-                                  <span className="text-slate-600">No logs found in registry. Performing actions on tickets will populate live audit logs here.</span>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <ActivityLogView
+                      logs={activityLogs}
+                      loading={activityLoading}
+                      error={activityError}
+                      isOnline={sync.isOnline}
+                      lastUpdated={activityLastUpdated}
+                      pendingCount={pendingOps.filter((op) => op.kind.startsWith('job.')).length}
+                      onRefresh={() => { fetchActivityLogsCached().catch(() => {}); }}
+                    />
                   )}
 
                   {activeTab === 'users' && (

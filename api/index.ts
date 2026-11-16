@@ -7,6 +7,7 @@ import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import bcrypt from "bcryptjs";
 import { GoogleGenAI, Type } from "@google/genai";
+import { changedJobFields } from "./activity";
 
 // Load configuration
 dotenv.config();
@@ -1321,6 +1322,7 @@ app.put("/api/jobs/:id", requireRole("admin", "coordinator", "senior_technician"
     const operator = (req as any).user.username;
     const oldStatus = jobToEdit.status;
     const newStatus = fieldsToUpdate.status;
+    const changedFields = changedJobFields(jobToEdit.toObject(), fieldsToUpdate);
 
     if (newStatus && oldStatus !== newStatus) {
       let activityType = "Updated";
@@ -1333,14 +1335,17 @@ app.put("/api/jobs/:id", requireRole("admin", "coordinator", "senior_technician"
         detailString = `Service Ticket canceled. Remark/Reason: ${fieldsToUpdate.remarks || jobToEdit.remarks || "No reason given"}`;
       } else {
         activityType = "Updated Status";
-        detailString = `Status updated to ${newStatus}. Assigned tech: ${fieldsToUpdate.technicianName || jobToEdit.technicianName || "None"}.`;
+        detailString = `Status changed from ${oldStatus} to ${newStatus}. Assigned tech: ${fieldsToUpdate.technicianName || jobToEdit.technicianName || "None"}.`;
       }
+      const otherChanges = changedFields.filter((field) => field !== "Status");
+      if (otherChanges.length) detailString += ` Changed: ${otherChanges.join(", ")}.`;
+      if (editReason) detailString += ` Reason: ${editReason}`;
 
       await logActivity({
         actionType: activityType,
         jobId: jobToEdit.id,
-        customerName: jobToEdit.customerName,
-        deviceType: jobToEdit.deviceType,
+        customerName: fieldsToUpdate.customerName ?? jobToEdit.customerName,
+        deviceType: fieldsToUpdate.deviceType ?? jobToEdit.deviceType,
         username: String(operator),
         details: detailString
       });
@@ -1348,10 +1353,11 @@ app.put("/api/jobs/:id", requireRole("admin", "coordinator", "senior_technician"
       await logActivity({
         actionType: "Updated",
         jobId: jobToEdit.id,
-        customerName: jobToEdit.customerName,
-        deviceType: jobToEdit.deviceType,
+        customerName: fieldsToUpdate.customerName ?? jobToEdit.customerName,
+        deviceType: fieldsToUpdate.deviceType ?? jobToEdit.deviceType,
         username: String(operator),
-        details: editReason ? `Ticket details updated. Reason: ${editReason}` : "Ticket general information modified."
+        details: (changedFields.length ? `Updated: ${changedFields.join(", ")}.` : "No ticket fields changed.") +
+          (editReason ? ` Reason: ${editReason}` : "")
       });
     }
 
