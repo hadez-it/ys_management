@@ -45,9 +45,27 @@ import Login from './components/Login.tsx';
 import UserManagement from './components/UserManagement.tsx';
 import Inventory from './components/Inventory.tsx';
 import ActivityLogView from './components/ActivityLog.tsx';
+import SettingsView, { UI_SCALE_DEFAULT, UI_SCALE_MAX, UI_SCALE_MIN } from './components/SettingsView.tsx';
 
 // Saved sessions last 7 days and are silently refreshed while the app stays in use
 const SESSION_HEARTBEAT_MS = 60 * 60 * 1000; // check/renew the session once an hour
+
+// UI scale lives on the device (outside the session cache) so it survives logout.
+const UI_SCALE_STORAGE_KEY = 'ys_ui_scale';
+
+function clampUiScale(value: number): number {
+  if (!Number.isFinite(value)) return UI_SCALE_DEFAULT;
+  return Math.min(UI_SCALE_MAX, Math.max(UI_SCALE_MIN, Math.round(value / 5) * 5));
+}
+
+function readStoredUiScale(): number {
+  try {
+    const stored = localStorage.getItem(UI_SCALE_STORAGE_KEY);
+    return stored === null ? UI_SCALE_DEFAULT : clampUiScale(Number(stored));
+  } catch (_) {
+    return UI_SCALE_DEFAULT;
+  }
+}
 
 function toCachedUserProfile(user: User): User {
   return {
@@ -359,11 +377,22 @@ export default function App() {
   };
 
   // Routing and interactive view triggers
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'deleted' | 'users' | 'inventory'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'queue' | 'deleted' | 'users' | 'inventory' | 'settings'>('dashboard');
   const [lastServiceTab, setLastServiceTab] = useState<'dashboard' | 'queue' | 'deleted' | 'users'>('dashboard');
   const [focusJobId, setFocusJobId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Interface scale preference (percent). The root font size drives every rem-based
+  // Tailwind size, so the whole layout scales without touching fixed-position layers.
+  const [uiScale, setUiScale] = useState<number>(readStoredUiScale);
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${(16 * uiScale) / 100}px`;
+    try {
+      localStorage.setItem(UI_SCALE_STORAGE_KEY, String(uiScale));
+    } catch (_) {}
+  }, [uiScale]);
 
   // Pull-to-refresh for Fullscreen PWA mobile device
   const mainRef = React.useRef<HTMLElement | null>(null);
@@ -456,7 +485,7 @@ export default function App() {
       lastStateRef.current = currState;
     }
 
-    if (activeTab !== 'inventory') {
+    if (activeTab !== 'inventory' && activeTab !== 'settings') {
       setLastServiceTab(activeTab as any);
     }
   }, [activeTab, inventorySubTab]);
@@ -1080,7 +1109,7 @@ export default function App() {
   });
 
   const renderNavItems = (onItemClick?: () => void) => {
-    const isServiceActive = activeTab !== 'inventory';
+    const isServiceActive = activeTab !== 'inventory' && activeTab !== 'settings';
     return (
       <div className="space-y-3">
         {/* Category 1: Service */}
@@ -1124,6 +1153,29 @@ export default function App() {
             <div className="flex items-center gap-2.5">
               <Package className="h-4 w-4 shrink-0 text-teal-400" />
               <span>Inventory</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-slate-450 opacity-60" />
+          </button>
+        </div>
+
+        {/* Category 3: Settings */}
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('settings');
+              setInvoiceWizardJob(null);
+              if (onItemClick) onItemClick();
+            }}
+            className={`w-full flex items-center justify-between px-3.5 py-3.5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-200 cursor-pointer active:scale-97 text-left outline-none ${
+              activeTab === 'settings'
+                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/25 shadow-[0_0_12px_rgba(20,184,166,0.15)] font-bold'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Settings className="h-4 w-4 shrink-0 text-teal-400" />
+              <span>Settings</span>
             </div>
             <ChevronRight className="h-4 w-4 text-slate-450 opacity-60" />
           </button>
@@ -1285,7 +1337,8 @@ export default function App() {
                   {activeTab === 'dashboard' ? 'Overview Stats' :
                    activeTab === 'queue' ? 'Dispatching Queue' :
                    activeTab === 'deleted' ? 'Activity Log History' :
-                   activeTab === 'inventory' ? 'Inventory Center' : 'Team Directory'}
+                   activeTab === 'inventory' ? 'Inventory Center' :
+                   activeTab === 'settings' ? 'Settings & Preferences' : 'Team Directory'}
                 </h2>
                 <p className="text-[10px] text-teal-400 font-bold tracking-wider uppercase hidden sm:block">
                   YS SVC Dispatch Hub
@@ -1544,6 +1597,13 @@ export default function App() {
                       inventoryLoading={inventoryLoading}
                       isAddInventoryOpen={isAddInventoryOpen}
                       setIsAddInventoryOpen={setIsAddInventoryOpen}
+                    />
+                  )}
+
+                  {activeTab === 'settings' && (
+                    <SettingsView
+                      uiScale={uiScale}
+                      onUiScaleChange={(value) => setUiScale(clampUiScale(value))}
                     />
                   )}
                 </motion.div>
