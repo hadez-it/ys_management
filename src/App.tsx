@@ -1572,9 +1572,7 @@ export default function App() {
                       loading={activityLoading}
                       error={activityError}
                       isOnline={sync.isOnline}
-                      lastUpdated={activityLastUpdated}
                       pendingCount={pendingOps.filter((op) => op.kind.startsWith('job.')).length}
-                      onRefresh={() => { fetchActivityLogsCached().catch(() => {}); }}
                       currentUsername={currentUser?.username}
                       onOpenJob={handleOpenJobFromActivity}
                     />

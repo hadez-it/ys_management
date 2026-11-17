@@ -6,12 +6,10 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  Clock3,
   Download,
   History,
   Layers,
   Plus,
-  RefreshCw,
   Rows3,
   Rows4,
   Search,
@@ -47,9 +45,7 @@ interface ActivityLogProps {
   loading: boolean;
   error: boolean;
   isOnline: boolean;
-  lastUpdated: string | null;
   pendingCount: number;
-  onRefresh: () => void;
   currentUsername?: string;
   onOpenJob?: (jobId: string) => boolean;
 }
@@ -102,7 +98,7 @@ function PeriodControl({ value, onChange, fullWidth = false }: { value: Activity
   );
 }
 
-export default function ActivityLog({ logs, loading, error, isOnline, lastUpdated, pendingCount, onRefresh, currentUsername, onOpenJob }: ActivityLogProps) {
+export default function ActivityLog({ logs, loading, error, isOnline, pendingCount, currentUsername, onOpenJob }: ActivityLogProps) {
   const [filters, setFilters] = useState<ActivityFilters>(loadActivityFilters);
   const { search, action, period, username, onlyMine, density } = filters;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -221,30 +217,6 @@ export default function ActivityLog({ logs, loading, error, isOnline, lastUpdate
 
   return (
     <section ref={topRef} id="deleted-list-tab-module" className="space-y-5 text-left">
-      <div className="rounded-3xl border border-white/10 bg-slate-900/50 p-5 sm:p-7 shadow-xl">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-teal-400/20 bg-teal-500/10 text-teal-300">
-              <History className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-400">Service history</p>
-              <h2 className="mt-1 text-xl font-bold tracking-tight text-white sm:text-2xl">Activity log</h2>
-              <p className="mt-1 text-sm text-slate-400">Track changes to service tickets, who made them, and when. Select an event to open its ticket.</p>
-            </div>
-          </div>
-          <button type="button" onClick={onRefresh} disabled={!isOnline || loading} className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-slate-200 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 disabled:cursor-not-allowed disabled:opacity-50">
-            <RefreshCw className={'h-4 w-4 ' + (loading ? 'animate-spin' : '')} aria-hidden="true" />
-            {loading ? 'Refreshing' : 'Refresh'}
-          </button>
-        </div>
-        <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/5 pt-4 text-xs text-slate-400" role="status">
-          <span className="inline-flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" aria-hidden="true" />Times in Yangon</span>
-          <span>Most recent 1,000 ticket events</span>
-          {lastUpdated && <span>Updated {new Date(lastUpdated).toLocaleTimeString('en-US', { timeZone: 'Asia/Yangon', hour: 'numeric', minute: '2-digit' })}</span>}
-        </div>
-      </div>
-
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           { label: 'Events today', value: summary.today, icon: CalendarDays, accent: 'text-teal-300' },
@@ -419,7 +391,7 @@ export default function ActivityLog({ logs, loading, error, isOnline, lastUpdate
         <div className="rounded-3xl border border-white/10 bg-slate-900/40 px-5 py-14 text-center">
           <History className="mx-auto h-8 w-8 text-slate-500" aria-hidden="true" />
           <h3 className="mt-4 font-semibold text-slate-200">{hasFilters ? 'No matching activity' : error || !isOnline ? 'Activity is unavailable' : 'No activity yet'}</h3>
-          <p className="mt-1 text-sm text-slate-400">{hasFilters ? 'Try a different search or filter.' : error || !isOnline ? 'Refresh when the connection is available.' : 'Ticket changes will appear here as they happen.'}</p>
+          <p className="mt-1 text-sm text-slate-400">{hasFilters ? 'Try a different search or filter.' : error || !isOnline ? 'It will load automatically when the connection is available.' : 'Ticket changes will appear here as they happen.'}</p>
           {hasFilters && <button type="button" onClick={clearFilters} className="mt-4 text-sm font-semibold text-teal-300 hover:text-teal-200">Clear filters</button>}
         </div>
       ) : (
